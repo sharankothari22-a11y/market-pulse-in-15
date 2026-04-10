@@ -1,34 +1,167 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* Global Styles for Indian Markets Dashboard */
+
+/* Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #0a0e1a;
+  color: #f9fafb;
+  margin: 0;
+  padding: 0;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Outfit Font Class */
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
 }
 
-.App-link {
-    color: #61dafb;
+/* App Container */
+.app-container {
+  background-color: #0a0e1a;
+  min-height: 100vh;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+/* Dashboard Card */
+.dashboard-card {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.dashboard-card:hover {
+  background-color: #151c2c;
+}
+
+/* Metric Card */
+.metric-card {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: background-color 0.2s;
+}
+
+.metric-card:hover {
+  background-color: #1f2937;
+}
+
+/* Mini Card */
+.mini-card {
+  background-color: #0a0e1a;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+/* Mini Chart Placeholder */
+.mini-chart {
+  background-color: #0a0e1a;
+  border: 1px dashed #1f2937;
+  border-radius: 8px;
+}
+
+/* Data Table Wrapper */
+.data-table-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #1f2937 #0a0e1a;
+}
+
+.data-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.data-table-wrapper::-webkit-scrollbar-track {
+  background: #0a0e1a;
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 3px;
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Signal Feed Item */
+.signal-feed-item {
+  background-color: #111827;
+  border-radius: 0 8px 8px 0;
+  transition: background-color 0.2s;
+}
+
+.signal-feed-item:hover {
+  background-color: #1f2937;
+}
+
+/* Page Content */
+.page-content {
+  height: calc(100vh - 48px);
+  scrollbar-width: thin;
+  scrollbar-color: #1f2937 #0a0e1a;
+}
+
+.page-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.page-content::-webkit-scrollbar-track {
+  background: #0a0e1a;
+}
+
+.page-content::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+.page-content::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Sidebar */
+.sidebar {
+  z-index: 50;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Focus Styles */
+input:focus,
+button:focus {
+  outline: none;
+}
+
+/* Selection */
+::selection {
+  background-color: #3b82f6;
+  color: #f9fafb;
+}
+
+/* Disable text selection on sidebar */
+.sidebar {
+  user-select: none;
+}
+
+/* Typography utilities */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
 }
