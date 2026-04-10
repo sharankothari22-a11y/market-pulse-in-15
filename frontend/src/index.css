@@ -5,13 +5,28 @@
 /* Font Import */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
+/* CSS Variables for Light Theme */
+:root {
+  --bg-primary: #ffffff;
+  --bg-surface: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --border-color: #e5e7eb;
+  --accent-primary: #2563eb;
+  --color-positive: #16a34a;
+  --color-negative: #dc2626;
+  --color-warning: #d97706;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --radius: 8px;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0a0e1a;
-  color: #f9fafb;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 code {
@@ -20,33 +35,33 @@ code {
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 210 40% 98%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
     --radius: 0.5rem;
     
     /* Chart colors */
-    --chart-1: 217 91% 60%;
-    --chart-2: 160 84% 39%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 43 96% 56%;
-    --chart-5: 215 20% 65%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 0 72% 51%;
+    --chart-4: 32 95% 44%;
+    --chart-5: 215 16% 47%;
   }
 }
 
@@ -62,32 +77,6 @@ code {
 @layer base {
   [data-debug-wrapper="true"] {
     display: contents !important;
-  }
-
-  [data-debug-wrapper="true"] > * {
-    margin-left: inherit;
-    margin-right: inherit;
-    margin-top: inherit;
-    margin-bottom: inherit;
-    padding-left: inherit;
-    padding-right: inherit;
-    padding-top: inherit;
-    padding-bottom: inherit;
-    column-gap: inherit;
-    row-gap: inherit;
-    gap: inherit;
-    border-left-width: inherit;
-    border-right-width: inherit;
-    border-top-width: inherit;
-    border-bottom-width: inherit;
-    border-left-style: inherit;
-    border-right-style: inherit;
-    border-top-style: inherit;
-    border-bottom-style: inherit;
-    border-left-color: inherit;
-    border-right-color: inherit;
-    border-top-color: inherit;
-    border-bottom-color: inherit;
   }
 }
 

@@ -22,7 +22,7 @@ const filterSignals = (signals, tab) => {
 
 export const SignalsAlerts = () => {
   return (
-    <div className="page-content p-6 space-y-6 overflow-y-auto" data-testid="signals-alerts-page">
+    <div className="page-content p-6 space-y-6 overflow-y-auto bg-[#ffffff]" data-testid="signals-alerts-page">
       {/* Signals Feed with Tabs */}
       <section className="dashboard-card" data-testid="signals-feed-section">
         <CustomTabs tabs={tabs} defaultTab="all">
@@ -32,7 +32,7 @@ export const SignalsAlerts = () => {
                 <SignalFeedItem key={signal.id} {...signal} />
               ))}
               {filterSignals(signalsAlerts, activeTab).length === 0 && (
-                <div className="text-center py-8 text-[#9ca3af]">
+                <div className="text-center py-8 text-[#64748b]">
                   No signals in this category
                 </div>
               )}
@@ -43,7 +43,7 @@ export const SignalsAlerts = () => {
 
       {/* Active Alerts */}
       <section data-testid="active-alerts-section">
-        <h2 className="text-sm font-medium text-[#9ca3af] uppercase tracking-wider mb-3">Active Alerts</h2>
+        <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Active Alerts</h2>
         <div className="grid grid-cols-3 gap-4">
           {activeAlerts.map((alert) => (
             <div 
@@ -51,17 +51,17 @@ export const SignalsAlerts = () => {
               className="dashboard-card flex items-start gap-3"
               data-testid={`alert-card-${alert.id}`}
             >
-              <div className={`p-2 rounded-lg ${alert.status === 'triggered' ? 'bg-[#f59e0b]/20' : 'bg-[#3b82f6]/20'}`}>
+              <div className={`p-2 rounded-lg ${alert.status === 'triggered' ? 'bg-[#d97706]/10' : 'bg-[#2563eb]/10'}`}>
                 {alert.status === 'triggered' ? (
-                  <Bell className="w-5 h-5 text-[#f59e0b]" />
+                  <Bell className="w-5 h-5 text-[#d97706]" />
                 ) : (
-                  <BellOff className="w-5 h-5 text-[#3b82f6]" />
+                  <BellOff className="w-5 h-5 text-[#2563eb]" />
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm text-[#f9fafb] font-medium">{alert.condition}</p>
+                <p className="text-sm text-[#0f172a] font-medium">{alert.condition}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-[#9ca3af]">{alert.type}</span>
+                  <span className="text-xs text-[#64748b]">{alert.type}</span>
                   <StatusBadge variant={alert.status === 'triggered' ? 'warning' : 'info'}>
                     {alert.status}
                   </StatusBadge>
@@ -74,17 +74,17 @@ export const SignalsAlerts = () => {
 
       {/* Quick Actions */}
       <section className="dashboard-card" data-testid="quick-actions">
-        <h2 className="text-sm font-medium text-[#9ca3af] uppercase tracking-wider mb-3">Quick Actions</h2>
+        <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Quick Actions</h2>
         <div className="flex gap-3">
           <button 
-            className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-[#2563eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors text-sm font-medium"
             data-testid="create-alert-btn"
           >
             <Bell className="w-4 h-4" />
             Create New Alert
           </button>
           <button 
-            className="flex items-center gap-2 px-4 py-2 bg-[#1f2937] text-[#f9fafb] rounded-lg hover:bg-[#374151] transition-colors text-sm font-medium border border-[#1f2937]"
+            className="flex items-center gap-2 px-4 py-2 bg-[#f8fafc] text-[#0f172a] rounded-lg hover:bg-[#f1f5f9] transition-colors text-sm font-medium border border-[#e5e7eb]"
             data-testid="mark-read-btn"
           >
             <CheckCircle className="w-4 h-4" />

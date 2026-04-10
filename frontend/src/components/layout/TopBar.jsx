@@ -30,30 +30,30 @@ export const TopBar = ({ currentPage }) => {
 
   return (
     <header 
-      className="h-12 bg-[#111827] border-b border-[#1f2937] flex items-center justify-between px-4"
+      className="h-12 bg-[#ffffff] border-b border-[#e5e7eb] flex items-center justify-between px-4"
       data-testid="top-bar"
     >
       {/* Left: Page Title */}
-      <h1 className="text-lg font-outfit font-semibold text-[#f9fafb]">
+      <h1 className="text-lg font-outfit font-semibold text-[#0f172a]">
         {pageTitles[currentPage] || 'Dashboard'}
       </h1>
 
       {/* Center: IST Clock */}
       <div className="flex items-center gap-2" data-testid="ist-clock">
-        <span className="text-sm text-[#9ca3af]">IST</span>
-        <span className="text-sm font-mono text-[#f9fafb]">{formatIST(time)}</span>
+        <span className="text-sm text-[#64748b]">IST</span>
+        <span className="text-sm font-mono text-[#0f172a]">{formatIST(time)}</span>
       </div>
 
       {/* Right: DB Status + Last Refresh */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2" data-testid="db-status">
-          <Database className="w-4 h-4 text-[#9ca3af]" />
+          <Database className="w-4 h-4 text-[#64748b]" />
           <span 
-            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
+            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#16a34a]' : 'bg-[#dc2626]'}`}
             title={isConnected ? 'Connected' : 'Disconnected'}
           />
         </div>
-        <span className="text-xs text-[#9ca3af]" data-testid="last-refresh">
+        <span className="text-xs text-[#64748b]" data-testid="last-refresh">
           Last refresh: {formatIST(time)}
         </span>
       </div>

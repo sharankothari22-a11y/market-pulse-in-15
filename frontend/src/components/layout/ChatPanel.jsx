@@ -59,34 +59,34 @@ export const ChatPanel = () => {
     return (
       <button
         onClick={() => setIsCollapsed(false)}
-        className="w-10 h-full bg-[#111827] border-l border-[#1f2937] flex items-center justify-center hover:bg-[#1f2937] transition-colors"
+        className="w-10 h-full bg-[#f8fafc] border-l border-[#e5e7eb] flex items-center justify-center hover:bg-[#f1f5f9] transition-colors"
         data-testid="chat-panel-expand"
       >
-        <ChevronLeft className="w-5 h-5 text-[#9ca3af]" />
+        <ChevronLeft className="w-5 h-5 text-[#64748b]" />
       </button>
     );
   }
 
   return (
     <motion.aside
-      className="w-80 h-full bg-[#111827] border-l border-[#1f2937] flex flex-col"
+      className="w-80 h-full bg-[#f8fafc] border-l border-[#e5e7eb] flex flex-col"
       initial={{ width: 0, opacity: 0 }}
       animate={{ width: 320, opacity: 1 }}
       transition={{ duration: 0.3 }}
       data-testid="chat-panel"
     >
       {/* Header */}
-      <div className="h-12 px-4 flex items-center justify-between border-b border-[#1f2937]">
+      <div className="h-12 px-4 flex items-center justify-between border-b border-[#e5e7eb] bg-[#ffffff]">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#f9fafb]">AI Insights</span>
-          <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
+          <span className="text-sm font-medium text-[#0f172a]">AI Insights</span>
+          <span className="w-2 h-2 rounded-full bg-[#16a34a] animate-pulse" />
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 hover:bg-[#1f2937] rounded transition-colors"
+          className="p-1 hover:bg-[#f1f5f9] rounded transition-colors"
           data-testid="chat-panel-collapse"
         >
-          <ChevronRight className="w-4 h-4 text-[#9ca3af]" />
+          <ChevronRight className="w-4 h-4 text-[#64748b]" />
         </button>
       </div>
 
@@ -115,8 +115,8 @@ export const ChatPanel = () => {
                 className={cn(
                   "max-w-[85%] rounded-lg px-3 py-2 text-sm",
                   msg.type === 'user'
-                    ? 'bg-[#3b82f6] text-white'
-                    : 'bg-[#1f2937] text-[#f9fafb]'
+                    ? 'bg-[#2563eb] text-white'
+                    : 'bg-[#f1f5f9] text-[#0f172a] border border-[#e5e7eb]'
                 )}
               >
                 <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -132,11 +132,11 @@ export const ChatPanel = () => {
             className="flex gap-2 items-center"
           >
             <img src={AI_AVATAR} alt="AI" className="w-6 h-6 rounded-full" />
-            <div className="bg-[#1f2937] rounded-lg px-3 py-2">
+            <div className="bg-[#f1f5f9] border border-[#e5e7eb] rounded-lg px-3 py-2">
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-[#9ca3af] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-[#9ca3af] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-[#9ca3af] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="w-2 h-2 bg-[#64748b] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-[#64748b] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-[#64748b] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           </motion.div>
@@ -145,7 +145,7 @@ export const ChatPanel = () => {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-[#1f2937]">
+      <div className="p-3 border-t border-[#e5e7eb] bg-[#ffffff]">
         <div className="flex gap-2">
           <input
             type="text"
@@ -153,13 +153,13 @@ export const ChatPanel = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Ask about markets, signals, or stocks"
-            className="flex-1 bg-[#0a0e1a] border border-[#1f2937] rounded-lg px-3 py-2 text-sm text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+            className="flex-1 bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
             data-testid="chat-input"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim()}
-            className="p-2 bg-[#3b82f6] rounded-lg hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-2 bg-[#2563eb] rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             data-testid="chat-send-btn"
           >
             <Send className="w-4 h-4 text-white" />

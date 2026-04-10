@@ -1,4 +1,4 @@
-/* Global Styles for Indian Markets Dashboard */
+/* Global Styles for Indian Markets Dashboard - Light Theme */
 
 /* Font Import */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
@@ -10,8 +10,8 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #0a0e1a;
-  color: #f9fafb;
+  background-color: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #0f172a);
   margin: 0;
   padding: 0;
 }
@@ -23,53 +23,53 @@ body {
 
 /* App Container */
 .app-container {
-  background-color: #0a0e1a;
+  background-color: var(--bg-primary, #ffffff);
   min-height: 100vh;
 }
 
 /* Dashboard Card */
 .dashboard-card {
-  background-color: #111827;
-  border: 1px solid #1f2937;
+  background-color: var(--bg-surface, #f8fafc);
+  border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 8px;
   padding: 1rem;
 }
 
 .dashboard-card:hover {
-  background-color: #151c2c;
+  background-color: var(--bg-secondary, #f1f5f9);
 }
 
 /* Metric Card */
 .metric-card {
-  background-color: #111827;
-  border: 1px solid #1f2937;
+  background-color: var(--bg-surface, #f8fafc);
+  border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 8px;
   padding: 1rem;
   transition: background-color 0.2s;
 }
 
 .metric-card:hover {
-  background-color: #1f2937;
+  background-color: var(--bg-secondary, #f1f5f9);
 }
 
 /* Mini Card */
 .mini-card {
-  background-color: #0a0e1a;
+  background-color: var(--bg-secondary, #f1f5f9);
   border-radius: 8px;
   padding: 0.75rem;
 }
 
 /* Mini Chart Placeholder */
 .mini-chart {
-  background-color: #0a0e1a;
-  border: 1px dashed #1f2937;
+  background-color: var(--bg-secondary, #f1f5f9);
+  border: 1px dashed var(--border-color, #e5e7eb);
   border-radius: 8px;
 }
 
 /* Data Table Wrapper */
 .data-table-wrapper {
   scrollbar-width: thin;
-  scrollbar-color: #1f2937 #0a0e1a;
+  scrollbar-color: var(--border-color, #e5e7eb) var(--bg-surface, #f8fafc);
 }
 
 .data-table-wrapper::-webkit-scrollbar {
@@ -78,34 +78,34 @@ body {
 }
 
 .data-table-wrapper::-webkit-scrollbar-track {
-  background: #0a0e1a;
+  background: var(--bg-surface, #f8fafc);
 }
 
 .data-table-wrapper::-webkit-scrollbar-thumb {
-  background: #1f2937;
+  background: var(--border-color, #e5e7eb);
   border-radius: 3px;
 }
 
 .data-table-wrapper::-webkit-scrollbar-thumb:hover {
-  background: #374151;
+  background: #cbd5e1;
 }
 
 /* Signal Feed Item */
 .signal-feed-item {
-  background-color: #111827;
+  background-color: var(--bg-surface, #f8fafc);
   border-radius: 0 8px 8px 0;
   transition: background-color 0.2s;
 }
 
 .signal-feed-item:hover {
-  background-color: #1f2937;
+  background-color: var(--bg-secondary, #f1f5f9);
 }
 
 /* Page Content */
 .page-content {
   height: calc(100vh - 48px);
   scrollbar-width: thin;
-  scrollbar-color: #1f2937 #0a0e1a;
+  scrollbar-color: var(--border-color, #e5e7eb) var(--bg-primary, #ffffff);
 }
 
 .page-content::-webkit-scrollbar {
@@ -113,16 +113,16 @@ body {
 }
 
 .page-content::-webkit-scrollbar-track {
-  background: #0a0e1a;
+  background: var(--bg-primary, #ffffff);
 }
 
 .page-content::-webkit-scrollbar-thumb {
-  background: #1f2937;
+  background: var(--border-color, #e5e7eb);
   border-radius: 4px;
 }
 
 .page-content::-webkit-scrollbar-thumb:hover {
-  background: #374151;
+  background: #cbd5e1;
 }
 
 /* Sidebar */
@@ -152,8 +152,8 @@ button:focus {
 
 /* Selection */
 ::selection {
-  background-color: #3b82f6;
-  color: #f9fafb;
+  background-color: var(--accent-primary, #2563eb);
+  color: #ffffff;
 }
 
 /* Disable text selection on sidebar */

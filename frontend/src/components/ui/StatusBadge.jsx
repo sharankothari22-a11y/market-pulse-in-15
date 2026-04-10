@@ -2,10 +2,10 @@ import { cn } from "@/lib/utils";
 
 export const StatusBadge = ({ variant = 'info', children }) => {
   const variants = {
-    success: 'bg-[#10b981]/20 text-[#10b981] border-[#10b981]/30',
-    warning: 'bg-[#f59e0b]/20 text-[#f59e0b] border-[#f59e0b]/30',
-    danger: 'bg-[#ef4444]/20 text-[#ef4444] border-[#ef4444]/30',
-    info: 'bg-[#3b82f6]/20 text-[#3b82f6] border-[#3b82f6]/30',
+    success: 'bg-[#16a34a]/10 text-[#16a34a] border-[#16a34a]/30',
+    warning: 'bg-[#d97706]/10 text-[#d97706] border-[#d97706]/30',
+    danger: 'bg-[#dc2626]/10 text-[#dc2626] border-[#dc2626]/30',
+    info: 'bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/30',
   };
 
   return (

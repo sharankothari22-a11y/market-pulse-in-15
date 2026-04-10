@@ -29,14 +29,14 @@ function App() {
   const [currentPage, setCurrentPage] = useState('/');
 
   return (
-    <div className="app-container flex h-screen overflow-hidden bg-[#0a0e1a]" data-testid="app-root">
+    <div className="app-container flex h-screen overflow-hidden bg-[#ffffff]" data-testid="app-root">
       {/* Left Sidebar */}
       <Sidebar activePage={currentPage} onNavigate={setCurrentPage} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar currentPage={currentPage} />
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden bg-[#ffffff]">
           <PageRenderer currentPage={currentPage} />
         </main>
       </div>

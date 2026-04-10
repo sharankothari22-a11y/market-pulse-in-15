@@ -26,7 +26,7 @@ export const Sidebar = ({ activePage, onNavigate }) => {
 
   return (
     <motion.aside
-      className="sidebar h-screen bg-[#111827] border-r border-[#1f2937] flex flex-col"
+      className="sidebar h-screen bg-[#f1f5f9] border-r border-[#e5e7eb] flex flex-col"
       initial={{ width: 64 }}
       animate={{ width: isExpanded ? 200 : 64 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -35,14 +35,14 @@ export const Sidebar = ({ activePage, onNavigate }) => {
       data-testid="sidebar"
     >
       {/* Logo */}
-      <div className="p-3 flex items-center justify-center border-b border-[#1f2937]">
+      <div className="p-3 flex items-center justify-center border-b border-[#e5e7eb]">
         <img 
           src="https://static.prod-images.emergentagent.com/jobs/2a0b1db4-ca8c-467b-bf34-af2a2ee9980c/images/32c0104271c6d67f5f4a6ff72b878f0bfe83fedaebfc6403d600733719158aea.png"
           alt="Logo"
           className="w-10 h-10 object-contain"
         />
         <motion.span
-          className="ml-2 text-[#f9fafb] font-outfit font-semibold text-lg whitespace-nowrap overflow-hidden"
+          className="ml-2 text-[#0f172a] font-outfit font-semibold text-lg whitespace-nowrap overflow-hidden"
           initial={{ opacity: 0, width: 0 }}
           animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? 'auto' : 0 }}
           transition={{ duration: 0.2 }}
@@ -60,8 +60,8 @@ export const Sidebar = ({ activePage, onNavigate }) => {
             className={cn(
               "w-full flex items-center px-4 py-3 transition-colors",
               activePage === item.path
-                ? "bg-[#3b82f6]/20 text-[#3b82f6] border-r-2 border-[#3b82f6]"
-                : "text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb]"
+                ? "bg-[#2563eb]/10 text-[#2563eb] border-r-2 border-[#2563eb]"
+                : "text-[#64748b] hover:bg-[#e5e7eb] hover:text-[#0f172a]"
             )}
             data-testid={`nav-${item.id}`}
           >
@@ -88,7 +88,7 @@ export const Sidebar = ({ activePage, onNavigate }) => {
       </nav>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-[#1f2937]" />
+      <div className="mx-3 border-t border-[#e5e7eb]" />
 
       {/* Bottom Items */}
       <div className="py-4">
@@ -99,8 +99,8 @@ export const Sidebar = ({ activePage, onNavigate }) => {
             className={cn(
               "w-full flex items-center px-4 py-3 transition-colors",
               activePage === item.path
-                ? "bg-[#3b82f6]/20 text-[#3b82f6]"
-                : "text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb]"
+                ? "bg-[#2563eb]/10 text-[#2563eb]"
+                : "text-[#64748b] hover:bg-[#e5e7eb] hover:text-[#0f172a]"
             )}
             data-testid={`nav-${item.id}`}
           >
