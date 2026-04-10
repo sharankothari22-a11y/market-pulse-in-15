@@ -15,6 +15,24 @@ Updated from dark theme to clean WHITE/LIGHT theme:
 - Text primary: #0f172a (dark)
 - Text secondary: #64748b (gray)
 
+## API Integration (Jan 2026)
+Frontend connected to FastAPI backend at `http://localhost:8000`:
+- API base URL configured in `/app/frontend/src/services/api.js`
+- All pages fetch real data from backend endpoints
+- Loading states and error handling implemented
+- Polling for real-time updates (30s for market, 60s for signals/macro)
+
+### Backend Endpoints Used:
+- GET /api/market/overview - Market indices, top movers, FII/DII, commodities, news
+- GET /api/macro - Economic indicators, global events, macro-micro transmission
+- GET /api/signals - Trading signals feed
+- GET /api/alerts - Active alerts
+- POST /api/research/new - Create research session
+- GET /api/research/{session_id} - Get research data
+- POST /api/research/{session_id}/run-scenarios - Run scenario analysis
+- GET /api/sessions - List research sessions
+- POST /api/chat - AI chat interaction
+
 ## User Personas
 - **Financial Analysts**: Track Indian market indices, FII/DII flows, macro indicators
 - **Traders**: Monitor top movers, signals, alerts for trading decisions

@@ -1,8 +1,9 @@
+import { useState, useEffect } from 'react';
 import { CustomTabs } from '@/components/ui/CustomTabs';
 import { SignalFeedItem } from '@/components/ui/SignalFeedItem';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { signalsAlerts, activeAlerts } from '@/data/mockData';
-import { Bell, BellOff, CheckCircle } from 'lucide-react';
+import { apiGet, API_ENDPOINTS } from '@/services/api';
+import { Bell, BellOff, CheckCircle, Loader2 } from 'lucide-react';
 
 const tabs = [
   { value: 'all', label: 'All' },
@@ -15,23 +16,71 @@ const tabs = [
 ];
 
 const filterSignals = (signals, tab) => {
+  if (!signals) return [];
   if (tab === 'all') return signals;
   if (tab === 'high') return signals.filter(s => s.severity === 'danger' || s.severity === 'warning');
-  return signals.filter(s => s.sector.toLowerCase() === tab);
+  return signals.filter(s => s.sector?.toLowerCase() === tab);
 };
 
 export const SignalsAlerts = () => {
+  const [signals, setSignals] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [signalsData, alertsData] = await Promise.all([
+          apiGet(API_ENDPOINTS.signals),
+          apiGet(API_ENDPOINTS.alerts)
+        ]);
+        setSignals(signalsData?.signals || signalsData || []);
+        setAlerts(alertsData?.alerts || alertsData || []);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        console.error('Failed to fetch signals/alerts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    // Poll every 60 seconds
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading && signals.length === 0) {
+    return (
+      <div className="page-content p-6 flex items-center justify-center bg-[#ffffff]" data-testid="signals-loading">
+        <div className="flex items-center gap-3 text-[#64748b]">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading signals & alerts...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-content p-6 space-y-6 overflow-y-auto bg-[#ffffff]" data-testid="signals-alerts-page">
+      {error && (
+        <div className="p-3 bg-[#dc2626]/10 border border-[#dc2626]/30 rounded-lg text-[#dc2626] text-sm">
+          {error}
+        </div>
+      )}
+
       {/* Signals Feed with Tabs */}
       <section className="dashboard-card" data-testid="signals-feed-section">
         <CustomTabs tabs={tabs} defaultTab="all">
           {(activeTab) => (
             <div className="space-y-3 max-h-[420px] overflow-y-auto">
-              {filterSignals(signalsAlerts, activeTab).map((signal) => (
-                <SignalFeedItem key={signal.id} {...signal} />
+              {filterSignals(signals, activeTab).map((signal, idx) => (
+                <SignalFeedItem key={signal.id || idx} {...signal} />
               ))}
-              {filterSignals(signalsAlerts, activeTab).length === 0 && (
+              {filterSignals(signals, activeTab).length === 0 && (
                 <div className="text-center py-8 text-[#64748b]">
                   No signals in this category
                 </div>
@@ -45,11 +94,11 @@ export const SignalsAlerts = () => {
       <section data-testid="active-alerts-section">
         <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Active Alerts</h2>
         <div className="grid grid-cols-3 gap-4">
-          {activeAlerts.map((alert) => (
+          {alerts.map((alert, idx) => (
             <div 
-              key={alert.id}
+              key={alert.id || idx}
               className="dashboard-card flex items-start gap-3"
-              data-testid={`alert-card-${alert.id}`}
+              data-testid={`alert-card-${alert.id || idx}`}
             >
               <div className={`p-2 rounded-lg ${alert.status === 'triggered' ? 'bg-[#d97706]/10' : 'bg-[#2563eb]/10'}`}>
                 {alert.status === 'triggered' ? (
@@ -69,6 +118,11 @@ export const SignalsAlerts = () => {
               </div>
             </div>
           ))}
+          {alerts.length === 0 && (
+            <div className="col-span-3 text-center py-8 text-[#64748b]">
+              No active alerts
+            </div>
+          )}
         </div>
       </section>
 

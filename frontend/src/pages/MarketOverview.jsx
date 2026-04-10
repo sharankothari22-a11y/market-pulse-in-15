@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { MiniChart } from '@/components/ui/MiniChart';
 import { DataTable } from '@/components/ui/DataTable';
 import { SignalFeedItem } from '@/components/ui/SignalFeedItem';
-import { marketIndices, topMovers, commodities, fiiDiiData, newsSignals } from '@/data/mockData';
+import { apiGet, API_ENDPOINTS } from '@/services/api';
+import { Loader2 } from 'lucide-react';
 
 const topMoversColumns = [
   { header: 'Symbol', accessor: 'symbol', className: 'font-medium' },
@@ -20,13 +22,62 @@ const topMoversColumns = [
 ];
 
 export const MarketOverview = () => {
+  const [marketData, setMarketData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchMarketData = async () => {
+      try {
+        setLoading(true);
+        const data = await apiGet(API_ENDPOINTS.marketOverview);
+        setMarketData(data);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        console.error('Failed to fetch market data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMarketData();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchMarketData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading && !marketData) {
+    return (
+      <div className="page-content p-6 flex items-center justify-center bg-[#ffffff]" data-testid="market-overview-loading">
+        <div className="flex items-center gap-3 text-[#64748b]">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading market data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !marketData) {
+    return (
+      <div className="page-content p-6 flex items-center justify-center bg-[#ffffff]" data-testid="market-overview-error">
+        <div className="text-center">
+          <p className="text-[#dc2626] mb-2">Failed to load market data</p>
+          <p className="text-[#64748b] text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { indices = [], topMovers = [], commodities = [], fiiDii = {}, news = [] } = marketData || {};
+
   return (
     <div className="page-content p-6 space-y-6 overflow-y-auto bg-[#ffffff]" data-testid="market-overview-page">
       {/* Row 1: Market Indices */}
       <section data-testid="market-indices-section">
         <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Market Indices</h2>
         <div className="grid grid-cols-5 gap-4">
-          {marketIndices.map((index) => (
+          {indices.map((index) => (
             <MetricCard key={index.id} {...index} />
           ))}
         </div>
@@ -47,11 +98,11 @@ export const MarketOverview = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="mini-card">
               <p className="text-xs text-[#64748b]">FII Net</p>
-              <p className="text-lg font-semibold text-[#dc2626]">{fiiDiiData.summary.fii}</p>
+              <p className="text-lg font-semibold text-[#dc2626]">{fiiDii.fii || '-'}</p>
             </div>
             <div className="mini-card">
               <p className="text-xs text-[#64748b]">DII Net</p>
-              <p className="text-lg font-semibold text-[#16a34a]">{fiiDiiData.summary.dii}</p>
+              <p className="text-lg font-semibold text-[#16a34a]">{fiiDii.dii || '-'}</p>
             </div>
           </div>
         </div>
@@ -71,8 +122,8 @@ export const MarketOverview = () => {
       <section className="dashboard-card" data-testid="news-feed-section">
         <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Market News & Updates</h2>
         <div className="space-y-3 max-h-64 overflow-y-auto">
-          {newsSignals.map((signal) => (
-            <SignalFeedItem key={signal.id} {...signal} />
+          {news.map((signal, idx) => (
+            <SignalFeedItem key={signal.id || idx} {...signal} />
           ))}
         </div>
       </section>

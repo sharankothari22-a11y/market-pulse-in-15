@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronLeft, ChevronRight } from 'lucide-react';
-import { chatMessages as initialMessages, mockAIResponses } from '@/data/mockData';
+import { Send, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from "@/lib/utils";
 
 const AI_AVATAR = "https://static.prod-images.emergentagent.com/jobs/2a0b1db4-ca8c-467b-bf34-af2a2ee9980c/images/56de863a09d108a633fc9a71a64378aa5937e1b191e54dee11b697c3f83fc92d.png";
+
+const initialMessages = [
+  { id: 1, type: 'ai', text: 'Hello! I can help you analyze Indian market trends, stock signals, and macro indicators. What would you like to know?' },
+];
 
 export const ChatPanel = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -21,31 +25,36 @@ export const ChatPanel = () => {
     scrollToBottom();
   }, [messages]);
 
-  const getAIResponse = (userMessage) => {
-    const lowerMsg = userMessage.toLowerCase();
-    if (lowerMsg.includes('nifty')) return mockAIResponses.nifty;
-    if (lowerMsg.includes('reliance')) return mockAIResponses.reliance;
-    if (lowerMsg.includes('bank')) return mockAIResponses.banking;
-    if (lowerMsg.includes('it') || lowerMsg.includes('infosys') || lowerMsg.includes('tcs')) return mockAIResponses.it;
-    if (lowerMsg.includes('macro') || lowerMsg.includes('gdp') || lowerMsg.includes('inflation')) return mockAIResponses.macro;
-    if (lowerMsg.includes('irfc')) return mockAIResponses.irfc;
-    return mockAIResponses.default;
-  };
-
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || isTyping) return;
 
     const userMessage = { id: Date.now(), type: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
+    const userInput = input;
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
-      const aiResponse = { id: Date.now() + 1, type: 'ai', text: getAIResponse(input) };
+    try {
+      // Call the chat API
+      const response = await apiPost(API_ENDPOINTS.chat, { message: userInput });
+      
+      const aiResponse = { 
+        id: Date.now() + 1, 
+        type: 'ai', 
+        text: response.response || response.message || 'I received your message but could not generate a response.' 
+      };
       setMessages((prev) => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Chat API error:', error);
+      const errorResponse = { 
+        id: Date.now() + 1, 
+        type: 'ai', 
+        text: 'Sorry, I encountered an error processing your request. Please try again.' 
+      };
+      setMessages((prev) => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -155,14 +164,19 @@ export const ChatPanel = () => {
             placeholder="Ask about markets, signals, or stocks"
             className="flex-1 bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
             data-testid="chat-input"
+            disabled={isTyping}
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isTyping}
             className="p-2 bg-[#2563eb] rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             data-testid="chat-send-btn"
           >
-            <Send className="w-4 h-4 text-white" />
+            {isTyping ? (
+              <Loader2 className="w-4 h-4 text-white animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 text-white" />
+            )}
           </button>
         </div>
       </div>
