@@ -199,14 +199,16 @@ export const ResearchSession = () => {
                 <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Scenario Analysis</h3>
                 <div className="grid grid-cols-3 gap-3">
                   {researchData.scenarios && Object.keys(researchData.scenarios).length > 0 ? (
-                    Object.entries(researchData.scenarios).map(([key, scenario]) => (
-                      <ScenarioBadge 
-                        key={key} 
-                        label={key.charAt(0).toUpperCase() + key.slice(1)} 
-                        price={scenario.price || scenario.target_price} 
-                        upside={scenario.upside || scenario.return_pct} 
-                      />
-                    ))
+                    Object.entries(researchData.scenarios || {})
+                      .filter(([key, value]) => value !== null && value !== undefined)
+                      .map(([key, scenario]) => (
+                        <ScenarioBadge 
+                          key={key} 
+                          label={key.charAt(0).toUpperCase() + key.slice(1)} 
+                          price={scenario?.price || scenario?.target_price || 'N/A'} 
+                          upside={scenario?.upside || scenario?.return_pct || 'N/A'} 
+                        />
+                      ))
                   ) : (
                     <p className="text-sm text-[#64748b] col-span-3">Run analysis to see scenarios</p>
                   )}
