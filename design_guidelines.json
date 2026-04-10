@@ -1,0 +1,92 @@
+{
+  "theme": {
+    "mode": "dark",
+    "archetype": "4 (Swiss & High-Contrast)",
+    "description": "High information density, precision-focused financial dashboard for Indian markets. Emphasizes dark gray/navy backgrounds (#0a0e1a), bold legible typography, and tight control-room bento grids.",
+    "colors": {
+      "background": "#0a0e1a",
+      "surface": "#111827",
+      "surface_hover": "#1f2937",
+      "border": "#1f2937",
+      "primary": "#3b82f6",
+      "positive": "#10b981",
+      "negative": "#ef4444",
+      "warning": "#f59e0b",
+      "text_primary": "#f9fafb",
+      "text_secondary": "#9ca3af"
+    },
+    "typography": {
+      "headings": {
+        "fontFamily": "'Outfit', sans-serif",
+        "weights": ["400", "500", "600"],
+        "tracking": "tracking-tight",
+        "sizes": {
+          "h1": "text-3xl sm:text-4xl",
+          "h2": "text-2xl sm:text-3xl",
+          "h3": "text-xl sm:text-2xl",
+          "h4": "text-lg sm:text-xl"
+        }
+      },
+      "body": {
+        "fontFamily": "'Inter', sans-serif",
+        "weights": ["400", "500"],
+        "sizes": {
+          "default": "text-base",
+          "small": "text-sm",
+          "tiny": "text-xs uppercase tracking-[0.2em]"
+        }
+      }
+    },
+    "spacing_and_layout": {
+      "strategy": "The 'Control Room' Grid",
+      "gap": "gap-4 md:gap-6",
+      "card_padding": "p-6",
+      "border_radius": "rounded-lg (8px)",
+      "container_structure": "Three-column fixed layout: Left Sidebar (animated width 64px to 200px), Main Content (flex-1, overflow-y-auto), Right Chat Panel (fixed 320px or collapsible)."
+    },
+    "components": {
+      "cards": "Flat background (#111827), 1px solid border (#1f2937), no soft shadows. Add subtle hover state (bg-[#1f2937]).",
+      "buttons": "Primary buttons use #3b82f6 bg, high contrast text. Secondary buttons use transparent bg with #1f2937 border. Active state must be clearly highlighted.",
+      "inputs": "Bg #0a0e1a, border #1f2937. Focus ring 2px #3b82f6.",
+      "charts": "Use Recharts. Tooltips should use surface color (#111827) and border (#1f2937). Use primary, positive, and negative colors for data lines/bars.",
+      "sidebar": "Hover expansion powered by framer-motion. Keep icons horizontally centered when collapsed, and fade-in text when expanded.",
+      "chat_panel": "Scrollable message area. Input field fixed at bottom. AI messages left-aligned with AI avatar, User messages right-aligned. AI Avatar should use provided media url."
+    },
+    "interactions": {
+      "hover": "All interactive elements must have a visible hover state (e.g., bg-[#1f2937] for rows).",
+      "sidebar_animation": "Smooth layout transition using framer-motion on width. spring stiffness 300, damping 30.",
+      "chat_animation": "New messages should slide up and fade in."
+    }
+  },
+  "media": {
+    "images": [
+      {
+        "category": "dashboard_logo",
+        "url": "https://static.prod-images.emergentagent.com/jobs/2a0b1db4-ca8c-467b-bf34-af2a2ee9980c/images/32c0104271c6d67f5f4a6ff72b878f0bfe83fedaebfc6403d600733719158aea.png",
+        "description": "Minimalist 3D glassmorphic geometric icon for the dashboard brand logo. Use in the top of the sidebar."
+      },
+      {
+        "category": "ai_avatar",
+        "url": "https://static.prod-images.emergentagent.com/jobs/2a0b1db4-ca8c-467b-bf34-af2a2ee9980c/images/56de863a09d108a633fc9a71a64378aa5937e1b191e54dee11b697c3f83fc92d.png",
+        "description": "Sleek futuristic 3D sphere representing the AI assistant. Use in the right chat panel next to AI responses."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Build a 4-page dashboard: Market Overview, Research Session, Signals & Alerts, Macro Dashboard.",
+    "Implement the 3-column layout: Sidebar (left), Main Content (center), AI Chat (right).",
+    "Make the sidebar expand from 64px to 200px on hover using Framer Motion.",
+    "The AI Chat panel must have a text input that allows typing, appending user messages to the view, followed by a mocked AI response after a short delay.",
+    "Use Lucide-React for all icons.",
+    "Use Recharts for financial charts (stock trends, FII/DII flow).",
+    "Include IRFC stock prominently in the Top Movers or Market Overview.",
+    "Do NOT use HTML inputs directly for advanced interactions, but for the chat input a standard Tailwind-styled input or Shadcn Input is fine.",
+    "All interactive elements MUST have `data-testid` attributes.",
+    "Ensure text contrast is high. Use text_primary (#f9fafb) for headings/values and text_secondary (#9ca3af) for labels.",
+    "Adhere strictly to the color palette provided. Do not introduce new colors except for chart data lines using the palette."
+  ],
+  "testing": {
+    "attributes_required": true,
+    "convention": "kebab-case, role-based e.g., 'sidebar-nav-item', 'chat-input-field'"
+  }
+}
