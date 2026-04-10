@@ -198,10 +198,16 @@ export const ResearchSession = () => {
               <div className="dashboard-card">
                 <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Scenario Analysis</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  {(researchData.scenarios || []).map((scenario) => (
-                    <ScenarioBadge key={scenario.label} {...scenario} />
-                  ))}
-                  {(!researchData.scenarios || researchData.scenarios.length === 0) && (
+                  {researchData.scenarios && Object.keys(researchData.scenarios).length > 0 ? (
+                    Object.entries(researchData.scenarios).map(([key, scenario]) => (
+                      <ScenarioBadge 
+                        key={key} 
+                        label={key.charAt(0).toUpperCase() + key.slice(1)} 
+                        price={scenario.price || scenario.target_price} 
+                        upside={scenario.upside || scenario.return_pct} 
+                      />
+                    ))
+                  ) : (
                     <p className="text-sm text-[#64748b] col-span-3">Run analysis to see scenarios</p>
                   )}
                 </div>
