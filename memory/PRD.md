@@ -3,6 +3,18 @@
 ## Original Problem Statement
 Build a React financial intelligence dashboard for Indian markets. Frontend only with no API calls, using static/mock data.
 
+## Theme Update (Jan 2026)
+Updated from dark theme to clean WHITE/LIGHT theme:
+- Background: #ffffff (white)
+- Surface cards: #f8fafc (light gray)
+- Secondary surface: #f1f5f9
+- Borders: #e5e7eb
+- Primary accent: #2563eb (blue)
+- Positive: #16a34a (green)
+- Negative: #dc2626 (red)
+- Text primary: #0f172a (dark)
+- Text secondary: #64748b (gray)
+
 ## User Personas
 - **Financial Analysts**: Track Indian market indices, FII/DII flows, macro indicators
 - **Traders**: Monitor top movers, signals, alerts for trading decisions
