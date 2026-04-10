@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Search, Loader2, Play } from 'lucide-react';
-import { ScenarioBadge } from '@/components/ui/ScenarioBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DataTable } from '@/components/ui/DataTable';
 import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
+import { cn } from '@/lib/utils';
 
 // Valid scenario keys from backend
 const SCENARIO_KEYS = ['bull', 'base', 'bear'];
@@ -254,12 +254,51 @@ export const ResearchSession = () => {
                 <div className="grid grid-cols-3 gap-3">
                   {getScenarios().length > 0 ? (
                     getScenarios().map((scenario) => (
-                      <ScenarioBadge 
-                        key={scenario.key} 
-                        label={scenario.label} 
-                        price={scenario.price_per_share ? `₹${scenario.price_per_share.toLocaleString()}` : 'N/A'} 
-                        upside={scenario.upside_pct != null ? `${scenario.upside_pct > 0 ? '+' : ''}${scenario.upside_pct}%` : 'N/A'} 
-                      />
+                      <div 
+                        key={scenario.key}
+                        className={cn(
+                          "px-4 py-3 rounded-lg border",
+                          scenario.key === 'bull' ? 'bg-[#16a34a]/10 border-[#16a34a]' :
+                          scenario.key === 'bear' ? 'bg-[#dc2626]/10 border-[#dc2626]' :
+                          'bg-[#2563eb]/10 border-[#2563eb]'
+                        )}
+                        data-testid={`scenario-badge-${scenario.key}`}
+                      >
+                        <p className={cn(
+                          "text-xs uppercase tracking-wider font-medium",
+                          scenario.key === 'bull' ? 'text-[#16a34a]' :
+                          scenario.key === 'bear' ? 'text-[#dc2626]' :
+                          'text-[#2563eb]'
+                        )}>
+                          {scenario.label}
+                        </p>
+                        <p className={cn(
+                          "text-lg font-semibold font-outfit mt-1",
+                          scenario.key === 'bull' ? 'text-[#16a34a]' :
+                          scenario.key === 'bear' ? 'text-[#dc2626]' :
+                          'text-[#2563eb]'
+                        )}>
+                          ₹{typeof scenario.price_per_share === 'number' ? scenario.price_per_share.toFixed(2) : scenario.price_per_share ?? 'N/A'}
+                        </p>
+                        <p className={cn(
+                          "text-sm",
+                          scenario.key === 'bull' ? 'text-[#16a34a]' :
+                          scenario.key === 'bear' ? 'text-[#dc2626]' :
+                          'text-[#2563eb]'
+                        )}>
+                          {typeof scenario.upside_pct === 'number' ? `${scenario.upside_pct >= 0 ? '+' : ''}${scenario.upside_pct.toFixed(1)}%` : scenario.upside_pct ?? 'N/A'}
+                        </p>
+                        {scenario.rating && (
+                          <span className={cn(
+                            "inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded",
+                            scenario.rating === 'BUY' ? 'bg-[#16a34a]/20 text-[#16a34a]' :
+                            scenario.rating === 'SELL' ? 'bg-[#dc2626]/20 text-[#dc2626]' :
+                            'bg-[#d97706]/20 text-[#d97706]'
+                          )}>
+                            {scenario.rating}
+                          </span>
+                        )}
+                      </div>
                     ))
                   ) : (
                     <p className="text-sm text-[#64748b] col-span-3">Click "Run Scenarios" to generate analysis</p>
