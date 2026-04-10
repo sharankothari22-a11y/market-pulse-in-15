@@ -10,23 +10,24 @@ import ResearchSession from '@/pages/ResearchSession';
 import SignalsAlerts from '@/pages/SignalsAlerts';
 import MacroDashboard from '@/pages/MacroDashboard';
 
-const PageRenderer = ({ currentPage }) => {
-  switch (currentPage) {
-    case '/':
-      return <MarketOverview />;
-    case '/research':
-      return <ResearchSession />;
-    case '/signals':
-      return <SignalsAlerts />;
-    case '/macro':
-      return <MacroDashboard />;
-    default:
-      return <MarketOverview />;
-  }
-};
-
 function App() {
   const [currentPage, setCurrentPage] = useState('/');
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case '/':
+        return <MarketOverview />;
+      case '/research':
+        return <ResearchSession onSessionChange={setCurrentSessionId} />;
+      case '/signals':
+        return <SignalsAlerts />;
+      case '/macro':
+        return <MacroDashboard />;
+      default:
+        return <MarketOverview />;
+    }
+  };
 
   return (
     <div className="app-container flex h-screen overflow-hidden bg-[#ffffff]" data-testid="app-root">
@@ -37,12 +38,12 @@ function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar currentPage={currentPage} />
         <main className="flex-1 overflow-hidden bg-[#ffffff]">
-          <PageRenderer currentPage={currentPage} />
+          {renderPage()}
         </main>
       </div>
 
       {/* Right Chat Panel */}
-      <ChatPanel />
+      <ChatPanel sessionId={currentPage === '/research' ? currentSessionId : null} />
     </div>
   );
 }

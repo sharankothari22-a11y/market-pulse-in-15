@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { apiPost, API_ENDPOINTS } from '@/services/api';
+import { apiPost, apiGet, API_ENDPOINTS } from '@/services/api';
 import { cn } from "@/lib/utils";
 
 const AI_AVATAR = "https://static.prod-images.emergentagent.com/jobs/2a0b1db4-ca8c-467b-bf34-af2a2ee9980c/images/56de863a09d108a633fc9a71a64378aa5937e1b191e54dee11b697c3f83fc92d.png";
@@ -10,7 +10,7 @@ const initialMessages = [
   { id: 1, type: 'ai', text: 'Hello! I can help you analyze Indian market trends, stock signals, and macro indicators. What would you like to know?' },
 ];
 
-export const ChatPanel = () => {
+export const ChatPanel = ({ sessionId }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
@@ -35,13 +35,27 @@ export const ChatPanel = () => {
     setIsTyping(true);
 
     try {
+      let responseText;
+
+      // Build request body - include session_id if available
+      const requestBody = { message: userInput };
+      if (sessionId) {
+        requestBody.session_id = sessionId;
+      }
+
       // Call the chat API
-      const response = await apiPost(API_ENDPOINTS.chat, { message: userInput });
+      const response = await apiPost(API_ENDPOINTS.chat, requestBody);
+      responseText = response.response || response.message || response.answer;
+
+      // If no response, try to provide a fallback
+      if (!responseText) {
+        responseText = 'I received your message but could not generate a response.';
+      }
       
       const aiResponse = { 
         id: Date.now() + 1, 
         type: 'ai', 
-        text: response.response || response.message || 'I received your message but could not generate a response.' 
+        text: responseText
       };
       setMessages((prev) => [...prev, aiResponse]);
     } catch (error) {

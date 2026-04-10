@@ -26,7 +26,7 @@ const assumptionColumns = [
   },
 ];
 
-export const ResearchSession = () => {
+export const ResearchSession = ({ onSessionChange }) => {
   const [ticker, setTicker] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [researchData, setResearchData] = useState(null);
@@ -34,6 +34,13 @@ export const ResearchSession = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [runningScenarios, setRunningScenarios] = useState(false);
   const [error, setError] = useState(null);
+
+  // Notify parent when sessionId changes
+  useEffect(() => {
+    if (onSessionChange) {
+      onSessionChange(sessionId);
+    }
+  }, [sessionId, onSessionChange]);
 
   // Fetch existing sessions on mount
   useEffect(() => {
