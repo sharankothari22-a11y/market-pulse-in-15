@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Play } from 'lucide-react';
 import { ScenarioBadge } from '@/components/ui/ScenarioBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DataTable } from '@/components/ui/DataTable';
 import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
+
+// Valid scenario keys from backend
+const SCENARIO_KEYS = ['bull', 'base', 'bear'];
 
 const assumptionColumns = [
   { header: 'Assumption', accessor: 'assumption', className: 'font-medium' },
@@ -29,6 +32,7 @@ export const ResearchSession = () => {
   const [researchData, setResearchData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [runningScenarios, setRunningScenarios] = useState(false);
   const [error, setError] = useState(null);
 
   // Fetch existing sessions on mount
@@ -99,6 +103,41 @@ export const ResearchSession = () => {
     if (e.key === 'Enter') {
       handleAnalyze();
     }
+  };
+
+  // Run scenarios for current session
+  const handleRunScenarios = async () => {
+    if (!sessionId) return;
+
+    try {
+      setRunningScenarios(true);
+      setError(null);
+      
+      // Run scenarios
+      await apiPost(API_ENDPOINTS.researchScenarios(sessionId), {});
+      
+      // Refresh research data
+      const data = await apiGet(API_ENDPOINTS.research(sessionId));
+      setResearchData(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Failed to run scenarios:', err);
+    } finally {
+      setRunningScenarios(false);
+    }
+  };
+
+  // Helper to get valid scenarios from response
+  const getScenarios = () => {
+    if (!researchData?.scenarios) return [];
+    
+    return SCENARIO_KEYS
+      .filter(key => researchData.scenarios[key] != null)
+      .map(key => ({
+        key,
+        label: key.charAt(0).toUpperCase() + key.slice(1),
+        ...researchData.scenarios[key]
+      }));
   };
 
   return (
@@ -196,21 +235,34 @@ export const ResearchSession = () => {
             <div className="space-y-6">
               {/* Scenario Analysis */}
               <div className="dashboard-card">
-                <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Scenario Analysis</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">Scenario Analysis</h3>
+                  <button
+                    onClick={handleRunScenarios}
+                    disabled={!sessionId || runningScenarios}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#2563eb] text-white rounded-md hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    data-testid="run-scenarios-btn"
+                  >
+                    {runningScenarios ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Play className="w-3 h-3" />
+                    )}
+                    {runningScenarios ? 'Running...' : 'Run Scenarios'}
+                  </button>
+                </div>
                 <div className="grid grid-cols-3 gap-3">
-                  {researchData.scenarios && Object.keys(researchData.scenarios).length > 0 ? (
-                    Object.entries(researchData.scenarios || {})
-                      .filter(([key, value]) => value !== null && value !== undefined)
-                      .map(([key, scenario]) => (
-                        <ScenarioBadge 
-                          key={key} 
-                          label={key.charAt(0).toUpperCase() + key.slice(1)} 
-                          price={scenario?.price || scenario?.target_price || 'N/A'} 
-                          upside={scenario?.upside || scenario?.return_pct || 'N/A'} 
-                        />
-                      ))
+                  {getScenarios().length > 0 ? (
+                    getScenarios().map((scenario) => (
+                      <ScenarioBadge 
+                        key={scenario.key} 
+                        label={scenario.label} 
+                        price={scenario.price_per_share ? `₹${scenario.price_per_share.toLocaleString()}` : 'N/A'} 
+                        upside={scenario.upside_pct != null ? `${scenario.upside_pct > 0 ? '+' : ''}${scenario.upside_pct}%` : 'N/A'} 
+                      />
+                    ))
                   ) : (
-                    <p className="text-sm text-[#64748b] col-span-3">Run analysis to see scenarios</p>
+                    <p className="text-sm text-[#64748b] col-span-3">Click "Run Scenarios" to generate analysis</p>
                   )}
                 </div>
               </div>
