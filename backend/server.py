@@ -707,118 +707,64 @@ async def update_thesis(session_id: str, req: ThesisRequest):
 
 @api_router.post("/chat")
 async def chat(request: ChatRequest):
-    message    = request.message.lower()
+    """Claude-powered chat with full session context."""
+    import anthropic as _anthropic
+
+    message    = request.message
     session_id = request.session_id
+    api_key    = os.getenv("ANTHROPIC_API_KEY", "")
+
+    system_parts = [
+        "You are an expert Indian equity research analyst and market strategist.",
+        "You help users analyse NSE/BSE stocks, macro indicators, sector trends, and build investment theses.",
+        "Be concise, specific, and data-driven. Use Indian Rupee symbol for prices. Mention sector context where relevant.",
+        "Never give blanket buy/sell advice - always frame as analysis and let the user decide.",
+    ]
 
     if session_id:
         session = await db.research_sessions.find_one({"session_id": session_id}, {"_id": 0})
-        if not session:
-            return ChatResponse(response="Session not found. Please start a new session.", session_id=session_id)
-
-        ticker     = session.get("ticker", "the stock")
-        sector     = session.get("sector", "universal")
-        hypothesis = session.get("hypothesis", "")
-        variant    = session.get("variant_view", "")
-        scenarios  = session.get("scenarios", {})
-        catalysts  = session.get("catalysts", [])
-        current_price = session.get("current_price")
-
-        # Handle catalyst logging
-        if "add catalyst" in message or ("catalyst" in message and any(w in message for w in ["add", "log", "track"])):
-            parts = request.message
-            for prefix in ["add catalyst", "log catalyst", "track catalyst"]:
-                parts = parts.lower().replace(prefix, "").strip()
-            if parts:
-                catalyst = {"description": parts, "event": parts, "timeline": "TBD", "impact": "Medium", "type": "general", "logged_at": datetime.now(timezone.utc).isoformat()}
-                await db.research_sessions.update_one({"session_id": session_id}, {"$push": {"catalysts": catalyst}})
-                return ChatResponse(response=f"Catalyst logged: '{parts}'. View it in the Catalysts panel.", session_id=session_id)
-
-        # Handle thesis update
-        if any(w in message for w in ["my thesis is", "thesis:", "hypothesis is", "hypothesis:"]):
-            thesis_text = request.message
-            for prefix in ["my thesis is", "thesis:", "hypothesis is", "hypothesis:"]:
-                thesis_text = thesis_text.lower().replace(prefix, "").strip()
-            if thesis_text:
-                await db.research_sessions.update_one({"session_id": session_id}, {"$set": {"hypothesis": thesis_text}})
-                return ChatResponse(response=f"Thesis updated: '{thesis_text}'", session_id=session_id)
-
-        # Scenario questions
-        if any(w in message for w in ["scenario", "bull", "bear", "base", "price target", "target"]):
-            bull = scenarios.get("bull", {})
-            base = scenarios.get("base", {})
-            bear = scenarios.get("bear", {})
-            if bull:
-                response = (f"{ticker} price targets — Bull: ₹{bull.get('price_per_share')} (+{bull.get('upside_pct', 0):.0f}%) | "
-                           f"Base: ₹{base.get('price_per_share')} (+{base.get('upside_pct', 0):.0f}%) | "
-                           f"Bear: ₹{bear.get('price_per_share')} ({bear.get('upside_pct', 0):.0f}%). "
-                           f"Based on current price ₹{current_price:.2f}." if current_price else "")
-            else:
-                response = f"No scenarios run yet for {ticker}. Click 'Run Scenarios' to generate."
-
-        elif any(w in message for w in ["hypothesis", "thesis", "variant", "view"]):
-            response = f"Thesis: {hypothesis or 'Not set'}. Variant view: {variant or 'Not set'}."
-
-        elif "catalyst" in message:
+        if session:
+            ticker    = session.get("ticker", "")
+            sector    = session.get("sector", "")
+            hypothesis= session.get("hypothesis", "")
+            variant   = session.get("variant_view", "")
+            scenarios = session.get("scenarios", {})
+            catalysts = session.get("catalysts", [])
+            cur_price = session.get("current_price")
+            ctx = [f"Active research session: {ticker} (sector: {sector})"]
+            if hypothesis: ctx.append(f"Hypothesis: {hypothesis}")
+            if variant: ctx.append(f"Variant view: {variant}")
+            if cur_price: ctx.append(f"Current price: {cur_price:.2f}")
+            if scenarios:
+                bull = scenarios.get("bull", {}); base = scenarios.get("base", {}); bear = scenarios.get("bear", {})
+                if bull:
+                    ctx.append(f"Scenarios - Bull: {bull.get('price_per_share')} (+{bull.get('upside_pct',0):.0f}%), Base: {base.get('price_per_share')} (+{base.get('upside_pct',0):.0f}%), Bear: {bear.get('price_per_share')} ({bear.get('upside_pct',0):.0f}%)")
             if catalysts:
-                cat_list = ", ".join([c.get("description", c.get("event", "")) for c in catalysts[:3]])
-                response = f"Catalysts for {ticker}: {cat_list}."
-            else:
-                response = f"No catalysts logged yet. Use '+ Add' button or say 'add catalyst [description]'."
+                ctx.append(f"Logged catalysts: {'; '.join([c.get('description', c.get('event', '')) for c in catalysts[:5]])}")
+            system_parts.append("\n".join(ctx))
 
-        elif any(w in message for w in ["price", "ltp", "current", "trading at"]):
-            if current_price:
-                response = f"{ticker} is at ₹{current_price:.2f}. Sector: {sector}."
-            else:
-                response = f"Click 'Run Scenarios' to fetch the live price for {ticker}."
+    system_prompt = "\n\n".join(system_parts)
 
-        elif any(w in message for w in ["sector", "macro", "moving", "why", "reason"]):
-            sector_notes = {
-                "banking":    "Banking driven by NIM trends, RBI rate decisions, and credit growth. Watch RBI policy dates.",
-                "petroleum":  "Petroleum tied to crude oil prices (Brent/WTI) and GRM (gross refining margins).",
-                "it":         "IT driven by US deal flow, attrition, and USD/INR movement. Watch Accenture as bellwether.",
-                "pharma":     "Pharma driven by FDA approvals, R&D pipeline, and API prices.",
-                "fmcg":       "FMCG driven by volume growth, rural demand, and input cost inflation.",
-                "real_estate":"Real estate driven by pre-sales, collections, and interest rate trajectory.",
-                "auto":       "Auto driven by volume, EV transition timeline, and commodity costs (steel, aluminium).",
-            }
-            note = sector_notes.get(sector, f"{ticker} is in the {sector} sector.")
-            response = f"{note} Current thesis: {hypothesis or 'not set'}."
+    if not api_key:
+        return ChatResponse(response="Claude API key not configured.", session_id=session_id)
 
-        elif any(w in message for w in ["report", "generate", "analysis", "summary"]):
-            bull = scenarios.get("bull", {})
-            bear = scenarios.get("bear", {})
-            if bull:
-                response = (f"Research summary for {ticker} ({sector}):\n"
-                           f"Thesis: {hypothesis or 'not set'}\n"
-                           f"Variant: {variant or 'not set'}\n"
-                           f"Bull: ₹{bull.get('price_per_share')} | Bear: ₹{bear.get('price_per_share')}\n"
-                           f"Catalysts: {len(catalysts)} logged. "
-                           f"Key risk: {'macro headwinds and sector pressure' if sector in ['banking','fmcg'] else 'execution and competitive intensity'}.")
-            else:
-                response = f"Run scenarios first to generate a complete summary for {ticker}."
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        loop = asyncio.get_event_loop()
+        def call_claude():
+            resp = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=400,
+                system=system_prompt,
+                messages=[{"role": "user", "content": message}],
+            )
+            return resp.content[0].text if resp.content else "No response."
+        response_text = await loop.run_in_executor(executor, call_claude)
+        return ChatResponse(response=response_text, session_id=session_id)
+    except Exception as e:
+        logger.error(f"Claude API error: {e}")
+        return ChatResponse(response=f"Error: {str(e)[:100]}", session_id=session_id)
 
-        else:
-            response = (f"Analysing {ticker} (sector: {sector}, session: {session_id[-8:]}). "
-                       f"Ask about: scenarios, price targets, thesis, catalysts, sector drivers, or why {ticker} is moving.")
-
-    else:
-        # No session — general market
-        if any(w in message for w in ["nifty", "market", "sensex", "index"]):
-            response = "NIFTY showing momentum with banking and IT leading. FII flows and RBI policy are key near-term drivers. Use the Research Session to analyse specific stocks."
-        elif any(w in message for w in ["reliance", "reli"]):
-            response = "RELIANCE is a petroleum + telecom + retail conglomerate. GRM recovery and Jio ARPU growth are key catalysts. Start a session: type RELIANCE and click Analyze."
-        elif any(w in message for w in ["bank", "hdfc", "icici", "sbi"]):
-            response = "Banking sector facing NIM pressure from rate cut expectations. PSU banks preferred for value. Start a session with HDFCBANK or SBIN to get specific targets."
-        elif any(w in message for w in ["it", "tcs", "infosys", "wipro"]):
-            response = "IT sector faces US demand headwinds. TCS and Infosys showing resilience. Start a session with TCS or INFY for price targets."
-        elif any(w in message for w in ["crypto", "bitcoin", "btc", "eth"]):
-            response = "Check the Market Overview page for live crypto prices. Bitcoin and Ethereum data is pulled from CoinGecko in real-time."
-        elif any(w in message for w in ["gold", "silver", "commodity", "crude", "oil"]):
-            response = "Check the Market Overview page for live commodity prices — gold, silver, crude oil (WTI + Brent) all update in real-time."
-        else:
-            response = "I can help with Indian market trends, stock analysis, and macro indicators. Enter a ticker symbol and click Analyze to start a research session."
-
-    return ChatResponse(response=response, session_id=session_id)
 
 
 # ── App setup ─────────────────────────────────────────────────────────────────
