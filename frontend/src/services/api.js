@@ -66,7 +66,7 @@ export const apiRequest = async (endpoint, options = {}) => {
 
     return await response.json();
   } catch (error) {
-    console.error(`API Request Failed: ${endpoint}`, ercd /app && cp /app/backend/server.py /app/backend/server.py.bakror);
+    console.error(`API Request Failed: ${endpoint}`, error);
     throw error;
   }
 };
