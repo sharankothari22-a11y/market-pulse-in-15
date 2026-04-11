@@ -1,23 +1,22 @@
 // API Configuration
-// Use environment variable or fallback to relative path for same-origin requests
 export const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 // API Endpoints
 export const API_ENDPOINTS = {
   // Health
   health: '/api/health',
-  
+
   // Market
   marketOverview: '/api/market/overview',
   prices: (ticker) => `/api/prices/${ticker}`,
-  
+
   // Macro
   macro: '/api/macro',
-  
+
   // Signals & Alerts
   signals: '/api/signals',
   alerts: '/api/alerts',
-  
+
   // Research
   researchNew: '/api/research/new',
   research: (sessionId) => `/api/research/${sessionId}`,
@@ -25,11 +24,13 @@ export const API_ENDPOINTS = {
   researchSignals: (sessionId) => `/api/research/${sessionId}/signals`,
   researchScenarios: (sessionId) => `/api/research/${sessionId}/run-scenarios`,
   researchAssumption: (sessionId) => `/api/research/${sessionId}/assumption`,
+  researchCatalyst: (sessionId) => `/api/research/${sessionId}/catalyst`,
+  researchThesis: (sessionId) => `/api/research/${sessionId}/thesis`,
   sessions: '/api/sessions',
-  
+
   // Chat
   chat: '/api/chat',
-  
+
   // Reports
   reportMarket: '/api/reports/market',
   reportCommodity: '/api/reports/commodity',
@@ -40,13 +41,13 @@ export const API_ENDPOINTS = {
 // API Helper Functions
 export const apiRequest = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
     },
   };
-  
+
   const mergedOptions = {
     ...defaultOptions,
     ...options,
@@ -55,17 +56,17 @@ export const apiRequest = async (endpoint, options = {}) => {
       ...options.headers,
     },
   };
-  
+
   try {
     const response = await fetch(url, mergedOptions);
-    
+
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.error(`API Request Failed: ${endpoint}`, error);
+    console.error(`API Request Failed: ${endpoint}`, ercd /app && cp /app/backend/server.py /app/backend/server.py.bakror);
     throw error;
   }
 };
