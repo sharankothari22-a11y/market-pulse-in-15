@@ -26,3 +26,11 @@ jq>=1.6.0
 typer>=0.9.0
 emergentintegrations==0.1.0
 yfinance>=1.2.0
+feedparser
+requests
+yfinance
+pycoingecko
+feedparser
+requests
+yfinance
+pycoingecko
