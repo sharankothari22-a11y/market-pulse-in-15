@@ -1,5 +1,6 @@
 // API Configuration
-export const API_BASE_URL = 'http://localhost:8000';
+// Use environment variable or fallback to relative path for same-origin requests
+export const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 // API Endpoints
 export const API_ENDPOINTS = {
