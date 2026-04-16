@@ -93,6 +93,10 @@ export const ResearchSession = ({ onSessionChange }) => {
   const [ticker, setTicker] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [researchData, setResearchData] = useState(null);
+  const [dcfData, setDcfData] = useState(null);
+  const [dcfLoading, setDcfLoading] = useState(false);
+  const [dcfModelVersion, setDcfModelVersion] = useState('analyst');
+  const [reportLoading, setReportLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -268,6 +272,39 @@ export const ResearchSession = ({ onSessionChange }) => {
     }
   };
 
+  const runDCF = async (version = dcfModelVersion) => {
+    const sid = researchData?.session_id;
+    if (!sid) return;
+    setDcfLoading(true);
+    try {
+      await apiPost('/api/research/' + sid + '/dcf?model_version=' + version, {});
+      setTimeout(() => refreshDCF(sid), 1000);
+    } catch (e) { console.error(e); }
+    finally { setDcfLoading(false); }
+  };
+  const refreshDCF = async (sid) => {
+    const sessionId = sid || researchData?.session_id;
+    if (!sessionId) return;
+    try {
+      const data = await apiGet('/api/research/' + sessionId + '/dcf');
+      if (data?.status !== 'not_run') setDcfData(data);
+    } catch (e) { console.error(e); }
+  };
+  const downloadReport = async () => {
+    const sid = researchData?.session_id;
+    if (!sid) return;
+    setReportLoading(true);
+    try {
+      const res = await fetch('/api/research/' + sid + '/report/download');
+      const html = await res.text();
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = (researchData?.ticker || 'research') + '_report.html';
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e) { console.error(e); }
+    finally { setReportLoading(false); }
+  };
   const getScenarios = () => {
     if (!researchData?.scenarios) return [];
     return SCENARIO_KEYS
@@ -654,24 +691,96 @@ export const ResearchSession = ({ onSessionChange }) => {
                 </div>
               </div>
 
+              {/* DCF Valuation Cards */}
+              <div className="dashboard-card">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">DCF Valuation</h3>
+                  <div className="flex items-center gap-2">
+                    <select value={dcfModelVersion} onChange={e => setDcfModelVersion(e.target.value)} className="text-xs bg-[#f8fafc] border border-[#e5e7eb] rounded px-2 py-1">
+                      <option value="base">Base</option>
+                      <option value="analyst">Analyst</option>
+                      <option value="data_driven">Data-Driven</option>
+                    </select>
+                    <button onClick={() => runDCF()} disabled={dcfLoading} className="flex items-center gap-1 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
+                      {dcfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                      {dcfLoading ? 'Running...' : 'Run DCF'}
+                    </button>
+                    <button onClick={() => refreshDCF()} className="text-xs bg-[#f1f5f9] text-[#64748b] px-2 py-1.5 rounded-lg">↻</button>
+                    <button onClick={downloadReport} disabled={reportLoading} className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
+                      {reportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : '📄'}
+                      {reportLoading ? 'Loading...' : 'Report'}
+                    </button>
+                  </div>
+                </div>
+                {!dcfData || dcfData.status === 'not_run' ? (
+                  <div className="text-center py-4 text-xs text-[#94a3b8]">
+                    <p>Click Run DCF → Run notebook → Click ↻ Refresh</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {['bull','base','bear'].map(label => {
+                      const s = dcfData.scenarios?.[label] || {};
+                      const cols = {bull:'#16a34a',base:'#2563eb',bear:'#dc2626'};
+                      const bgs = {bull:'#f0fdf4',base:'#eff6ff',bear:'#fef2f2'};
+                      return (
+                        <div key={label} style={{borderColor:cols[label],backgroundColor:bgs[label]}} className="border rounded-lg p-3 text-center">
+                          <div style={{color:cols[label]}} className="text-xs font-bold uppercase mb-1">{label}</div>
+                          <div className="text-lg font-bold text-[#0f172a]">{s.per_share ? '₹'+Number(s.per_share).toFixed(0) : 'N/A'}</div>
+                          <div style={{color:cols[label]}} className="text-xs mt-1">{s.upside_pct != null ? (s.upside_pct > 0 ? '+' : '')+Number(s.upside_pct).toFixed(1)+'%' : ''}</div>
+                          <div className="text-xs text-[#64748b] mt-1">{s.rating || ''}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Reverse DCF */}
               <div className="dashboard-card">
                 <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-2">Reverse DCF</h3>
                 <p className="text-sm text-[#0f172a] leading-relaxed">
-                  {researchData.reverseDCF || 'No DCF analysis available'}
+                  {dcfData?.reverse_dcf ? (
+                  <div>
+                    <p className="text-sm text-[#0f172a]">Market pricing in <span className="font-bold text-[#d97706]">{dcfData.reverse_dcf.implied_growth_rate}% growth</span></p>
+                    <p className="text-xs text-[#64748b] mt-1">{dcfData.reverse_dcf.interpretation}</p>
+                  </div>
+                ) : <p className="text-sm text-[#94a3b8]">Run DCF to see implied market assumptions</p>}
                 </p>
               </div>
 
               {/* Sensitivity Table */}
               <div className="dashboard-card">
                 <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Sensitivity Analysis</h3>
-                <div className="grid grid-cols-5 gap-1" data-testid="sensitivity-table">
-                  {[...Array(25)].map((_, idx) => (
-                    <div key={idx} className="aspect-square bg-[#f1f5f9] border border-[#e5e7eb] rounded flex items-center justify-center text-xs text-[#94a3b8]">
-                      {idx === 12 ? '●' : ''}
-                    </div>
-                  ))}
-                </div>
+                {dcfData?.sensitivity_table?.wacc_vs_growth?.matrix?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead><tr>
+                        <th className="text-[#94a3b8] p-1 text-left">WACC</th>
+                        {dcfData.sensitivity_table.wacc_vs_growth.cols.map(c => <th key={c} className="text-[#64748b] p-1 text-center">{c}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {dcfData.sensitivity_table.wacc_vs_growth.rows.map((row, ri) => (
+                          <tr key={row}>
+                            <td className="text-[#64748b] p-1 font-semibold">{row}</td>
+                            {dcfData.sensitivity_table.wacc_vs_growth.matrix[ri].map((val, ci) => {
+                              const cp = dcfData.current_price;
+                              const up = cp && val ? ((val - cp) / cp * 100) : null;
+                              const bg = up == null ? '#f1f5f9' : up > 20 ? '#dcfce7' : up > 0 ? '#fef9c3' : '#fee2e2';
+                              const tc = up == null ? '#94a3b8' : up > 20 ? '#16a34a' : up > 0 ? '#d97706' : '#dc2626';
+                              return <td key={ci} className="p-1 text-center rounded" style={{backgroundColor:bg,color:tc}}>{val ? '₹'+Math.round(val) : '—'}</td>;
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-5 gap-1" data-testid="sensitivity-table">
+                    {[...Array(25)].map((_, idx) => (
+                      <div key={idx} className="aspect-square bg-[#f1f5f9] border border-[#e5e7eb] rounded flex items-center justify-center text-xs text-[#94a3b8]">{idx === 12 ? '●' : ''}</div>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-[#94a3b8] mt-2 text-center">WACC vs Terminal Growth</p>
               </div>
             </div>
