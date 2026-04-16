@@ -32,6 +32,23 @@ executor = ThreadPoolExecutor(max_workers=5)
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+
+# ── NaN-safe sanitizer (yfinance may return NaN/Inf which break JSON) ─────────
+import math as _math
+def _clean_nans(obj):
+    if isinstance(obj, float):
+        if _math.isnan(obj) or _math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _clean_nans(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean_nans(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(_clean_nans(v) for v in obj)
+    return obj
+
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -469,7 +486,7 @@ async def get_market_overview():
         if isinstance(fii_dii,     Exception): fii_dii     = []
         if isinstance(news,        Exception): news        = []
 
-        return {
+        return _clean_nans({
             "top_movers":  top_movers,
             "fx":          fx,
             "crypto":      crypto,
@@ -477,7 +494,7 @@ async def get_market_overview():
             "fii_dii":     fii_dii,
             "news":        news,
             "last_updated": datetime.now(timezone.utc).isoformat(),
-        }
+        })
     except Exception as e:
         logger.error(f"Market overview failed: {e}")
         return {

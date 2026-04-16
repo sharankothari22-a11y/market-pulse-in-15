@@ -27,10 +27,13 @@ typer>=0.9.0
 emergentintegrations==0.1.0
 yfinance>=1.2.0
 feedparser
+sgmllib3k
 requests
 yfinance
 pycoingecko
-feedparser
-requests
-yfinance
-pycoingecko
+pytz
+curl_cffi
+multitasking
+peewee
+beautifulsoup4
+frozendict
