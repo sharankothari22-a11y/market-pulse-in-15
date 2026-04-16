@@ -786,7 +786,7 @@ async def chat(request: ChatRequest):
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
-app.include_router(api_router)
+# include_router moved to end
 
 app.add_middleware(
     CORSMiddleware,
@@ -1066,3 +1066,5 @@ body{{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;line-height:1.5}
         content=html,
         headers={"Content-Disposition": f"attachment; filename={ticker}_research_report.html"}
     )
+
+app.include_router(api_router)
