@@ -1,0 +1,8 @@
+[
+  {
+    "event_type": "initialize",
+    "detail": "Base assumptions set: ['revenue_growth', 'ebitda_margin', 'gross_margin', 'capex_pct_revenue', 'wacc', 'terminal_growth_rate', 'cost_of_debt', 'equity_risk_premium', 'tax_rate', 'working_capital_days', 'debt_equity_ratio', 'ticker', 'exchange', 'data_date', 'usd_inr', 'india_gdp_growth', 'india_cpi', 'us_fed_funds', 'risk_free_rate', '_sector', '_built_at', '_initialized_at', '_session_id', '_ticker']",
+    "user_input": null,
+    "timestamp": "2026-04-10T19:34:34.906136+00:00"
+  }
+]

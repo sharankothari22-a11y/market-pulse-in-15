@@ -1,0 +1,15 @@
+{
+  "session_id": "IRFC_20260410_224405",
+  "ticker": "IRFC",
+  "created_at": "2026-04-10T17:14:05.073244+00:00",
+  "status": "active",
+  "thesis": "",
+  "variant_view": "",
+  "catalysts": [],
+  "price_targets": {
+    "bull": 0.04,
+    "base": 0.02,
+    "bear": 0.01
+  },
+  "_updated_at": "2026-04-10T17:14:05.264114+00:00"
+}

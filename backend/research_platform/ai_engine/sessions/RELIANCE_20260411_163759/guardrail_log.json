@@ -1,0 +1,9 @@
+[
+  {
+    "metric": "equity_risk_premium",
+    "attempted_value": 4.0,
+    "capped_value": 2.0,
+    "rule": "max_single_change (4.00 > 2.0)",
+    "timestamp": "2026-04-11T11:07:59.559354+00:00"
+  }
+]

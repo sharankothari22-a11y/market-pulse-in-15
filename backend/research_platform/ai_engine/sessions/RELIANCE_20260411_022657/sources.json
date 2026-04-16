@@ -1,0 +1,16 @@
+[
+  {
+    "source_type": "signal",
+    "name": "guidance_change",
+    "url_or_path": null,
+    "description": "Event: 'Wall Street Strategists Wrestle With War\u2019s Toll on 2026 Outlook' \u2192 Signal: Guidance Change \u2192 Factor: ['outlook'] \u2192 Assumption: revenue_growth +2.00",
+    "timestamp": "2026-04-10T20:56:57.972665+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "guidance_change",
+    "url_or_path": null,
+    "description": "Event: 'Wall Street Strategists Wrestle With War\u2019s Toll on 2026 Outlook' \u2192 Signal: Guidance Change \u2192 Factor: ['outlook'] \u2192 Assumption: ebitda_margin +0.50",
+    "timestamp": "2026-04-10T20:56:57.973940+00:00"
+  }
+]

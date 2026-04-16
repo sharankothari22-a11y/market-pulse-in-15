@@ -1,0 +1,29 @@
+{
+  "_description": "Data quality guardrails applied before data enters the assumption engine",
+  "_version": "1.0",
+  "financial": {
+    "revenue_cannot_be_negative": true,
+    "capex_cannot_exceed_revenue": true,
+    "margin_range_pct": {
+      "min": -100,
+      "max": 100
+    },
+    "price_must_be_positive": true,
+    "volume_cannot_be_negative": true
+  },
+  "data_quality": {
+    "date_cannot_be_future": true,
+    "currency_must_be_iso_4217": true,
+    "percentage_range": {
+      "min": -100,
+      "max": 100
+    },
+    "ticker_format_nse": "^[A-Z0-9&\\-]{1,20}$",
+    "ticker_format_bse": "^\\d{4,6}$"
+  },
+  "confidence_thresholds": {
+    "auto_update_above": 0.8,
+    "flag_for_review_below": 0.5,
+    "reject_below": 0.2
+  }
+}

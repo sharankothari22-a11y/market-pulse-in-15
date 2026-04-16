@@ -1,0 +1,32 @@
+[
+  {
+    "event": "initialized",
+    "assumptions": {
+      "revenue_growth": 8.0,
+      "ebitda_margin": 18.0,
+      "gross_margin": 35.0,
+      "capex_pct_revenue": 5.0,
+      "wacc": 12.0,
+      "terminal_growth_rate": 1.1,
+      "cost_of_debt": 8.5,
+      "equity_risk_premium": 7.5,
+      "tax_rate": 25.0,
+      "working_capital_days": 45.0,
+      "debt_equity_ratio": 0.5,
+      "ticker": "IRFC.NS",
+      "exchange": "NSE",
+      "data_date": "2026-04-10",
+      "usd_inr": 92.89,
+      "india_gdp_growth": 0.104309021773304,
+      "india_cpi": 2.73853681635241,
+      "us_fed_funds": 5.0,
+      "risk_free_rate": 4.0,
+      "_sector": "universal",
+      "_built_at": "2026-04-10",
+      "_initialized_at": "2026-04-10T17:26:50.496751+00:00",
+      "_session_id": "IRFC.NS_20260410_225650",
+      "_ticker": "IRFC.NS"
+    },
+    "timestamp": "2026-04-10T17:26:50.497017+00:00"
+  }
+]

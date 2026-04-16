@@ -1,0 +1,44 @@
+[
+  {
+    "source_type": "signal",
+    "name": "regulatory_action",
+    "url_or_path": null,
+    "description": "Event: '[SEBI PMS] Bharat Ka Share Bazaar @ INDIA INTERNATIONAL TRADE FAIR \u2013 2025' \u2192 Signal: Regulatory Action \u2192 Factor: ['sebi'] \u2192 Assumption: equity_risk_premium +4.00",
+    "timestamp": "2026-04-16T19:13:55.086262+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "crude_price_move",
+    "url_or_path": null,
+    "description": "Event: '[r/stocks] S&amp;P 500 hits new all-time high as investors shrug off Iran war oi' \u2192 Signal: Crude Oil Price Movement \u2192 Factor: ['oil price'] \u2192 Assumption: revenue_growth +2.00",
+    "timestamp": "2026-04-16T19:13:55.087803+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "crude_price_move",
+    "url_or_path": null,
+    "description": "Event: '[r/stocks] S&amp;P 500 hits new all-time high as investors shrug off Iran war oi' \u2192 Signal: Crude Oil Price Movement \u2192 Factor: ['oil price'] \u2192 Assumption: ebitda_margin -1.50",
+    "timestamp": "2026-04-16T19:13:55.089492+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "capex_announcement",
+    "url_or_path": null,
+    "description": "Event: '[r/stocks] AI capex is insane but the debt is what actually scares me' \u2192 Signal: Capex / Expansion \u2192 Factor: ['capex'] \u2192 Assumption: capex_pct_revenue +3.00",
+    "timestamp": "2026-04-16T19:13:55.092289+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "debt_rating_change",
+    "url_or_path": null,
+    "description": "Event: '[r/stocks] AI capex is insane but the debt is what actually scares me' \u2192 Signal: Credit Rating Action \u2192 Factor: ['care'] \u2192 Assumption: cost_of_debt +4.00",
+    "timestamp": "2026-04-16T19:13:55.094913+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "debt_rating_change",
+    "url_or_path": null,
+    "description": "Event: '[r/stocks] AI capex is insane but the debt is what actually scares me' \u2192 Signal: Credit Rating Action \u2192 Factor: ['care'] \u2192 Assumption: wacc +6.00",
+    "timestamp": "2026-04-16T19:13:55.096957+00:00"
+  }
+]

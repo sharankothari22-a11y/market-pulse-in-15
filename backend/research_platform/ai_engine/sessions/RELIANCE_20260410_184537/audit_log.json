@@ -1,0 +1,38 @@
+[
+  {
+    "event_type": "catalyst_logged",
+    "detail": "earnings: Q1 FY27 results",
+    "user_input": null,
+    "timestamp": "2026-04-10T13:15:37.909588+00:00"
+  },
+  {
+    "event_type": "initialize",
+    "detail": "Base assumptions set: ['crude_price_usd_bbl', 'grm_usd_bbl', 'refinery_utilization_pct', 'terminal_growth_rate', 'ticker', 'exchange', 'data_date', 'usd_inr', 'india_gdp_growth', 'india_cpi', 'us_fed_funds', 'risk_free_rate', '_sector', '_built_at', '_initialized_at', '_session_id', '_ticker']",
+    "user_input": null,
+    "timestamp": "2026-04-10T13:15:37.947859+00:00"
+  },
+  {
+    "event_type": "consensus_divergence",
+    "detail": "revenue_growth: yours=-2.00 consensus=6.00 diff=-8.00",
+    "user_input": null,
+    "timestamp": "2026-04-10T13:15:38.049808+00:00"
+  },
+  {
+    "event_type": "consensus_divergence",
+    "detail": "ebitda_margin: yours=-1.50 consensus=16.00 diff=-17.50",
+    "user_input": null,
+    "timestamp": "2026-04-10T13:15:38.050330+00:00"
+  },
+  {
+    "event_type": "consensus_divergence",
+    "detail": "wacc: yours=2.00 consensus=12.50 diff=-10.50",
+    "user_input": null,
+    "timestamp": "2026-04-10T13:15:38.050733+00:00"
+  },
+  {
+    "event_type": "report_generated",
+    "detail": "Full research report generated for RELIANCE",
+    "user_input": null,
+    "timestamp": "2026-04-10T13:15:38.061408+00:00"
+  }
+]

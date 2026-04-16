@@ -1,0 +1,18 @@
+{
+  "session_id": "RELIANCE_20260410_110715",
+  "ticker": "RELIANCE",
+  "created_at": "2026-04-10T05:37:15.444363+00:00",
+  "status": "active",
+  "thesis": "RELIANCE undervalued \u2014 GRM recovery not priced in",
+  "variant_view": "Consensus using $6/bbl GRM; we model $9/bbl recovery",
+  "catalysts": [
+    {
+      "description": "Q1 FY27 results",
+      "expected_date": "2026-07-15",
+      "type": "earnings",
+      "logged_at": "2026-04-10T05:37:15.445542+00:00"
+    }
+  ],
+  "price_targets": {},
+  "_updated_at": "2026-04-10T05:37:15.445545+00:00"
+}

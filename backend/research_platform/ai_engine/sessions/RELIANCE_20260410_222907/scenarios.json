@@ -1,0 +1,136 @@
+{
+  "ticker": "RELIANCE",
+  "current_price": null,
+  "shares_outstanding": 6760,
+  "net_debt": 0.0,
+  "scenarios": {
+    "bull": {
+      "label": "bull",
+      "revenue_growth": 3.58,
+      "ebitda_margin": 2.5,
+      "wacc": 11.5,
+      "terminal_growth": 1.6,
+      "enterprise_value": 0,
+      "equity_value": 0.0,
+      "price_per_share": 0.0,
+      "upside_pct": null,
+      "rating": "hold",
+      "key_assumption": "3.6% revenue growth + 2.5% EBITDA margin driving value"
+    },
+    "base": {
+      "label": "base",
+      "revenue_growth": 0.58,
+      "ebitda_margin": 0.5,
+      "wacc": 12.0,
+      "terminal_growth": 1.1,
+      "enterprise_value": 0,
+      "equity_value": 0.0,
+      "price_per_share": 0.0,
+      "upside_pct": null,
+      "rating": "hold",
+      "key_assumption": "Base case: 0.6% growth, 0.5% margin, 12.0% WACC"
+    },
+    "bear": {
+      "label": "bear",
+      "revenue_growth": -3.42,
+      "ebitda_margin": -2.5,
+      "wacc": 13.0,
+      "terminal_growth": 0.5,
+      "enterprise_value": 0,
+      "equity_value": 0.0,
+      "price_per_share": 0.0,
+      "upside_pct": null,
+      "rating": "hold",
+      "key_assumption": "Downside risk: -3.4% growth, -2.5% margin, 13.0% WACC"
+    }
+  },
+  "sensitivity": {
+    "wacc_range": [
+      10.5,
+      11.0,
+      11.5,
+      12.0,
+      12.5,
+      13.0,
+      13.5
+    ],
+    "terminal_growth_range": [
+      -0.4,
+      0.1,
+      0.6,
+      1.1,
+      1.6,
+      2.1,
+      2.6
+    ],
+    "metric": "equity_value",
+    "grid": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ]
+  },
+  "reverse_dcf": null,
+  "generated_at": "2026-04-10T16:59:07.766808+00:00",
+  "_generated_at": "2026-04-10T16:59:07.766823+00:00"
+}

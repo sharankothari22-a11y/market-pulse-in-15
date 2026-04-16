@@ -1,0 +1,26 @@
+[
+  {
+    "event_type": "catalyst_logged",
+    "detail": "earnings: Q1 FY27 results",
+    "user_input": null,
+    "timestamp": "2026-04-12T20:32:54.237319+00:00"
+  },
+  {
+    "event_type": "initialize",
+    "detail": "Base assumptions set: ['crude_price_usd_bbl', 'grm_usd_bbl', 'refinery_utilization_pct', 'terminal_growth_rate', 'ticker', 'exchange', 'data_date', 'usd_inr', 'india_gdp_growth', 'india_cpi', 'us_fed_funds', 'risk_free_rate', '_sector', '_built_at', '_initialized_at', '_session_id', '_ticker']",
+    "user_input": null,
+    "timestamp": "2026-04-12T20:32:54.266135+00:00"
+  },
+  {
+    "event_type": "consensus_divergence",
+    "detail": "revenue_growth: yours=0.66 consensus=6.00 diff=-5.34",
+    "user_input": null,
+    "timestamp": "2026-04-12T20:32:54.298176+00:00"
+  },
+  {
+    "event_type": "consensus_divergence",
+    "detail": "ebitda_margin: yours=-1.50 consensus=16.00 diff=-17.50",
+    "user_input": null,
+    "timestamp": "2026-04-12T20:32:54.299489+00:00"
+  }
+]

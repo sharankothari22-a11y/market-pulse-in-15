@@ -1,0 +1,32 @@
+[
+  {
+    "event": "initialized",
+    "assumptions": {
+      "revenue_growth": 8.0,
+      "ebitda_margin": 18.0,
+      "gross_margin": 35.0,
+      "capex_pct_revenue": 5.0,
+      "wacc": 12.0,
+      "terminal_growth_rate": 1.1,
+      "cost_of_debt": 8.5,
+      "equity_risk_premium": 7.5,
+      "tax_rate": 25.0,
+      "working_capital_days": 45.0,
+      "debt_equity_ratio": 0.5,
+      "ticker": "RELIANCE",
+      "exchange": "NSE",
+      "data_date": "2026-04-11",
+      "usd_inr": 92.89,
+      "india_gdp_growth": 0.104309021773304,
+      "india_cpi": 2.73853681635241,
+      "us_fed_funds": 5.0,
+      "risk_free_rate": 4.0,
+      "_sector": "universal",
+      "_built_at": "2026-04-11",
+      "_initialized_at": "2026-04-10T19:55:11.651029+00:00",
+      "_session_id": "RELIANCE_20260411_012511",
+      "_ticker": "RELIANCE"
+    },
+    "timestamp": "2026-04-10T19:55:11.651345+00:00"
+  }
+]

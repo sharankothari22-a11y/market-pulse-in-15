@@ -1,0 +1,55 @@
+[
+  {
+    "event": "initialized",
+    "assumptions": {
+      "crude_price_usd_bbl": 80,
+      "grm_usd_bbl": 8,
+      "refinery_utilization_pct": 90,
+      "terminal_growth_rate": 1.1,
+      "ticker": "RELIANCE",
+      "exchange": "NSE",
+      "data_date": "2026-04-10",
+      "usd_inr": 92.89,
+      "india_gdp_growth": 0.104309021773304,
+      "india_cpi": 2.73853681635241,
+      "us_fed_funds": 5.0,
+      "risk_free_rate": 4.0,
+      "_sector": "petroleum",
+      "_built_at": "2026-04-10",
+      "_initialized_at": "2026-04-10T16:30:32.208680+00:00",
+      "_session_id": "RELIANCE_20260410_220032",
+      "_ticker": "RELIANCE"
+    },
+    "timestamp": "2026-04-10T16:30:32.208845+00:00"
+  },
+  {
+    "metric": "equity_risk_premium",
+    "old_value": null,
+    "new_value": 2.0,
+    "reason": "Consolidated from 2 signals: Promoter pledging or selling signals financial stress; Regulatory penalty signals governance risk",
+    "source": "news",
+    "confidence": "medium",
+    "triggered_by": "regulatory_action",
+    "timestamp": "2026-04-10T16:30:32.231071+00:00"
+  },
+  {
+    "metric": "ebitda_margin",
+    "old_value": null,
+    "new_value": -0.75,
+    "reason": "Consolidated from 2 signals: Input cost spike compresses EBITDA margin with 1-2 quarter lag; Beat suggests operating leverage better than modelled",
+    "source": "news",
+    "confidence": "medium",
+    "triggered_by": "margin_pressure",
+    "timestamp": "2026-04-10T16:30:32.232229+00:00"
+  },
+  {
+    "metric": "revenue_growth",
+    "old_value": null,
+    "new_value": -0.25,
+    "reason": "Consolidated from 2 signals: Regulatory constraints may limit operations; Positive earnings surprise updates base period for growth",
+    "source": "news",
+    "confidence": "medium",
+    "triggered_by": "regulatory_action",
+    "timestamp": "2026-04-10T16:30:32.233875+00:00"
+  }
+]

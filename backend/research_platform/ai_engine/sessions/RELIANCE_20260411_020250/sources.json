@@ -1,0 +1,16 @@
+[
+  {
+    "source_type": "signal",
+    "name": "earnings_surprise",
+    "url_or_path": null,
+    "description": "Event: 'nan \u2014 Mississippi, United States' \u2192 Signal: Earnings Beat / Miss \u2192 Factor: ['miss'] \u2192 Assumption: revenue_growth +1.50",
+    "timestamp": "2026-04-10T20:32:50.984555+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "earnings_surprise",
+    "url_or_path": null,
+    "description": "Event: 'nan \u2014 Mississippi, United States' \u2192 Signal: Earnings Beat / Miss \u2192 Factor: ['miss'] \u2192 Assumption: ebitda_margin +0.50",
+    "timestamp": "2026-04-10T20:32:50.986030+00:00"
+  }
+]

@@ -1,0 +1,136 @@
+{
+  "ticker": "RELIANCE",
+  "current_price": null,
+  "shares_outstanding": 6760,
+  "net_debt": 0.0,
+  "scenarios": {
+    "bull": {
+      "label": "bull",
+      "revenue_growth": 1.0,
+      "ebitda_margin": 20.0,
+      "wacc": 11.5,
+      "terminal_growth": 1.6,
+      "enterprise_value": 10446568.93,
+      "equity_value": 10446568.93,
+      "price_per_share": 1545.35,
+      "upside_pct": null,
+      "rating": "hold",
+      "key_assumption": "1.0% revenue growth + 20.0% EBITDA margin driving value"
+    },
+    "base": {
+      "label": "base",
+      "revenue_growth": -2.0,
+      "ebitda_margin": 18.0,
+      "wacc": 12.0,
+      "terminal_growth": 1.1,
+      "enterprise_value": 6789928.38,
+      "equity_value": 6789928.38,
+      "price_per_share": 1004.43,
+      "upside_pct": null,
+      "rating": "hold",
+      "key_assumption": "Base case: -2.0% growth, 18.0% margin, 12.0% WACC"
+    },
+    "bear": {
+      "label": "bear",
+      "revenue_growth": -6.0,
+      "ebitda_margin": 15.0,
+      "wacc": 13.0,
+      "terminal_growth": 0.5,
+      "enterprise_value": 3536747.91,
+      "equity_value": 3536747.91,
+      "price_per_share": 523.19,
+      "upside_pct": null,
+      "rating": "hold",
+      "key_assumption": "Downside risk: -6.0% growth, 15.0% margin, 13.0% WACC"
+    }
+  },
+  "sensitivity": {
+    "wacc_range": [
+      10.5,
+      11.0,
+      11.5,
+      12.0,
+      12.5,
+      13.0,
+      13.5
+    ],
+    "terminal_growth_range": [
+      -0.4,
+      0.1,
+      0.6,
+      1.1,
+      1.6,
+      2.1,
+      2.6
+    ],
+    "metric": "equity_value",
+    "grid": [
+      [
+        7405472.7,
+        7583449.0,
+        7779402.8,
+        7996202.7,
+        8237362.1,
+        8507231.0,
+        8811260.5
+      ],
+      [
+        7036185.3,
+        7192084.7,
+        7362974.4,
+        7551125.7,
+        7759293.2,
+        7990850.2,
+        8249973.5
+      ],
+      [
+        6700172.2,
+        6837309.9,
+        6987029.1,
+        7151144.4,
+        7331836.9,
+        7531752.1,
+        7754129.7
+      ],
+      [
+        6393291.1,
+        6514393.3,
+        6646118.4,
+        6789928.4,
+        6947566.3,
+        7121127.1,
+        7313152.0
+      ],
+      [
+        6112048.7,
+        6219373.1,
+        6335716.3,
+        6462265.2,
+        6600424.0,
+        6751867.3,
+        6918607.9
+      ],
+      [
+        5853478.5,
+        5948907.9,
+        6052033.2,
+        6163824.5,
+        6285422.0,
+        6418175.3,
+        6563693.3
+      ],
+      [
+        5615046.5,
+        5700160.4,
+        5791872.2,
+        5890980.1,
+        5998416.5,
+        6115277.1,
+        6242858.8
+      ]
+    ]
+  },
+  "reverse_dcf": null,
+  "generated_at": "2026-04-10T13:31:23.524888+00:00",
+  "_generated_at": "2026-04-10T13:31:23.524895+00:00"
+}
