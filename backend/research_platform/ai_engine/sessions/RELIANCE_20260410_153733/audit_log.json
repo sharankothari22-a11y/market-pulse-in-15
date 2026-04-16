@@ -1,8 +1,0 @@
-[
-  {
-    "event_type": "initialize",
-    "detail": "Base assumptions set: ['crude_price_usd_bbl', 'grm_usd_bbl', 'refinery_utilization_pct', 'terminal_growth_rate', 'ticker', 'exchange', 'data_date', 'usd_inr', 'india_gdp_growth', 'india_cpi', 'us_fed_funds', 'risk_free_rate', '_sector', '_built_at', '_initialized_at', '_session_id', '_ticker']",
-    "user_input": null,
-    "timestamp": "2026-04-10T10:07:33.360547+00:00"
-  }
-]
