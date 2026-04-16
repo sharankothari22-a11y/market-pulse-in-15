@@ -1,19 +1,28 @@
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 export const StatusBadge = ({ variant = 'info', children }) => {
   const variants = {
-    success: 'bg-[#16a34a]/10 text-[#16a34a] border-[#16a34a]/30',
-    warning: 'bg-[#d97706]/10 text-[#d97706] border-[#d97706]/30',
-    danger: 'bg-[#dc2626]/10 text-[#dc2626] border-[#dc2626]/30',
-    info: 'bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/30',
+    success: { bg: 'rgba(76, 175, 125, 0.14)',  fg: '#4CAF7D', bd: 'rgba(76, 175, 125, 0.4)' },
+    warning: { bg: 'rgba(230, 165, 68, 0.14)',  fg: '#E6A544', bd: 'rgba(230, 165, 68, 0.4)' },
+    danger:  { bg: 'rgba(224, 82, 82, 0.14)',   fg: '#E05252', bd: 'rgba(224, 82, 82, 0.4)' },
+    info:    { bg: 'rgba(201, 168, 76, 0.12)',  fg: '#C9A84C', bd: 'rgba(201, 168, 76, 0.4)' },
   };
+  const v = variants[variant] || variants.info;
 
   return (
-    <span 
-      className={cn(
-        "inline-flex items-center px-2 py-0.5 text-xs font-medium rounded border",
-        variants[variant]
-      )}
+    <span
+      className="inline-flex items-center"
+      style={{
+        padding: '2px 8px',
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        borderRadius: 2,
+        backgroundColor: v.bg,
+        color: v.fg,
+        border: `1px solid ${v.bd}`,
+      }}
       data-testid={`status-badge-${variant}`}
     >
       {children}

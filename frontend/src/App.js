@@ -1,9 +1,10 @@
-import { useState } from "react";
-import "@/App.css";
+import { useState } from 'react';
+import '@/App.css';
 
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { ChatPanel } from '@/components/layout/ChatPanel';
+import { SplashScreen } from '@/components/SplashScreen';
 
 import MarketOverview from '@/pages/MarketOverview';
 import ResearchSession from '@/pages/ResearchSession';
@@ -13,6 +14,7 @@ import MacroDashboard from '@/pages/MacroDashboard';
 function App() {
   const [currentPage, setCurrentPage] = useState('/');
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [splashDone, setSplashDone] = useState(false);
 
   const renderPage = () => {
     switch (currentPage) {
@@ -30,21 +32,32 @@ function App() {
   };
 
   return (
-    <div className="app-container flex h-screen overflow-hidden bg-[#ffffff]" data-testid="app-root">
-      {/* Left Sidebar */}
-      <Sidebar activePage={currentPage} onNavigate={setCurrentPage} />
+    <>
+      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar currentPage={currentPage} />
-        <main className="flex-1 overflow-hidden bg-[#ffffff]">
-          {renderPage()}
-        </main>
+      <div
+        className="app-container flex h-screen overflow-hidden"
+        style={{ backgroundColor: 'var(--bg-primary)' }}
+        data-testid="app-root"
+      >
+        {/* Left Sidebar */}
+        <Sidebar activePage={currentPage} onNavigate={setCurrentPage} />
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <TopBar currentPage={currentPage} />
+          <main
+            className="flex-1 overflow-hidden"
+            style={{ backgroundColor: 'var(--bg-primary)' }}
+          >
+            {renderPage()}
+          </main>
+        </div>
+
+        {/* Right Chat Panel */}
+        <ChatPanel sessionId={currentPage === '/research' ? currentSessionId : null} />
       </div>
-
-      {/* Right Chat Panel */}
-      <ChatPanel sessionId={currentPage === '/research' ? currentSessionId : null} />
-    </div>
+    </>
   );
 }
 

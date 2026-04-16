@@ -1,24 +1,23 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  Search, 
-  Bell, 
-  Globe, 
+import {
+  LayoutDashboard,
+  Search,
+  Bell,
+  Globe,
   Settings,
-  ChevronRight
 } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 const navItems = [
-  { id: 'market-overview', label: 'Market Overview', icon: LayoutDashboard, path: '/' },
-  { id: 'research-session', label: 'Research Session', icon: Search, path: '/research' },
-  { id: 'signals-alerts', label: 'Signals & Alerts', icon: Bell, path: '/signals' },
-  { id: 'macro-dashboard', label: 'Macro Dashboard', icon: Globe, path: '/macro' },
+  { id: 'market-overview',   label: 'MARKET OVERVIEW',   icon: LayoutDashboard, path: '/' },
+  { id: 'research-session',  label: 'RESEARCH SESSION',  icon: Search,          path: '/research' },
+  { id: 'signals-alerts',    label: 'SIGNALS & ALERTS',  icon: Bell,            path: '/signals' },
+  { id: 'macro-dashboard',   label: 'MACRO DASHBOARD',   icon: Globe,           path: '/macro' },
 ];
 
 const bottomItems = [
-  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+  { id: 'settings', label: 'SETTINGS', icon: Settings, path: '/settings' },
 ];
 
 export const Sidebar = ({ activePage, onNavigate }) => {
@@ -26,96 +25,178 @@ export const Sidebar = ({ activePage, onNavigate }) => {
 
   return (
     <motion.aside
-      className="sidebar h-screen bg-[#f1f5f9] border-r border-[#e5e7eb] flex flex-col"
-      initial={{ width: 64 }}
-      animate={{ width: isExpanded ? 200 : 64 }}
+      className="sidebar h-screen flex flex-col relative"
+      initial={{ width: 72 }}
+      animate={{ width: isExpanded ? 240 : 72 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
+      style={{
+        backgroundColor: '#0A1628',
+        borderRight: '1px solid rgba(201, 168, 76, 0.18)',
+      }}
       data-testid="sidebar"
     >
-      {/* Logo */}
-      <div className="p-3 flex items-center justify-center border-b border-[#e5e7eb]">
-        <img 
-          src="https://static.prod-images.emergentagent.com/jobs/2a0b1db4-ca8c-467b-bf34-af2a2ee9980c/images/32c0104271c6d67f5f4a6ff72b878f0bfe83fedaebfc6403d600733719158aea.png"
-          alt="Logo"
-          className="w-10 h-10 object-contain"
-        />
-        <motion.span
-          className="ml-2 text-[#0f172a] font-outfit font-semibold text-lg whitespace-nowrap overflow-hidden"
-          initial={{ opacity: 0, width: 0 }}
-          animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? 'auto' : 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          MarketPulse
-        </motion.span>
+      {/* Branding */}
+      <div
+        className="py-5 px-3 flex flex-col items-center justify-center"
+        style={{ borderBottom: '1px solid rgba(201, 168, 76, 0.18)', minHeight: 92 }}
+      >
+        {!isExpanded ? (
+          <div
+            className="font-serif-display font-black text-[#F5F0E8]"
+            style={{ fontSize: 22, letterSpacing: '0.04em' }}
+          >
+            B
+          </div>
+        ) : (
+          <motion.div
+            className="flex flex-col items-center text-center w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div
+              className="font-serif-display font-black text-[#F5F0E8] leading-none"
+              style={{ fontSize: 22, letterSpacing: '0.03em' }}
+            >
+              BEAVER
+            </div>
+            <div
+              className="my-1.5"
+              style={{
+                width: '60%',
+                height: '1px',
+                background: 'linear-gradient(90deg, transparent, #C9A84C 30%, #C9A84C 70%, transparent)',
+              }}
+            />
+            <div
+              className="text-[#C9A84C] font-medium"
+              style={{ fontSize: 9, letterSpacing: '0.45em' }}
+            >
+              INTELLIGENCE
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onNavigate(item.path)}
-            className={cn(
-              "w-full flex items-center px-4 py-3 transition-colors",
-              activePage === item.path
-                ? "bg-[#2563eb]/10 text-[#2563eb] border-r-2 border-[#2563eb]"
-                : "text-[#64748b] hover:bg-[#e5e7eb] hover:text-[#0f172a]"
-            )}
-            data-testid={`nav-${item.id}`}
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            <motion.span
-              className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden"
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? 'auto' : 0 }}
-              transition={{ duration: 0.2 }}
+      <nav className="flex-1 py-4 flex flex-col gap-0.5">
+        {navItems.map((item) => {
+          const isActive = activePage === item.path;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.path)}
+              className={cn(
+                'group w-full flex items-center transition-all relative',
+                'pl-4 pr-3 py-3',
+              )}
+              style={{
+                color: isActive ? '#C9A84C' : 'rgba(245, 240, 232, 0.72)',
+                backgroundColor: isActive ? 'rgba(201, 168, 76, 0.06)' : 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(201, 168, 76, 0.04)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              data-testid={`nav-${item.id}`}
             >
-              {item.label}
-            </motion.span>
-            {activePage === item.path && (
-              <motion.div
-                className="ml-auto"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isExpanded ? 1 : 0 }}
+              {/* Active left bar */}
+              <span
+                className="absolute left-0 top-0 bottom-0"
+                style={{
+                  width: '2px',
+                  backgroundColor: isActive ? '#C9A84C' : 'transparent',
+                  transition: 'background-color 0.2s',
+                }}
+              />
+              <item.icon
+                className="w-[18px] h-[18px] flex-shrink-0"
+                strokeWidth={isActive ? 2 : 1.5}
+              />
+              <motion.span
+                className="ml-3 font-medium whitespace-nowrap overflow-hidden"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: '0.22em',
+                }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? 'auto' : 0 }}
+                transition={{ duration: 0.2 }}
               >
-                <ChevronRight className="w-4 h-4" />
-              </motion.div>
-            )}
-          </button>
-        ))}
+                {item.label}
+              </motion.span>
+            </button>
+          );
+        })}
       </nav>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-[#e5e7eb]" />
+      <div
+        className="mx-3"
+        style={{ height: '1px', backgroundColor: 'rgba(201, 168, 76, 0.18)' }}
+      />
 
-      {/* Bottom Items */}
-      <div className="py-4">
-        {bottomItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onNavigate(item.path)}
-            className={cn(
-              "w-full flex items-center px-4 py-3 transition-colors",
-              activePage === item.path
-                ? "bg-[#2563eb]/10 text-[#2563eb]"
-                : "text-[#64748b] hover:bg-[#e5e7eb] hover:text-[#0f172a]"
-            )}
-            data-testid={`nav-${item.id}`}
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            <motion.span
-              className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden"
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? 'auto' : 0 }}
-              transition={{ duration: 0.2 }}
+      {/* Bottom items */}
+      <div className="py-3">
+        {bottomItems.map((item) => {
+          const isActive = activePage === item.path;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.path)}
+              className="w-full flex items-center pl-4 pr-3 py-3 transition-colors"
+              style={{
+                color: isActive ? '#C9A84C' : 'rgba(245, 240, 232, 0.55)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#C9A84C'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = isActive ? '#C9A84C' : 'rgba(245, 240, 232, 0.55)'; }}
+              data-testid={`nav-${item.id}`}
             >
-              {item.label}
-            </motion.span>
-          </button>
-        ))}
+              <item.icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+              <motion.span
+                className="ml-3 font-medium whitespace-nowrap overflow-hidden"
+                style={{ fontSize: 11, letterSpacing: '0.22em' }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? 'auto' : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {item.label}
+              </motion.span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Tagline */}
+      {isExpanded && (
+        <motion.div
+          className="px-4 pb-4 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          style={{
+            borderTop: '1px solid rgba(201, 168, 76, 0.12)',
+            paddingTop: 14,
+          }}
+        >
+          <div
+            style={{
+              color: 'rgba(201, 168, 76, 0.65)',
+              fontSize: 8.5,
+              letterSpacing: '0.28em',
+              lineHeight: 1.6,
+            }}
+          >
+            EQUITY RESEARCH<br />
+            <span style={{ color: 'rgba(201, 168, 76, 0.35)' }}>·</span>&nbsp;
+            DECISION INTELLIGENCE
+          </div>
+        </motion.div>
+      )}
     </motion.aside>
   );
 };

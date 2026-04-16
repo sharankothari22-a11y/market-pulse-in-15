@@ -2,85 +2,153 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Font Import */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+/* Fonts: Serif for display headings, Inter for body, Outfit for secondary display */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700;800;900&display=swap');
 
-/* CSS Variables for Light Theme */
+/* ────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS  — Beaver Intelligence / Tipsons dark navy + forest + gold
+   ──────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg-primary: #ffffff;
-  --bg-surface: #f8fafc;
-  --bg-secondary: #f1f5f9;
-  --border-color: #e5e7eb;
-  --accent-primary: #2563eb;
-  --color-positive: #16a34a;
-  --color-negative: #dc2626;
-  --color-warning: #d97706;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --radius: 8px;
+  --bg-primary: #0A1628;        /* deep navy  */
+  --bg-surface: #0D3B2E;         /* forest green surface (topbar, hero strip) */
+  --bg-card: #112a1f;            /* dark forest card bg */
+  --bg-card-hover: #163524;
+  --bg-elev: #0F2335;            /* subtle navy elevation */
+
+  --accent-gold: #C9A84C;
+  --accent-gold-soft: #D4B65C;
+  --accent-gold-dim: rgba(201, 168, 76, 0.15);
+  --accent-gold-faint: rgba(201, 168, 76, 0.06);
+
+  --text-primary: #F5F0E8;       /* cream */
+  --text-secondary: #C8C2B5;     /* warm muted */
+  --text-muted: #6B7B6E;         /* sage muted */
+  --text-muted-cream: rgba(245, 240, 232, 0.55);
+
+  --border-subtle: rgba(201, 168, 76, 0.18);
+  --border-strong: rgba(201, 168, 76, 0.35);
+
+  --positive: #4CAF7D;
+  --negative: #E05252;
+  --warning: #E6A544;
+
+  --radius: 6px;
 }
 
+/* Base */
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
-}
+code { font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace; }
 
+/* Utility fonts */
+.font-serif-display { font-family: 'Playfair Display', 'Times New Roman', serif; }
+.font-outfit { font-family: 'Outfit', sans-serif; }
+.font-mono-tight { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: 'tnum' 1; }
+
+/* ── shadcn HSL variables adapted for the dark gold palette ───────────── */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 210 40% 98%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --radius: 0.5rem;
-    
-    /* Chart colors */
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 0 72% 51%;
-    --chart-4: 32 95% 44%;
-    --chart-5: 215 16% 47%;
+    --background: 214 55% 9%;
+    --foreground: 34 42% 93%;
+    --card: 150 40% 12%;
+    --card-foreground: 34 42% 93%;
+    --popover: 214 55% 9%;
+    --popover-foreground: 34 42% 93%;
+    --primary: 43 55% 55%;
+    --primary-foreground: 214 55% 9%;
+    --secondary: 150 40% 14%;
+    --secondary-foreground: 34 42% 93%;
+    --muted: 150 40% 14%;
+    --muted-foreground: 120 8% 45%;
+    --accent: 43 55% 55%;
+    --accent-foreground: 214 55% 9%;
+    --destructive: 0 69% 60%;
+    --destructive-foreground: 34 42% 93%;
+    --border: 43 55% 25%;
+    --input: 150 40% 14%;
+    --ring: 43 55% 55%;
+    --radius: 6px;
+    --chart-1: 43 55% 55%;
+    --chart-2: 150 40% 30%;
+    --chart-3: 0 69% 60%;
+    --chart-4: 32 60% 55%;
+    --chart-5: 34 42% 93%;
   }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+  [data-debug-wrapper="true"] { display: contents !important; }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* ── Keyframes ────────────────────────────────────────────────────────── */
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
 }
 
-@layer base {
-  [data-debug-wrapper="true"] {
-    display: contents !important;
-  }
+@keyframes goldPulseDot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+}
+.gold-pulse-dot { animation: goldPulseDot 2.2s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
 }
 
-/* Outfit font utility */
-.font-outfit {
-  font-family: 'Outfit', sans-serif;
-}
+/* ── Global overrides: map legacy light-theme hardcoded colors to dark ──
+   (So that pages we did not fully rewrite still render coherently on the
+   new palette. The pages explicitly redesigned override these with their
+   own tokens.) */
+.bg-\[\#ffffff\]       { background-color: var(--bg-primary) !important; }
+.bg-white              { background-color: var(--bg-card) !important; color: var(--text-primary); }
+.bg-\[\#f8fafc\]       { background-color: var(--bg-card) !important; }
+.bg-\[\#f1f5f9\]       { background-color: var(--bg-elev) !important; }
+.hover\:bg-\[\#f8fafc\]:hover { background-color: var(--bg-card-hover) !important; }
+.hover\:bg-\[\#f1f5f9\]:hover { background-color: rgba(201, 168, 76, 0.07) !important; }
+.hover\:bg-\[\#e5e7eb\]:hover { background-color: rgba(201, 168, 76, 0.07) !important; }
+
+.text-\[\#0f172a\]     { color: var(--text-primary) !important; }
+.text-\[\#64748b\]     { color: var(--text-muted-cream) !important; }
+.text-\[\#94a3b8\]     { color: rgba(245, 240, 232, 0.4) !important; }
+
+.border-\[\#e5e7eb\]   { border-color: var(--border-subtle) !important; }
+
+/* Blue → Gold remap */
+.text-\[\#2563eb\]              { color: var(--accent-gold) !important; }
+.bg-\[\#2563eb\]                { background-color: var(--accent-gold) !important; color: var(--bg-primary) !important; }
+.hover\:bg-\[\#1d4ed8\]:hover   { background-color: var(--accent-gold-soft) !important; }
+.border-\[\#2563eb\]            { border-color: var(--accent-gold) !important; }
+.focus\:ring-\[\#2563eb\]:focus { --tw-ring-color: var(--accent-gold) !important; }
+.bg-\[\#2563eb\]\/10            { background-color: rgba(201, 168, 76, 0.12) !important; color: var(--accent-gold) !important; }
+.bg-\[\#2563eb\]\/5             { background-color: rgba(201, 168, 76, 0.06) !important; }
+.border-\[\#2563eb\]\/20        { border-color: rgba(201, 168, 76, 0.25) !important; }
+.border-\[\#2563eb\]\/30        { border-color: rgba(201, 168, 76, 0.35) !important; }
+.hover\:border-\[\#2563eb\]:hover { border-color: var(--accent-gold) !important; }
+.hover\:text-\[\#2563eb\]:hover { color: var(--accent-gold) !important; }
+
+/* Green / red remap to sage / muted red */
+.text-\[\#16a34a\]     { color: var(--positive) !important; }
+.text-\[\#dc2626\]     { color: var(--negative) !important; }
+.border-\[\#16a34a\]   { border-color: var(--positive) !important; }
+.border-\[\#dc2626\]   { border-color: var(--negative) !important; }
+.bg-\[\#16a34a\]\/10   { background-color: rgba(76, 175, 125, 0.12) !important; }
+.bg-\[\#16a34a\]\/20   { background-color: rgba(76, 175, 125, 0.22) !important; }
+.border-\[\#16a34a\]\/20 { border-color: rgba(76, 175, 125, 0.3) !important; }
+.border-\[\#16a34a\]\/30 { border-color: rgba(76, 175, 125, 0.4) !important; }
+.bg-\[\#dc2626\]\/10   { background-color: rgba(224, 82, 82, 0.12) !important; }
+.bg-\[\#dc2626\]\/20   { background-color: rgba(224, 82, 82, 0.22) !important; }
+.border-\[\#dc2626\]\/20 { border-color: rgba(224, 82, 82, 0.3) !important; }
+.border-\[\#dc2626\]\/30 { border-color: rgba(224, 82, 82, 0.4) !important; }
+.text-\[\#d97706\]     { color: var(--warning) !important; }
+.bg-\[\#d97706\]\/10   { background-color: rgba(230, 165, 68, 0.14) !important; }
+.bg-\[\#d97706\]\/5    { background-color: rgba(230, 165, 68, 0.07) !important; }
+.border-\[\#d97706\]\/20 { border-color: rgba(230, 165, 68, 0.3) !important; }
+.border-\[\#d97706\]\/30 { border-color: rgba(230, 165, 68, 0.4) !important; }
