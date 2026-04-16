@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -799,3 +799,270 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DCF INTEGRATION ENDPOINTS (MongoDB-based)
+# ─────────────────────────────────────────────────────────────────────────────
+
+import json as _json_dcf
+from fastapi.responses import HTMLResponse
+from fastapi import Request
+
+@api_router.post("/research/{session_id}/dcf")
+async def run_dcf_endpoint(session_id: str, model_version: str = "base"):
+    """Write assumptions.json for DCF and store in MongoDB session."""
+    session = await db.research_sessions.find_one({"session_id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    ticker = session.get("ticker", session_id.split("_")[0])
+    sector = session.get("sector", "other")
+
+    assumptions = {
+        "schema_version": "1.0",
+        "meta": {
+            "ticker": ticker,
+            "sector": sector,
+            "session_id": session_id,
+            "model_version": model_version,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "wacc_inputs": {
+            "risk_free": 4.0,
+            "equity_risk_premium": 5.5,
+            "beta": 1.2 if sector == "petroleum_energy" else 1.1,
+            "cost_of_debt_pretax": 5.0,
+            "tax_rate": 25.0,
+            "target_debt_weight": 20.0,
+            "wacc_direct": None,
+        },
+        "dcf_parameters": {
+            "forecast_years": 5,
+            "terminal_growth": 2.0,
+            "exit_multiple": 12.0,
+            "use_exit_multiple": False,
+            "mid_year": True,
+        },
+        "driver_overrides": {
+            "revenue_growth": None if model_version == "base" else 0.12,
+            "ebit_margin": None if model_version == "base" else 0.18,
+            "capex_pct": None,
+            "da_pct": None,
+            "nwc_pct": None,
+        },
+        "sensitivity": {
+            "wacc_grid": [0.07, 0.08, 0.09, 0.10, 0.11, 0.12],
+            "growth_grid": [0.01, 0.02, 0.025, 0.03, 0.035],
+        },
+    }
+
+    # Save assumptions to MongoDB session
+    await db.research_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "assumptions": assumptions,
+            "dcf_model_version": model_version,
+            "dcf_status": "assumptions_written",
+            "dcf_updated_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+
+    # Also write to disk for DCF notebook to pick up
+    session_dir = ROOT_DIR / "ai_engine" / "sessions" / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+    (session_dir / "assumptions.json").write_text(
+        _json_dcf.dumps(assumptions, indent=2, default=str)
+    )
+    (session_dir / "session_meta.json").write_text(
+        _json_dcf.dumps({
+            "ticker": ticker,
+            "sector": sector,
+            "sector_mapped": sector,
+            "session_id": session_id,
+        }, indent=2)
+    )
+
+    return {
+        "status": "assumptions_written",
+        "session_id": session_id,
+        "model_version": model_version,
+        "ticker": ticker,
+        "assumptions_path": str(session_dir / "assumptions.json"),
+        "message": "assumptions.json written. Run DCF notebook then click Refresh.",
+    }
+
+
+@api_router.get("/research/{session_id}/dcf")
+async def get_dcf_result(session_id: str):
+    """Read DCF output from MongoDB session."""
+    session = await db.research_sessions.find_one({"session_id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    dcf_output = session.get("dcf_output")
+    if not dcf_output:
+        # Also check disk
+        output_file = ROOT_DIR / "ai_engine" / "sessions" / session_id / "dcf_output.json"
+        if output_file.exists():
+            dcf_output = _json_dcf.loads(output_file.read_text())
+            # Save to MongoDB
+            await db.research_sessions.update_one(
+                {"session_id": session_id},
+                {"$set": {"dcf_output": dcf_output, "dcf_status": "complete"}}
+            )
+
+    if not dcf_output:
+        return {
+            "status": "not_run",
+            "message": "DCF not run yet. Click 'Run DCF' then run the notebook, then click Refresh."
+        }
+
+    meta = dcf_output.get("meta", {})
+    val  = dcf_output.get("valuation", {})
+    sc   = dcf_output.get("scenarios", {})
+
+    def _n(d, k):
+        v = d.get(k)
+        try: return round(float(v), 2) if v is not None else None
+        except: return None
+
+    return {
+        "status": "ok",
+        "model_version": meta.get("model_version"),
+        "ticker": meta.get("ticker"),
+        "run_at": meta.get("run_at"),
+        "wacc_pct": _n(meta, "wacc_pct"),
+        "terminal_growth": _n(meta, "terminal_growth_pct"),
+        "tv_method": meta.get("tv_method"),
+        "currency": meta.get("currency", "INR"),
+        "per_share": _n(val, "per_share"),
+        "current_price": _n(val, "current_price"),
+        "upside_pct": _n(val, "upside_pct"),
+        "enterprise_value": _n(val, "enterprise_value"),
+        "equity_value": _n(val, "equity_value"),
+        "scenarios": {
+            label: {
+                "per_share": _n(sc.get(label, {}), "per_share"),
+                "upside_pct": _n(sc.get(label, {}), "upside_pct"),
+                "rating": sc.get(label, {}).get("rating"),
+                "key_assumption": sc.get(label, {}).get("key_assumption"),
+            }
+            for label in ("base", "bull", "bear")
+        },
+        "sensitivity_table": dcf_output.get("sensitivity_table", {}),
+        "forecast": dcf_output.get("forecast", []),
+    }
+
+
+@api_router.post("/research/{session_id}/dcf/upload")
+async def upload_dcf_output(session_id: str, request: Request):
+    """Upload dcf_output.json from Mac to server session."""
+    session = await db.research_sessions.find_one({"session_id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    try:
+        body = await request.body()
+        data = _json_dcf.loads(body)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+
+    # Save to MongoDB
+    await db.research_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "dcf_output": data,
+            "dcf_status": "complete",
+            "dcf_uploaded_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+
+    # Also save to disk
+    session_dir = ROOT_DIR / "ai_engine" / "sessions" / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+    (session_dir / "dcf_output.json").write_text(
+        _json_dcf.dumps(data, indent=2, default=str)
+    )
+
+    val = data.get("valuation", {})
+    return {
+        "status": "uploaded",
+        "session_id": session_id,
+        "per_share": val.get("per_share"),
+        "upside_pct": val.get("upside_pct"),
+    }
+
+
+@api_router.get("/research/{session_id}/report/download")
+async def download_report(session_id: str):
+    """Generate and return HTML research report."""
+    session = await db.research_sessions.find_one({"session_id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    ticker  = session.get("ticker", "N/A")
+    sector  = session.get("sector", "N/A")
+    thesis  = session.get("hypothesis", "")
+    variant = session.get("variant_view", "")
+    dcf     = session.get("dcf_output", {})
+    sc      = dcf.get("scenarios", {}) if dcf else {}
+    val     = dcf.get("valuation", {}) if dcf else {}
+
+    def fmt(v, pre="₹"):
+        try: return f"{pre}{float(v):,.0f}" if v else "N/A"
+        except: return "N/A"
+    def fpct(v):
+        try:
+            f = float(v)
+            return f"{f:+.1f}%"
+        except: return "N/A"
+
+    scenario_html = ""
+    for label, color in [("bull","#28a745"),("base","#1a73e8"),("bear","#dc3545")]:
+        s = sc.get(label, {})
+        scenario_html += f"""
+        <div style="flex:1;border:2px solid {color};border-radius:8px;padding:16px;text-align:center">
+          <div style="color:{color};font-weight:700;font-size:11px;text-transform:uppercase;margin-bottom:6px">{label}</div>
+          <div style="font-size:26px;font-weight:900">{fmt(s.get('per_share'))}</div>
+          <div style="color:{color};font-size:13px;margin-top:4px">{fpct(s.get('upside_pct'))}</div>
+          <div style="color:#666;font-size:11px;margin-top:4px">{s.get('rating','')}</div>
+          <div style="color:#999;font-size:10px;margin-top:8px;font-style:italic">{s.get('key_assumption','')}</div>
+        </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>{ticker} Research Report</title>
+<style>
+@page{{size:A4;margin:15mm}}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;line-height:1.5}}
+@media print{{.no-print{{display:none!important}}}}
+</style></head><body>
+<div class="no-print" style="background:#1a1a2e;color:white;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:99">
+  <span>📄 <strong>{ticker}</strong> — Research Report</span>
+  <button onclick="window.print()" style="background:#e94560;color:white;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-weight:bold">🖨️ Save as PDF</button>
+</div>
+<div style="padding:24px;max-width:800px;margin:0 auto">
+  <div style="background:#1a1a2e;color:white;padding:20px;border-radius:8px;margin-bottom:20px">
+    <h1 style="font-size:22px;font-weight:900">{ticker}</h1>
+    <div style="color:#a0aec0;font-size:11px;margin-top:6px">Sector: {sector} &nbsp;|&nbsp; {datetime.now().strftime('%d %b %Y %H:%M IST')}</div>
+  </div>
+
+  {"<div style='background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:20px'><div style='font-size:10px;font-weight:700;text-transform:uppercase;color:#4a5568;margin-bottom:8px'>Investment Thesis</div><div style='margin-bottom:6px'>" + thesis + "</div><div style='color:#666;font-style:italic'>" + variant + "</div></div>" if thesis else ""}
+
+  <div style="margin-bottom:20px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#4a5568;margin-bottom:10px">DCF Valuation</div>
+    {"<div style='display:flex;gap:12px'>" + scenario_html + "</div>" if sc else "<div style='color:#999;text-align:center;padding:20px'>DCF not run yet</div>"}
+  </div>
+
+  {"<div style='background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:20px'><div style='font-size:10px;font-weight:700;text-transform:uppercase;color:#4a5568;margin-bottom:8px'>Valuation Summary</div><table style='width:100%;border-collapse:collapse'><tr><td style='padding:3px 8px;color:#666'>Enterprise Value</td><td style='padding:3px 8px;font-weight:700'>" + fmt(val.get('enterprise_value'),'') + "</td></tr><tr><td style='padding:3px 8px;color:#666'>Per Share (Base)</td><td style='padding:3px 8px;font-weight:700'>" + fmt(val.get('per_share')) + "</td></tr><tr><td style='padding:3px 8px;color:#666'>Current Price</td><td style='padding:3px 8px;font-weight:700'>" + fmt(val.get('current_price')) + "</td></tr><tr><td style='padding:3px 8px;color:#666'>Upside</td><td style='padding:3px 8px;font-weight:700;color:" + ('#28a745' if (val.get('upside_pct') or 0) > 0 else '#dc3545') + "'>" + fpct(val.get('upside_pct')) + "</td></tr></table></div>" if val else ""}
+
+  <div style="color:#999;font-size:9px;text-align:center;border-top:1px solid #eee;padding-top:12px;margin-top:20px">
+    Generated by Unified Financial Intelligence System &nbsp;|&nbsp; Session: {session_id} &nbsp;|&nbsp; This is not investment advice
+  </div>
+</div></body></html>"""
+
+    return HTMLResponse(
+        content=html,
+        headers={"Content-Disposition": f"attachment; filename={ticker}_research_report.html"}
+    )
