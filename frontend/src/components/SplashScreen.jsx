@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
-const SPLASH_DURATION_MS = 15000;
-const FADE_MS = 700;
+const SPLASH_DURATION_MS = 10000;   // 10 seconds
+const FADE_MS = 600;
+
+const BEAVER_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/tqw73ol3_Screenshot%202026-04-16%20at%206.20.25%E2%80%AFPM.png';
+const TIPSONS_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/sble7mpu_logo.png';
 
 export const SplashScreen = ({ onDone }) => {
   const [progress, setProgress] = useState(0);
@@ -15,13 +18,8 @@ export const SplashScreen = ({ onDone }) => {
       setProgress(pct);
     }, 50);
 
-    const fadeTimer = setTimeout(() => {
-      setFadingOut(true);
-    }, SPLASH_DURATION_MS);
-
-    const doneTimer = setTimeout(() => {
-      if (onDone) onDone();
-    }, SPLASH_DURATION_MS + FADE_MS);
+    const fadeTimer = setTimeout(() => setFadingOut(true), SPLASH_DURATION_MS);
+    const doneTimer = setTimeout(() => { if (onDone) onDone(); }, SPLASH_DURATION_MS + FADE_MS);
 
     return () => {
       clearInterval(tick);
@@ -37,7 +35,6 @@ export const SplashScreen = ({ onDone }) => {
         zIndex: 9999,
         backgroundColor: '#0A1628',
         opacity: fadingOut ? 0 : 1,
-        visibility: fadingOut && progress >= 100 ? 'visible' : 'visible',
         transition: `opacity ${FADE_MS}ms ease-out`,
         pointerEvents: fadingOut ? 'none' : 'auto',
       }}
@@ -47,90 +44,44 @@ export const SplashScreen = ({ onDone }) => {
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at center, rgba(201, 168, 76, 0.08) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse at center, rgba(201, 168, 76, 0.10) 0%, transparent 65%)',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Logos row */}
-      <div className="relative flex items-center gap-10 md:gap-16 px-8">
-        {/* BEAVER INTELLIGENCE */}
-        <div className="flex flex-col items-center text-center">
-          <div
-            className="font-serif-display font-black text-[#F5F0E8] leading-none"
-            style={{
-              fontSize: 'clamp(44px, 7vw, 84px)',
-              letterSpacing: '0.02em',
-            }}
-          >
-            BEAVER
-          </div>
-          <div
-            className="my-3"
-            style={{
-              width: '100%',
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent, #C9A84C 20%, #C9A84C 80%, transparent)',
-            }}
-          />
-          <div
-            className="text-[#C9A84C] font-medium"
-            style={{
-              fontSize: 'clamp(10px, 1.1vw, 14px)',
-              letterSpacing: '0.45em',
-            }}
-          >
-            INTELLIGENCE
-          </div>
-        </div>
-
-        {/* Vertical divider */}
+      {/* Beaver logo (centered, 180px) */}
+      <div className="relative flex flex-col items-center">
         <div
           style={{
-            width: '1px',
-            height: 'clamp(70px, 10vw, 120px)',
-            background: 'linear-gradient(180deg, transparent, rgba(201, 168, 76, 0.55) 30%, rgba(201, 168, 76, 0.55) 70%, transparent)',
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundColor: '#0A1628',
+            boxShadow: '0 4px 24px rgba(201, 168, 76, 0.25)',
           }}
-        />
-
-        {/* TIPSONS */}
-        <div className="flex flex-col items-center text-center">
-          <div
-            className="font-serif-display font-black text-[#F5F0E8] leading-none"
-            style={{
-              fontSize: 'clamp(44px, 7vw, 84px)',
-              letterSpacing: '0.04em',
-            }}
-          >
-            TIPSONS
-          </div>
-          <div
-            className="my-3"
+        >
+          <img
+            src={BEAVER_LOGO_URL}
+            alt="Beaver Intelligence"
             style={{
               width: '100%',
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent, #C9A84C 20%, #C9A84C 80%, transparent)',
+              height: '100%',
+              objectFit: 'cover',
+              mixBlendMode: 'lighten',
             }}
+            data-testid="splash-logo"
           />
-          <div
-            className="text-[#C9A84C] font-medium"
-            style={{
-              fontSize: 'clamp(10px, 1.1vw, 14px)',
-              letterSpacing: '0.45em',
-            }}
-          >
-            CAPITAL
-          </div>
         </div>
       </div>
 
       {/* Progress bar */}
       <div
-        className="relative mt-16 overflow-hidden"
+        className="relative mt-12 overflow-hidden"
         style={{
-          width: 'min(520px, 70vw)',
+          width: 'min(420px, 65vw)',
           height: '2px',
-          backgroundColor: 'rgba(201, 168, 76, 0.12)',
+          backgroundColor: 'rgba(201, 168, 76, 0.15)',
           borderRadius: '1px',
         }}
         data-testid="splash-progress-track"
@@ -151,25 +102,41 @@ export const SplashScreen = ({ onDone }) => {
       <p
         className="mt-6 font-medium"
         style={{
-          color: 'rgba(245, 240, 232, 0.55)',
+          color: 'rgba(245, 240, 232, 0.6)',
           fontSize: '11px',
-          letterSpacing: '0.38em',
+          letterSpacing: '0.4em',
         }}
       >
         EQUITY RESEARCH <span style={{ color: '#C9A84C' }}>·</span> DECISION INTELLIGENCE
       </p>
 
-      {/* Tiny version mark */}
-      <p
-        className="absolute bottom-6 font-mono-tight"
-        style={{
-          color: 'rgba(201, 168, 76, 0.4)',
-          fontSize: '10px',
-          letterSpacing: '0.2em',
-        }}
+      {/* In partnership with Tipsons */}
+      <div
+        className="absolute bottom-10 flex flex-col items-center"
+        style={{ opacity: 0.85 }}
       >
-        v1.0 · INITIALIZING MARKET SYSTEMS
-      </p>
+        <p
+          className="font-medium mb-2"
+          style={{
+            color: 'rgba(245, 240, 232, 0.4)',
+            fontSize: '9px',
+            letterSpacing: '0.32em',
+          }}
+        >
+          IN PARTNERSHIP WITH
+        </p>
+        <img
+          src={TIPSONS_LOGO_URL}
+          alt="Tipsons"
+          style={{
+            width: 60,
+            height: 60,
+            objectFit: 'contain',
+            opacity: 0.75,
+            filter: 'brightness(1.1)',
+          }}
+        />
+      </div>
     </div>
   );
 };

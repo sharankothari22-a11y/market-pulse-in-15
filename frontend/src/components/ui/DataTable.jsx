@@ -10,9 +10,7 @@ export const DataTable = ({ columns, rows, maxHeight = 320 }) => {
       <table className="w-full text-sm tabular-nums">
         <thead
           className="sticky top-0 z-10"
-          style={{
-            backgroundColor: '#0D3B2E',
-          }}
+          style={{ backgroundColor: '#FFFFFF' }}
         >
           <tr>
             {columns.map((col, idx) => (
@@ -20,12 +18,12 @@ export const DataTable = ({ columns, rows, maxHeight = 320 }) => {
                 key={idx}
                 className="text-left py-2.5 px-3"
                 style={{
-                  color: '#C9A84C',
+                  color: '#0A1628',
                   fontSize: 10,
                   letterSpacing: '0.22em',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   textTransform: 'uppercase',
-                  borderBottom: '1px solid rgba(201, 168, 76, 0.3)',
+                  borderBottom: '1px solid rgba(201, 168, 76, 0.4)',
                 }}
               >
                 {col.header}
@@ -39,7 +37,7 @@ export const DataTable = ({ columns, rows, maxHeight = 320 }) => {
               key={rowIdx}
               className="row-hover transition-colors"
               style={{
-                borderBottom: '1px solid rgba(201, 168, 76, 0.08)',
+                borderBottom: '1px solid rgba(10, 22, 40, 0.06)',
               }}
               data-testid={`table-row-${rowIdx}`}
             >
@@ -48,7 +46,7 @@ export const DataTable = ({ columns, rows, maxHeight = 320 }) => {
                   key={colIdx}
                   className={cn('py-2.5 px-3', col.className)}
                   style={{
-                    color: '#F5F0E8',
+                    color: '#0A1628',
                     fontSize: 12.5,
                   }}
                 >

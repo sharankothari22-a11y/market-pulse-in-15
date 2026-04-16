@@ -1,10 +1,8 @@
-import { cn } from '@/lib/utils';
-
 export const MetricCard = ({ title, value, change, changeType, subtitle }) => {
   const changeColor = {
-    positive: '#4CAF7D',
+    positive: '#2D6A4F',
     negative: '#E05252',
-    neutral:  'rgba(245, 240, 232, 0.55)',
+    neutral:  'rgba(10, 22, 40, 0.5)',
   };
 
   const arrow = changeType === 'positive' ? '▲' : changeType === 'negative' ? '▼' : '';
@@ -17,10 +15,10 @@ export const MetricCard = ({ title, value, change, changeType, subtitle }) => {
       <p
         className="mb-1.5"
         style={{
-          color: '#C9A84C',
+          color: '#0A1628',
           fontSize: 9.5,
           letterSpacing: '0.26em',
-          fontWeight: 600,
+          fontWeight: 700,
           textTransform: 'uppercase',
         }}
       >
@@ -29,9 +27,9 @@ export const MetricCard = ({ title, value, change, changeType, subtitle }) => {
       <p
         className="tabular-nums"
         style={{
-          color: '#F5F0E8',
+          color: '#0A1628',
           fontSize: 22,
-          fontWeight: 600,
+          fontWeight: 700,
           letterSpacing: '-0.005em',
           lineHeight: 1.1,
         }}
@@ -45,7 +43,7 @@ export const MetricCard = ({ title, value, change, changeType, subtitle }) => {
             style={{
               color: changeColor[changeType] || changeColor.neutral,
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 700,
             }}
           >
             {arrow && <span style={{ marginRight: 4 }}>{arrow}</span>}
@@ -53,7 +51,7 @@ export const MetricCard = ({ title, value, change, changeType, subtitle }) => {
           </span>
         )}
         {subtitle && (
-          <span style={{ color: 'rgba(245, 240, 232, 0.4)', fontSize: 10.5 }}>
+          <span style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 10.5 }}>
             {subtitle}
           </span>
         )}

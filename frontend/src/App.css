@@ -1,4 +1,4 @@
-/* Global Styles for Beaver Intelligence × Tipsons Dashboard */
+/* Global Styles for Beaver Intelligence × Tipsons Dashboard — Cream/Navy/Gold */
 
 * { box-sizing: border-box; }
 
@@ -13,6 +13,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Playfair Display', 'Times New Roman', serif;
   letter-spacing: 0.005em;
+  color: var(--text-primary);
 }
 
 .app-container {
@@ -23,93 +24,92 @@ h1, h2, h3, h4, h5, h6 {
 /* ── Card surfaces ─────────────────────────────────────────────────────── */
 .dashboard-card {
   background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(201, 168, 76, 0.20);
   border-radius: 4px;
   padding: 1.1rem 1.25rem;
-  transition: border-color 0.2s, background-color 0.2s;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.dashboard-card:hover { border-color: rgba(201, 168, 76, 0.3); }
+.dashboard-card:hover {
+  border-color: rgba(201, 168, 76, 0.4);
+  box-shadow: var(--shadow-card-hover);
+}
 
 .metric-card {
   background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(201, 168, 76, 0.20);
   border-radius: 4px;
   padding: 1rem 1.15rem;
-  transition: border-color 0.2s, background-color 0.2s;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
 }
 .metric-card:hover {
-  border-color: rgba(201, 168, 76, 0.35);
-  background-color: var(--bg-card-hover);
+  border-color: rgba(201, 168, 76, 0.45);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .mini-card {
-  background-color: rgba(201, 168, 76, 0.04);
-  border: 1px solid var(--border-subtle);
+  background-color: rgba(201, 168, 76, 0.06);
+  border: 1px solid rgba(201, 168, 76, 0.22);
   border-radius: 3px;
   padding: 0.75rem 0.9rem;
 }
 
 .mini-chart {
-  background-color: rgba(201, 168, 76, 0.03);
-  border: 1px dashed var(--border-subtle);
+  background-color: var(--bg-surface);
+  border: 1px dashed rgba(201, 168, 76, 0.3);
   border-radius: 4px;
 }
 
-/* ── Data table ───────────────────────────────────────────────────────── */
+/* ── Data table ───────────────────────────────────────────────────── */
 .data-table-wrapper {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-subtle) transparent;
+  scrollbar-color: rgba(201, 168, 76, 0.4) transparent;
 }
 .data-table-wrapper::-webkit-scrollbar { width: 6px; height: 6px; }
 .data-table-wrapper::-webkit-scrollbar-track { background: transparent; }
-.data-table-wrapper::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+.data-table-wrapper::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.4); border-radius: 3px; }
 .data-table-wrapper::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
 
-/* ── Signal feed item ─────────────────────────────────────────────────── */
+/* ── Signal feed item ───────────────────────────────────────────────── */
 .signal-feed-item {
   background-color: transparent;
   border-radius: 0 3px 3px 0;
   transition: background-color 0.2s;
 }
-.signal-feed-item:hover { background-color: rgba(201, 168, 76, 0.05); }
+.signal-feed-item:hover { background-color: rgba(201, 168, 76, 0.08); }
 
-/* ── Page content ─────────────────────────────────────────────────────── */
+/* ── Page content ──────────────────────────────────────────────────── */
 .page-content {
   height: calc(100vh - 48px);
   background-color: var(--bg-primary);
   scrollbar-width: thin;
-  scrollbar-color: var(--border-subtle) transparent;
+  scrollbar-color: rgba(10, 22, 40, 0.25) transparent;
 }
 .page-content::-webkit-scrollbar { width: 8px; }
 .page-content::-webkit-scrollbar-track { background: transparent; }
-.page-content::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+.page-content::-webkit-scrollbar-thumb { background: rgba(10, 22, 40, 0.18); border-radius: 4px; }
 .page-content::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
 
-/* ── Sidebar ──────────────────────────────────────────────────────────── */
 .sidebar { z-index: 50; user-select: none; }
 
-/* ── Focus ────────────────────────────────────────────────────────────── */
 input:focus, button:focus { outline: none; }
 
-::selection { background-color: var(--accent-gold); color: var(--bg-primary); }
+::selection { background-color: var(--accent-gold); color: var(--accent-navy); }
 
-/* ── Decorative gold divider lines ────────────────────────────────────── */
 .gold-rule {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
-/* Numeric values — tabular */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
-/* Uppercase spaced label */
 .label-spaced {
   text-transform: uppercase;
   letter-spacing: 0.22em;
   font-size: 10.5px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Row hover (tables) */
-.row-hover:hover { background-color: rgba(201, 168, 76, 0.05) !important; }
+.row-hover:hover { background-color: rgba(201, 168, 76, 0.10) !important; }

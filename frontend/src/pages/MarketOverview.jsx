@@ -14,11 +14,11 @@ import { cn } from '@/lib/utils';
 const topMoversColumns = [
   { header: 'Symbol', accessor: 'symbol',
     render: (row) => (
-      <span style={{ color: '#F5F0E8', fontWeight: 600, letterSpacing: '0.02em' }}>{row.symbol}</span>
+      <span style={{ color: '#0A1628', fontWeight: 700, letterSpacing: '0.02em' }}>{row.symbol}</span>
     ) },
   { header: 'LTP', accessor: 'ltp',
     render: (row) => (
-      <span className="tabular-nums" style={{ color: '#F5F0E8' }}>
+      <span className="tabular-nums" style={{ color: '#0A1628', fontWeight: 500 }}>
         {typeof row.ltp === 'number' ? row.ltp.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : row.ltp}
       </span>
     ) },
@@ -29,13 +29,13 @@ const topMoversColumns = [
       const changeValue = row.change_percent ?? row.change;
       const num = parseFloat(changeValue);
       const isPositive = num >= 0;
-      const color = isPositive ? '#4CAF7D' : '#E05252';
+      const color = isPositive ? '#2D6A4F' : '#E05252';
       const arrow = isPositive ? '▲' : '▼';
       if (isNaN(num)) {
-        return <span style={{ color: 'rgba(245, 240, 232, 0.5)' }}>{changeValue ?? '—'}</span>;
+        return <span style={{ color: 'rgba(10, 22, 40, 0.5)' }}>{changeValue ?? '—'}</span>;
       }
       return (
-        <span className="tabular-nums" style={{ color, fontWeight: 600 }}>
+        <span className="tabular-nums" style={{ color, fontWeight: 700 }}>
           {arrow} {isPositive ? '+' : ''}{num.toFixed(2)}%
         </span>
       );
@@ -43,7 +43,7 @@ const topMoversColumns = [
   },
   { header: 'Volume', accessor: 'volume',
     render: (row) => (
-      <span className="tabular-nums" style={{ color: 'rgba(245, 240, 232, 0.55)' }}>{row.volume}</span>
+      <span className="tabular-nums" style={{ color: 'rgba(10, 22, 40, 0.6)' }}>{row.volume}</span>
     ) },
 ];
 
@@ -168,19 +168,19 @@ const HeroStrip = ({ macroIndicators = [], fx = {} }) => {
 
   const Stat = ({ label, value, change, positive }) => (
     <div className="flex items-center gap-2">
-      <span style={{ color: '#C9A84C', fontSize: 10.5, letterSpacing: '0.22em', fontWeight: 600 }}>
+      <span style={{ color: 'rgba(245, 240, 232, 0.85)', fontSize: 10.5, letterSpacing: '0.22em', fontWeight: 600 }}>
         {label}
       </span>
-      <span className="tabular-nums" style={{ color: '#F5F0E8', fontSize: 13, fontWeight: 500 }}>
+      <span className="tabular-nums" style={{ color: '#C9A84C', fontSize: 13, fontWeight: 700 }}>
         {value}
       </span>
       {change != null && (
         <span
           className="tabular-nums"
           style={{
-            color: positive ? '#4CAF7D' : '#E05252',
+            color: positive ? '#5EBE92' : '#FF7676',
             fontSize: 11,
-            fontWeight: 600,
+            fontWeight: 700,
           }}
         >
           {positive ? '▲' : '▼'} {change}
@@ -190,15 +190,15 @@ const HeroStrip = ({ macroIndicators = [], fx = {} }) => {
   );
 
   const Divider = () => (
-    <span style={{ color: 'rgba(201, 168, 76, 0.4)', fontSize: 14, margin: '0 6px' }}>·</span>
+    <span style={{ color: 'rgba(201, 168, 76, 0.5)', fontSize: 14, margin: '0 6px' }}>·</span>
   );
 
   return (
     <div
       className="w-full px-6 py-3 flex items-center gap-4 flex-wrap"
       style={{
-        backgroundColor: '#0D3B2E',
-        borderBottom: '1px solid rgba(201, 168, 76, 0.2)',
+        backgroundColor: '#1E3A5F',
+        borderBottom: '1px solid rgba(201, 168, 76, 0.3)',
       }}
       data-testid="market-hero-strip"
     >
@@ -210,7 +210,7 @@ const HeroStrip = ({ macroIndicators = [], fx = {} }) => {
         <span style={{ color: '#C9A84C', fontSize: 10.5, letterSpacing: '0.28em', fontWeight: 700 }}>
           NSE
         </span>
-        <span style={{ color: '#F5F0E8', fontSize: 10.5, letterSpacing: '0.2em', fontWeight: 600 }}>
+        <span style={{ color: 'rgba(245, 240, 232, 0.95)', fontSize: 10.5, letterSpacing: '0.2em', fontWeight: 600 }}>
           OPEN
         </span>
       </div>
@@ -249,10 +249,10 @@ const HeroStrip = ({ macroIndicators = [], fx = {} }) => {
       )}
 
       <div className="ml-auto hidden md:flex items-center gap-2">
-        <span style={{ color: 'rgba(245, 240, 232, 0.4)', fontSize: 10, letterSpacing: '0.15em' }}>
+        <span style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 10, letterSpacing: '0.15em' }}>
           SESSION
         </span>
-        <span style={{ color: '#F5F0E8', fontSize: 10.5, letterSpacing: '0.08em' }}>
+        <span style={{ color: 'rgba(245, 240, 232, 0.85)', fontSize: 10.5, letterSpacing: '0.08em' }}>
           09:15 IST — 15:30 IST
         </span>
       </div>
@@ -264,7 +264,7 @@ const HeroStrip = ({ macroIndicators = [], fx = {} }) => {
 const FiiDiiBarChart = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40" style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 12 }}>
+      <div className="flex items-center justify-center h-40" style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}>
         No FII / DII data available
       </div>
     );
@@ -274,14 +274,15 @@ const FiiDiiBarChart = ({ data }) => {
     if (!active || !payload?.length) return null;
     return (
       <div style={{
-        backgroundColor: '#0A1628',
-        border: '1px solid rgba(201, 168, 76, 0.4)',
+        backgroundColor: '#FFFFFF',
+        border: '1px solid rgba(201, 168, 76, 0.45)',
+        boxShadow: '0 4px 12px rgba(10, 22, 40, 0.12)',
         padding: '8px 10px',
         fontSize: 11.5,
       }}>
-        <div style={{ color: '#C9A84C', letterSpacing: '0.18em', marginBottom: 4 }}>{label}</div>
+        <div style={{ color: '#0A1628', letterSpacing: '0.18em', marginBottom: 4, fontWeight: 700 }}>{label}</div>
         {payload.map((p) => (
-          <div key={p.dataKey} className="tabular-nums" style={{ color: '#F5F0E8' }}>
+          <div key={p.dataKey} className="tabular-nums" style={{ color: '#0A1628' }}>
             <span style={{
               display: 'inline-block', width: 8, height: 8, marginRight: 6,
               backgroundColor: p.color, borderRadius: 1,
@@ -296,28 +297,28 @@ const FiiDiiBarChart = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height={180}>
       <BarChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 4 }}>
-        <CartesianGrid stroke="rgba(201, 168, 76, 0.08)" vertical={false} />
+        <CartesianGrid stroke="rgba(10, 22, 40, 0.06)" vertical={false} />
         <XAxis
           dataKey="date"
-          tick={{ fill: 'rgba(245, 240, 232, 0.6)', fontSize: 10, letterSpacing: '0.06em' }}
-          axisLine={{ stroke: 'rgba(201, 168, 76, 0.2)' }}
+          tick={{ fill: 'rgba(10, 22, 40, 0.65)', fontSize: 10, letterSpacing: '0.06em' }}
+          axisLine={{ stroke: 'rgba(10, 22, 40, 0.2)' }}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: 'rgba(245, 240, 232, 0.5)', fontSize: 10 }}
+          tick={{ fill: 'rgba(10, 22, 40, 0.5)', fontSize: 10 }}
           axisLine={false}
           tickLine={false}
           width={38}
         />
-        <ReferenceLine y={0} stroke="rgba(201, 168, 76, 0.25)" />
-        <Tooltip content={<TooltipBox />} cursor={{ fill: 'rgba(201, 168, 76, 0.05)' }} />
+        <ReferenceLine y={0} stroke="rgba(10, 22, 40, 0.25)" />
+        <Tooltip content={<TooltipBox />} cursor={{ fill: 'rgba(201, 168, 76, 0.08)' }} />
         <Legend
-          wrapperStyle={{ fontSize: 10, letterSpacing: '0.18em', color: '#C9A84C', paddingTop: 4 }}
+          wrapperStyle={{ fontSize: 10, letterSpacing: '0.18em', color: '#0A1628', paddingTop: 4, fontWeight: 700 }}
           iconType="square"
           iconSize={8}
         />
-        <Bar dataKey="FII" fill="#C9A84C" maxBarSize={22} radius={[1, 1, 0, 0]} />
-        <Bar dataKey="DII" fill="#2D6A4F" maxBarSize={22} radius={[1, 1, 0, 0]} />
+        <Bar dataKey="FII" fill="#0A1628" maxBarSize={22} radius={[1, 1, 0, 0]} />
+        <Bar dataKey="DII" fill="#C9A84C" maxBarSize={22} radius={[1, 1, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -328,7 +329,7 @@ const SectionHeading = ({ children, right }) => (
   <div className="flex items-end justify-between mb-3">
     <h2
       className="label-spaced"
-      style={{ color: '#C9A84C' }}
+      style={{ color: '#0A1628' }}
     >
       {children}
     </h2>
@@ -369,9 +370,9 @@ export const MarketOverview = () => {
   if (loading && !marketData) {
     return (
       <div className="page-content flex items-center justify-center" data-testid="market-overview-loading">
-        <div className="flex items-center gap-3" style={{ color: 'rgba(245, 240, 232, 0.55)' }}>
+        <div className="flex items-center gap-3" style={{ color: 'rgba(10, 22, 40, 0.6)' }}>
           <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#C9A84C' }} />
-          <span style={{ letterSpacing: '0.18em', fontSize: 11 }}>LOADING MARKET DATA…</span>
+          <span style={{ letterSpacing: '0.18em', fontSize: 11, fontWeight: 600 }}>LOADING MARKET DATA…</span>
         </div>
       </div>
     );
@@ -381,10 +382,10 @@ export const MarketOverview = () => {
     return (
       <div className="page-content flex items-center justify-center" data-testid="market-overview-error">
         <div className="text-center">
-          <p style={{ color: '#E05252', marginBottom: 8, letterSpacing: '0.18em', fontSize: 12 }}>
+          <p style={{ color: '#E05252', marginBottom: 8, letterSpacing: '0.18em', fontSize: 12, fontWeight: 700 }}>
             FAILED TO LOAD MARKET DATA
           </p>
-          <p style={{ color: 'rgba(245, 240, 232, 0.55)', fontSize: 12 }}>{error}</p>
+          <p style={{ color: 'rgba(10, 22, 40, 0.6)', fontSize: 12 }}>{error}</p>
         </div>
       </div>
     );
@@ -423,7 +424,7 @@ export const MarketOverview = () => {
             ) : (
               <p
                 className="col-span-5 text-center py-4"
-                style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 12 }}
+                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
               >
                 No FX data available
               </p>
@@ -435,17 +436,11 @@ export const MarketOverview = () => {
         <section className="grid grid-cols-3 gap-5" data-testid="movers-fii-section">
           {/* Top Movers */}
           <div
-            className="col-span-2"
-            style={{
-              backgroundColor: '#0D3B2E',
-              border: '1px solid rgba(201, 168, 76, 0.2)',
-              borderRadius: 4,
-              padding: '16px 18px',
-            }}
+            className="col-span-2 dashboard-card"
           >
             <SectionHeading
               right={
-                <span style={{ color: 'rgba(245, 240, 232, 0.4)', fontSize: 10, letterSpacing: '0.18em' }}>
+                <span style={{ color: 'rgba(10, 22, 40, 0.45)', fontSize: 10, letterSpacing: '0.18em' }}>
                   NSE · TOP {topMovers.length}
                 </span>
               }
@@ -457,7 +452,7 @@ export const MarketOverview = () => {
             ) : (
               <div
                 className="flex items-center justify-center h-40"
-                style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 12 }}
+                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
               >
                 No stock data available yet
               </div>
@@ -470,28 +465,28 @@ export const MarketOverview = () => {
             <FiiDiiBarChart data={fiiDiiChart} />
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="mini-card">
-                <p style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 9.5, letterSpacing: '0.22em', fontWeight: 600 }}>
+                <p style={{ color: 'rgba(10, 22, 40, 0.55)', fontSize: 9.5, letterSpacing: '0.22em', fontWeight: 700 }}>
                   FII NET
                 </p>
                 <p
                   className="tabular-nums mt-1"
                   style={{
-                    color: fiiDii.fii?.includes('-') ? '#E05252' : '#C9A84C',
-                    fontSize: 16, fontWeight: 600,
+                    color: fiiDii.fii?.includes('-') ? '#E05252' : '#0A1628',
+                    fontSize: 16, fontWeight: 700,
                   }}
                 >
                   {fiiDii.fii || '—'}
                 </p>
               </div>
               <div className="mini-card">
-                <p style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 9.5, letterSpacing: '0.22em', fontWeight: 600 }}>
+                <p style={{ color: 'rgba(10, 22, 40, 0.55)', fontSize: 9.5, letterSpacing: '0.22em', fontWeight: 700 }}>
                   DII NET
                 </p>
                 <p
                   className="tabular-nums mt-1"
                   style={{
-                    color: fiiDii.dii?.includes('-') ? '#E05252' : '#4CAF7D',
-                    fontSize: 16, fontWeight: 600,
+                    color: fiiDii.dii?.includes('-') ? '#E05252' : '#2D6A4F',
+                    fontSize: 16, fontWeight: 700,
                   }}
                 >
                   {fiiDii.dii || '—'}
@@ -499,7 +494,7 @@ export const MarketOverview = () => {
               </div>
             </div>
             {fiiDii.date && (
-              <p className="text-center mt-3" style={{ color: 'rgba(245, 240, 232, 0.4)', fontSize: 10, letterSpacing: '0.1em' }}>
+              <p className="text-center mt-3" style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 10, letterSpacing: '0.1em' }}>
                 As of {fiiDii.date}
               </p>
             )}
@@ -515,7 +510,7 @@ export const MarketOverview = () => {
             ) : (
               <p
                 className="col-span-4 text-center py-4"
-                style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 12 }}
+                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
               >
                 No commodity data available
               </p>
@@ -532,7 +527,7 @@ export const MarketOverview = () => {
             ) : (
               <p
                 className="text-center py-4"
-                style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 12 }}
+                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
               >
                 No news available
               </p>

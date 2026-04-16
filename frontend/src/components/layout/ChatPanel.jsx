@@ -18,7 +18,6 @@ export const ChatPanel = ({ sessionId }) => {
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); };
-
   useEffect(() => { scrollToBottom(); }, [messages]);
 
   const handleSend = async () => {
@@ -53,11 +52,11 @@ export const ChatPanel = ({ sessionId }) => {
         onClick={() => setIsCollapsed(false)}
         className="w-10 h-full flex items-center justify-center transition-colors"
         style={{
-          backgroundColor: '#0D3B2E',
-          borderLeft: '1px solid rgba(201, 168, 76, 0.18)',
+          backgroundColor: '#0A1628',
+          borderLeft: '1px solid rgba(201, 168, 76, 0.2)',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#134736'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0D3B2E'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1E3A5F'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0A1628'; }}
         data-testid="chat-panel-expand"
       >
         <ChevronLeft className="w-5 h-5" style={{ color: '#C9A84C' }} />
@@ -72,8 +71,9 @@ export const ChatPanel = ({ sessionId }) => {
       animate={{ width: 320, opacity: 1 }}
       transition={{ duration: 0.3 }}
       style={{
-        backgroundColor: '#0A1628',
-        borderLeft: '1px solid rgba(201, 168, 76, 0.18)',
+        backgroundColor: '#FFFFFF',
+        borderLeft: '1px solid rgba(201, 168, 76, 0.25)',
+        boxShadow: '-2px 0 8px rgba(10, 22, 40, 0.05)',
       }}
       data-testid="chat-panel"
     >
@@ -81,14 +81,14 @@ export const ChatPanel = ({ sessionId }) => {
       <div
         className="h-12 px-4 flex items-center justify-between"
         style={{
-          backgroundColor: '#0D3B2E',
-          borderBottom: '1px solid rgba(201, 168, 76, 0.22)',
+          backgroundColor: '#0A1628',
+          borderBottom: '1px solid rgba(201, 168, 76, 0.25)',
         }}
       >
         <div className="flex items-center gap-2">
           <span
             className="font-serif-display"
-            style={{ color: '#F5F0E8', fontSize: 12, letterSpacing: '0.22em', fontWeight: 600 }}
+            style={{ color: '#C9A84C', fontSize: 12, letterSpacing: '0.22em', fontWeight: 700 }}
           >
             AI INSIGHTS
           </span>
@@ -100,7 +100,7 @@ export const ChatPanel = ({ sessionId }) => {
         <button
           onClick={() => setIsCollapsed(true)}
           className="p-1 rounded transition-colors"
-          style={{ color: 'rgba(201, 168, 76, 0.75)' }}
+          style={{ color: 'rgba(201, 168, 76, 0.85)' }}
           data-testid="chat-panel-collapse"
         >
           <ChevronRight className="w-4 h-4" />
@@ -108,7 +108,11 @@ export const ChatPanel = ({ sessionId }) => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="chat-messages">
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-3"
+        style={{ backgroundColor: '#FAF6EE' }}
+        data-testid="chat-messages"
+      >
         <AnimatePresence>
           {messages.map((msg) => (
             <motion.div
@@ -124,15 +128,15 @@ export const ChatPanel = ({ sessionId }) => {
               <div
                 className="max-w-[85%] px-3 py-2 text-[13px] leading-relaxed"
                 style={msg.type === 'user' ? {
-                  backgroundColor: 'rgba(201, 168, 76, 0.12)',
-                  border: '1px solid rgba(201, 168, 76, 0.3)',
+                  backgroundColor: '#0A1628',
                   color: '#F5F0E8',
                   borderRadius: '4px',
                 } : {
-                  backgroundColor: '#112a1f',
-                  border: '1px solid rgba(201, 168, 76, 0.15)',
-                  color: '#F5F0E8',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid rgba(201, 168, 76, 0.22)',
+                  color: '#0A1628',
                   borderRadius: '4px',
+                  boxShadow: '0 1px 3px rgba(10, 22, 40, 0.06)',
                 }}
               >
                 <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -145,8 +149,8 @@ export const ChatPanel = ({ sessionId }) => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
             <img src={AI_AVATAR} alt="AI" className="w-6 h-6 rounded-full" />
             <div style={{
-              backgroundColor: '#112a1f',
-              border: '1px solid rgba(201, 168, 76, 0.15)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(201, 168, 76, 0.22)',
               borderRadius: 4,
               padding: '6px 10px',
             }}>
@@ -165,7 +169,7 @@ export const ChatPanel = ({ sessionId }) => {
       <div
         className="p-3"
         style={{
-          backgroundColor: '#0D3B2E',
+          backgroundColor: '#FFFFFF',
           borderTop: '1px solid rgba(201, 168, 76, 0.22)',
         }}
       >
@@ -178,12 +182,12 @@ export const ChatPanel = ({ sessionId }) => {
             placeholder="Ask about markets, signals, or stocks"
             style={{
               flex: 1,
-              backgroundColor: '#0A1628',
-              border: '1px solid rgba(201, 168, 76, 0.22)',
+              backgroundColor: '#FAF6EE',
+              border: '1px solid rgba(201, 168, 76, 0.3)',
               borderRadius: 3,
               padding: '8px 12px',
               fontSize: 12.5,
-              color: '#F5F0E8',
+              color: '#0A1628',
             }}
             data-testid="chat-input"
             disabled={isTyping}
@@ -193,9 +197,9 @@ export const ChatPanel = ({ sessionId }) => {
             disabled={!input.trim() || isTyping}
             className="p-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: '#C9A84C',
+              backgroundColor: '#0A1628',
               borderRadius: 3,
-              color: '#0A1628',
+              color: '#C9A84C',
             }}
             data-testid="chat-send-btn"
           >

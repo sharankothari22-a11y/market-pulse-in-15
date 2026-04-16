@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 
 export const CustomTabs = ({ tabs, defaultTab, children }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.value);
@@ -8,7 +7,7 @@ export const CustomTabs = ({ tabs, defaultTab, children }) => {
     <div data-testid="custom-tabs">
       <div
         className="flex gap-1 mb-4"
-        style={{ borderBottom: '1px solid rgba(201, 168, 76, 0.18)' }}
+        style={{ borderBottom: '1px solid rgba(10, 22, 40, 0.12)' }}
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.value;
@@ -18,14 +17,14 @@ export const CustomTabs = ({ tabs, defaultTab, children }) => {
               onClick={() => setActiveTab(tab.value)}
               className="relative px-4 py-2.5 transition-colors"
               style={{
-                color: isActive ? '#C9A84C' : 'rgba(245, 240, 232, 0.55)',
+                color: isActive ? '#0A1628' : 'rgba(10, 22, 40, 0.55)',
                 fontSize: 11,
                 letterSpacing: '0.18em',
-                fontWeight: 600,
+                fontWeight: 700,
                 textTransform: 'uppercase',
               }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = '#F5F0E8'; }}
-              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'rgba(245, 240, 232, 0.55)'; }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = '#0A1628'; }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'rgba(10, 22, 40, 0.55)'; }}
               data-testid={`tab-${tab.value}`}
             >
               {tab.label}

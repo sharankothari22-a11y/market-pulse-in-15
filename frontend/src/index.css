@@ -2,35 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fonts: Serif for display headings, Inter for body, Outfit for secondary display */
+/* Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700;800;900&display=swap');
 
-/* ────────────────────────────────────────────────────────────────────────
-   DESIGN TOKENS  — Beaver Intelligence / Tipsons dark navy + forest + gold
-   ──────────────────────────────────────────────────────────────────────── */
+/* ── DESIGN TOKENS — Cream / Navy / Gold (Beaver Intelligence × Tipsons) ── */
 :root {
-  --bg-primary: #0A1628;        /* deep navy  */
-  --bg-surface: #0D3B2E;         /* forest green surface (topbar, hero strip) */
-  --bg-card: #112a1f;            /* dark forest card bg */
-  --bg-card-hover: #163524;
-  --bg-elev: #0F2335;            /* subtle navy elevation */
+  --bg-primary: #F5F0E8;        /* cream main background */
+  --bg-surface: #EDE8DC;         /* slightly darker cream */
+  --bg-card: #FFFFFF;            /* white cards */
+  --bg-card-hover: #FBF8F2;      /* warm-white hover */
+  --bg-elev: #FAF6EE;
 
+  --accent-navy: #0A1628;        /* dark navy (sidebar, topbar, table headers) */
+  --accent-blue: #1E3A5F;        /* medium blue (hero strip, highlights) */
+  --accent-blue-soft: #2A4A75;
   --accent-gold: #C9A84C;
   --accent-gold-soft: #D4B65C;
-  --accent-gold-dim: rgba(201, 168, 76, 0.15);
-  --accent-gold-faint: rgba(201, 168, 76, 0.06);
+  --accent-gold-dim: rgba(201, 168, 76, 0.18);
+  --accent-gold-faint: rgba(201, 168, 76, 0.08);
 
-  --text-primary: #F5F0E8;       /* cream */
-  --text-secondary: #C8C2B5;     /* warm muted */
-  --text-muted: #6B7B6E;         /* sage muted */
-  --text-muted-cream: rgba(245, 240, 232, 0.55);
+  --text-primary: #0A1628;       /* dark navy text */
+  --text-secondary: #1E3A5F;
+  --text-muted: #6B7B6E;         /* muted green-gray */
+  --text-muted-cream: rgba(245, 240, 232, 0.75);  /* used inside dark surfaces */
+  --text-on-navy: #F5F0E8;       /* cream text on navy surfaces */
 
-  --border-subtle: rgba(201, 168, 76, 0.18);
-  --border-strong: rgba(201, 168, 76, 0.35);
+  --border-subtle: rgba(201, 168, 76, 0.25);
+  --border-strong: rgba(201, 168, 76, 0.45);
+  --border-navy: rgba(10, 22, 40, 0.1);
 
-  --positive: #4CAF7D;
+  --positive: #2D6A4F;           /* forest green (used sparingly) */
   --negative: #E05252;
-  --warning: #E6A544;
+  --warning: #C9A84C;
+
+  --shadow-card: 0 1px 4px rgba(10, 22, 40, 0.08);
+  --shadow-card-hover: 0 2px 8px rgba(10, 22, 40, 0.12);
 
   --radius: 6px;
 }
@@ -47,51 +53,44 @@ body {
 
 code { font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace; }
 
-/* Utility fonts */
 .font-serif-display { font-family: 'Playfair Display', 'Times New Roman', serif; }
 .font-outfit { font-family: 'Outfit', sans-serif; }
 .font-mono-tight { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: 'tnum' 1; }
 
-/* ── shadcn HSL variables adapted for the dark gold palette ───────────── */
+/* shadcn HSL variables — light cream with navy/gold accents */
 @layer base {
   :root {
-    --background: 214 55% 9%;
-    --foreground: 34 42% 93%;
-    --card: 150 40% 12%;
-    --card-foreground: 34 42% 93%;
-    --popover: 214 55% 9%;
-    --popover-foreground: 34 42% 93%;
-    --primary: 43 55% 55%;
-    --primary-foreground: 214 55% 9%;
-    --secondary: 150 40% 14%;
-    --secondary-foreground: 34 42% 93%;
-    --muted: 150 40% 14%;
-    --muted-foreground: 120 8% 45%;
-    --accent: 43 55% 55%;
+    --background: 36 40% 93%;       /* cream */
+    --foreground: 214 55% 9%;       /* navy */
+    --card: 0 0% 100%;
+    --card-foreground: 214 55% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 214 55% 9%;
+    --primary: 214 55% 9%;          /* navy buttons */
+    --primary-foreground: 36 40% 93%;
+    --secondary: 36 32% 89%;
+    --secondary-foreground: 214 55% 9%;
+    --muted: 36 32% 89%;
+    --muted-foreground: 215 20% 35%;
+    --accent: 43 55% 55%;           /* gold */
     --accent-foreground: 214 55% 9%;
     --destructive: 0 69% 60%;
-    --destructive-foreground: 34 42% 93%;
-    --border: 43 55% 25%;
-    --input: 150 40% 14%;
+    --destructive-foreground: 36 40% 93%;
+    --border: 43 55% 70%;
+    --input: 36 32% 89%;
     --ring: 43 55% 55%;
     --radius: 6px;
-    --chart-1: 43 55% 55%;
-    --chart-2: 150 40% 30%;
+    --chart-1: 214 55% 25%;          /* navy bars */
+    --chart-2: 43 55% 55%;           /* gold bars */
     --chart-3: 0 69% 60%;
     --chart-4: 32 60% 55%;
-    --chart-5: 34 42% 93%;
+    --chart-5: 150 40% 30%;
   }
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
-  [data-debug-wrapper="true"] { display: contents !important; }
 }
 
-/* ── Keyframes ────────────────────────────────────────────────────────── */
-@keyframes splashFadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; visibility: hidden; }
-}
-
+/* Keyframes */
 @keyframes goldPulseDot {
   0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
   50% { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
@@ -103,52 +102,49 @@ code { font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', mon
   100% { background-position: 400px 0; }
 }
 
-/* ── Global overrides: map legacy light-theme hardcoded colors to dark ──
-   (So that pages we did not fully rewrite still render coherently on the
-   new palette. The pages explicitly redesigned override these with their
-   own tokens.) */
-.bg-\[\#ffffff\]       { background-color: var(--bg-primary) !important; }
+/* ── Legacy color overrides → cream/navy/gold ──────────────────────── */
+.bg-\[\#ffffff\]       { background-color: var(--bg-card) !important; }
 .bg-white              { background-color: var(--bg-card) !important; color: var(--text-primary); }
-.bg-\[\#f8fafc\]       { background-color: var(--bg-card) !important; }
+.bg-\[\#f8fafc\]       { background-color: var(--bg-surface) !important; }
 .bg-\[\#f1f5f9\]       { background-color: var(--bg-elev) !important; }
-.hover\:bg-\[\#f8fafc\]:hover { background-color: var(--bg-card-hover) !important; }
-.hover\:bg-\[\#f1f5f9\]:hover { background-color: rgba(201, 168, 76, 0.07) !important; }
-.hover\:bg-\[\#e5e7eb\]:hover { background-color: rgba(201, 168, 76, 0.07) !important; }
+.hover\:bg-\[\#f8fafc\]:hover { background-color: var(--bg-surface) !important; }
+.hover\:bg-\[\#f1f5f9\]:hover { background-color: rgba(201, 168, 76, 0.08) !important; }
+.hover\:bg-\[\#e5e7eb\]:hover { background-color: rgba(201, 168, 76, 0.08) !important; }
 
 .text-\[\#0f172a\]     { color: var(--text-primary) !important; }
-.text-\[\#64748b\]     { color: var(--text-muted-cream) !important; }
-.text-\[\#94a3b8\]     { color: rgba(245, 240, 232, 0.4) !important; }
+.text-\[\#64748b\]     { color: var(--text-muted) !important; }
+.text-\[\#94a3b8\]     { color: rgba(10, 22, 40, 0.45) !important; }
 
 .border-\[\#e5e7eb\]   { border-color: var(--border-subtle) !important; }
 
-/* Blue → Gold remap */
-.text-\[\#2563eb\]              { color: var(--accent-gold) !important; }
-.bg-\[\#2563eb\]                { background-color: var(--accent-gold) !important; color: var(--bg-primary) !important; }
-.hover\:bg-\[\#1d4ed8\]:hover   { background-color: var(--accent-gold-soft) !important; }
-.border-\[\#2563eb\]            { border-color: var(--accent-gold) !important; }
+/* Blue → navy/gold remap */
+.text-\[\#2563eb\]              { color: var(--accent-navy) !important; }
+.bg-\[\#2563eb\]                { background-color: var(--accent-navy) !important; color: #F5F0E8 !important; }
+.hover\:bg-\[\#1d4ed8\]:hover   { background-color: var(--accent-blue) !important; }
+.border-\[\#2563eb\]            { border-color: var(--accent-navy) !important; }
 .focus\:ring-\[\#2563eb\]:focus { --tw-ring-color: var(--accent-gold) !important; }
-.bg-\[\#2563eb\]\/10            { background-color: rgba(201, 168, 76, 0.12) !important; color: var(--accent-gold) !important; }
+.bg-\[\#2563eb\]\/10            { background-color: rgba(201, 168, 76, 0.14) !important; color: var(--accent-navy) !important; }
 .bg-\[\#2563eb\]\/5             { background-color: rgba(201, 168, 76, 0.06) !important; }
-.border-\[\#2563eb\]\/20        { border-color: rgba(201, 168, 76, 0.25) !important; }
-.border-\[\#2563eb\]\/30        { border-color: rgba(201, 168, 76, 0.35) !important; }
+.border-\[\#2563eb\]\/20        { border-color: rgba(201, 168, 76, 0.3) !important; }
+.border-\[\#2563eb\]\/30        { border-color: rgba(201, 168, 76, 0.45) !important; }
 .hover\:border-\[\#2563eb\]:hover { border-color: var(--accent-gold) !important; }
-.hover\:text-\[\#2563eb\]:hover { color: var(--accent-gold) !important; }
+.hover\:text-\[\#2563eb\]:hover { color: var(--accent-navy) !important; }
 
-/* Green / red remap to sage / muted red */
+/* Green / red remap to forest / muted red */
 .text-\[\#16a34a\]     { color: var(--positive) !important; }
 .text-\[\#dc2626\]     { color: var(--negative) !important; }
 .border-\[\#16a34a\]   { border-color: var(--positive) !important; }
 .border-\[\#dc2626\]   { border-color: var(--negative) !important; }
-.bg-\[\#16a34a\]\/10   { background-color: rgba(76, 175, 125, 0.12) !important; }
-.bg-\[\#16a34a\]\/20   { background-color: rgba(76, 175, 125, 0.22) !important; }
-.border-\[\#16a34a\]\/20 { border-color: rgba(76, 175, 125, 0.3) !important; }
-.border-\[\#16a34a\]\/30 { border-color: rgba(76, 175, 125, 0.4) !important; }
-.bg-\[\#dc2626\]\/10   { background-color: rgba(224, 82, 82, 0.12) !important; }
-.bg-\[\#dc2626\]\/20   { background-color: rgba(224, 82, 82, 0.22) !important; }
+.bg-\[\#16a34a\]\/10   { background-color: rgba(45, 106, 79, 0.10) !important; }
+.bg-\[\#16a34a\]\/20   { background-color: rgba(45, 106, 79, 0.20) !important; }
+.border-\[\#16a34a\]\/20 { border-color: rgba(45, 106, 79, 0.3) !important; }
+.border-\[\#16a34a\]\/30 { border-color: rgba(45, 106, 79, 0.4) !important; }
+.bg-\[\#dc2626\]\/10   { background-color: rgba(224, 82, 82, 0.10) !important; }
+.bg-\[\#dc2626\]\/20   { background-color: rgba(224, 82, 82, 0.20) !important; }
 .border-\[\#dc2626\]\/20 { border-color: rgba(224, 82, 82, 0.3) !important; }
 .border-\[\#dc2626\]\/30 { border-color: rgba(224, 82, 82, 0.4) !important; }
-.text-\[\#d97706\]     { color: var(--warning) !important; }
-.bg-\[\#d97706\]\/10   { background-color: rgba(230, 165, 68, 0.14) !important; }
-.bg-\[\#d97706\]\/5    { background-color: rgba(230, 165, 68, 0.07) !important; }
-.border-\[\#d97706\]\/20 { border-color: rgba(230, 165, 68, 0.3) !important; }
-.border-\[\#d97706\]\/30 { border-color: rgba(230, 165, 68, 0.4) !important; }
+.text-\[\#d97706\]     { color: #B5862C !important; }
+.bg-\[\#d97706\]\/10   { background-color: rgba(181, 134, 44, 0.12) !important; }
+.bg-\[\#d97706\]\/5    { background-color: rgba(181, 134, 44, 0.06) !important; }
+.border-\[\#d97706\]\/20 { border-color: rgba(181, 134, 44, 0.3) !important; }
+.border-\[\#d97706\]\/30 { border-color: rgba(181, 134, 44, 0.4) !important; }

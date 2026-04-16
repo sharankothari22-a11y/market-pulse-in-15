@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const BEAVER_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/tqw73ol3_Screenshot%202026-04-16%20at%206.20.25%E2%80%AFPM.png';
+
 const navItems = [
   { id: 'market-overview',   label: 'MARKET OVERVIEW',   icon: LayoutDashboard, path: '/' },
   { id: 'research-session',  label: 'RESEARCH SESSION',  icon: Search,          path: '/research' },
@@ -33,21 +35,25 @@ export const Sidebar = ({ activePage, onNavigate }) => {
       onMouseLeave={() => setIsExpanded(false)}
       style={{
         backgroundColor: '#0A1628',
-        borderRight: '1px solid rgba(201, 168, 76, 0.18)',
+        borderRight: '1px solid rgba(201, 168, 76, 0.2)',
       }}
       data-testid="sidebar"
     >
       {/* Branding */}
       <div
-        className="py-5 px-3 flex flex-col items-center justify-center"
-        style={{ borderBottom: '1px solid rgba(201, 168, 76, 0.18)', minHeight: 92 }}
+        className="py-4 px-3 flex flex-col items-center justify-center"
+        style={{ borderBottom: '1px solid rgba(201, 168, 76, 0.2)', minHeight: 92 }}
       >
         {!isExpanded ? (
-          <div
-            className="font-serif-display font-black text-[#F5F0E8]"
-            style={{ fontSize: 22, letterSpacing: '0.04em' }}
-          >
-            B
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%', overflow: 'hidden',
+            backgroundColor: '#0A1628',
+          }}>
+            <img
+              src={BEAVER_LOGO_URL}
+              alt="Beaver"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', mixBlendMode: 'lighten' }}
+            />
           </div>
         ) : (
           <motion.div
@@ -56,22 +62,18 @@ export const Sidebar = ({ activePage, onNavigate }) => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.25 }}
           >
-            <div
-              className="font-serif-display font-black text-[#F5F0E8] leading-none"
-              style={{ fontSize: 22, letterSpacing: '0.03em' }}
-            >
-              BEAVER
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%', overflow: 'hidden',
+              backgroundColor: '#0A1628',
+            }}>
+              <img
+                src={BEAVER_LOGO_URL}
+                alt="Beaver Intelligence"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', mixBlendMode: 'lighten' }}
+              />
             </div>
             <div
-              className="my-1.5"
-              style={{
-                width: '60%',
-                height: '1px',
-                background: 'linear-gradient(90deg, transparent, #C9A84C 30%, #C9A84C 70%, transparent)',
-              }}
-            />
-            <div
-              className="text-[#C9A84C] font-medium"
+              className="text-[#C9A84C] font-medium mt-2"
               style={{ fontSize: 9, letterSpacing: '0.45em' }}
             >
               INTELLIGENCE
@@ -94,10 +96,10 @@ export const Sidebar = ({ activePage, onNavigate }) => {
               )}
               style={{
                 color: isActive ? '#C9A84C' : 'rgba(245, 240, 232, 0.72)',
-                backgroundColor: isActive ? 'rgba(201, 168, 76, 0.06)' : 'transparent',
+                backgroundColor: isActive ? 'rgba(30, 58, 95, 0.5)' : 'transparent',
               }}
               onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(201, 168, 76, 0.04)';
+                if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(30, 58, 95, 0.3)';
               }}
               onMouseLeave={(e) => {
                 if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
@@ -137,7 +139,7 @@ export const Sidebar = ({ activePage, onNavigate }) => {
       {/* Divider */}
       <div
         className="mx-3"
-        style={{ height: '1px', backgroundColor: 'rgba(201, 168, 76, 0.18)' }}
+        style={{ height: '1px', backgroundColor: 'rgba(201, 168, 76, 0.2)' }}
       />
 
       {/* Bottom items */}
@@ -179,20 +181,20 @@ export const Sidebar = ({ activePage, onNavigate }) => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
           style={{
-            borderTop: '1px solid rgba(201, 168, 76, 0.12)',
+            borderTop: '1px solid rgba(201, 168, 76, 0.15)',
             paddingTop: 14,
           }}
         >
           <div
             style={{
-              color: 'rgba(201, 168, 76, 0.65)',
+              color: 'rgba(201, 168, 76, 0.7)',
               fontSize: 8.5,
               letterSpacing: '0.28em',
               lineHeight: 1.6,
             }}
           >
             EQUITY RESEARCH<br />
-            <span style={{ color: 'rgba(201, 168, 76, 0.35)' }}>·</span>&nbsp;
+            <span style={{ color: 'rgba(201, 168, 76, 0.4)' }}>·</span>&nbsp;
             DECISION INTELLIGENCE
           </div>
         </motion.div>
