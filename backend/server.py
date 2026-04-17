@@ -626,12 +626,22 @@ async def get_prices(ticker: str, days: int = 90):
 async def get_sessions():
     try:
         import json
+        import math
         from fastapi.responses import JSONResponse
         sessions = await db.research_sessions.find({}, {"_id": 0}).to_list(100)
+        def clean_val(v):
+            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                return None
+            if isinstance(v, dict):
+                return {kk: clean_val(vv) for kk, vv in v.items()}
+            if isinstance(v, list):
+                return [clean_val(i) for i in v]
+            return v
         clean = []
         for s in sessions:
             try:
-                clean.append(json.loads(json.dumps(s, default=str)))
+                cleaned = clean_val(s)
+                clean.append(json.loads(json.dumps(cleaned, default=str)))
             except Exception:
                 clean.append({"session_id": str(s.get("session_id","")), "ticker": str(s.get("ticker",""))})
         return JSONResponse(content=clean)
