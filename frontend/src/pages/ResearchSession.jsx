@@ -152,19 +152,10 @@ export const ResearchSession = ({ onSessionChange }) => {
       try {
         setLoading(true);
         const data = await apiGet(API_ENDPOINTS.research(sessionId));
-        // Normalize scenario field names
-        const normalizeScenario = (s) => s ? { ...s, price_per_share: s.per_share ?? s.price_per_share } : null;
-        if (data.scenarios) {
-          data.scenarios = {
-            bull: normalizeScenario(data.scenarios.bull),
-            base: normalizeScenario(data.scenarios.base),
-            bear: normalizeScenario(data.scenarios.bear),
-          };
-        }
         setResearchData(data);
         if (data.ticker) setTicker(data.ticker);
-        // Auto-load DCF if it already exists on the session
-        if (data.dcf_output) {
+        // Auto-populate DCF panel from session data
+        if (data.dcf_output && data.dcf_output.status === 'complete') {
           setDcfData(data.dcf_output);
         }
         setError(null);
@@ -180,16 +171,10 @@ export const ResearchSession = ({ onSessionChange }) => {
   const refreshSession = async () => {
     if (!sessionId) return;
     const data = await apiGet(API_ENDPOINTS.research(sessionId));
-    const normalizeScenario = (s) => s ? { ...s, price_per_share: s.per_share ?? s.price_per_share } : null;
-    if (data.scenarios) {
-      data.scenarios = {
-        bull: normalizeScenario(data.scenarios.bull),
-        base: normalizeScenario(data.scenarios.base),
-        bear: normalizeScenario(data.scenarios.bear),
-      };
-    }
     setResearchData(data);
-    if (data.dcf_output) setDcfData(data.dcf_output);
+    if (data.dcf_output && data.dcf_output.status === 'complete') {
+      setDcfData(data.dcf_output);
+    }
   };
 
   // Create session from modal — one click does everything
@@ -198,7 +183,6 @@ export const ResearchSession = ({ onSessionChange }) => {
     try {
       setAnalyzing(true);
       setError(null);
-      // Single call: creates session + fetches data + runs DCF all at once
       const result = await apiPost(API_ENDPOINTS.researchNew, {
         ticker: modalTicker.toUpperCase(),
         hypothesis: modalHypothesis,
@@ -211,33 +195,13 @@ export const ResearchSession = ({ onSessionChange }) => {
       setSessionId(result.session_id);
       setTicker(result.ticker);
 
-      // Normalize scenarios field names (backend returns per_share, frontend expects price_per_share)
-      const normalizeScenario = (s) => s ? { ...s, price_per_share: s.per_share ?? s.price_per_share } : null;
-      const scenarios = {
-        bull: normalizeScenario(result.scenarios?.bull),
-        base: normalizeScenario(result.scenarios?.base),
-        bear: normalizeScenario(result.scenarios?.bear),
-      };
-
-      // Build researchData from the analyze response directly — no extra API call needed
-      setResearchData({
-        session_id: result.session_id,
-        ticker: result.ticker,
-        sector: result.sector,
-        status: result.status,
-        hypothesis: result.hypothesis || modalHypothesis || `Analysis for ${result.ticker}`,
-        variant_view: result.variant_view || modalVariant || '',
-        catalysts: [],
-        assumptionChanges: [],
-        scenarios,
-      });
-
-      // Populate DCF panel from the same response
-      if (result.dcf_output) {
-        setDcfData(result.dcf_output);
+      // Fetch the normalized session data
+      const data = await apiGet(API_ENDPOINTS.research(result.session_id));
+      setResearchData(data);
+      if (data.dcf_output && data.dcf_output.status === 'complete') {
+        setDcfData(data.dcf_output);
       }
 
-      // Refresh sessions list
       const list = await apiGet(API_ENDPOINTS.sessions);
       setSessions(Array.isArray(list) ? list : []);
     } catch (err) {

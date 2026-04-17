@@ -628,7 +628,7 @@ async def get_sessions():
         import json
         import math
         from fastapi.responses import JSONResponse
-        sessions = await db.research_sessions.find({}, {"_id": 0}).to_list(100)
+        sessions = await db.research_sessions.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
         def clean_val(v):
             if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
                 return None
@@ -676,10 +676,77 @@ async def create_research_session(data: dict):
 
 @api_router.get("/research/{session_id}")
 async def get_research_session(session_id: str):
+    import math
     session = await db.research_sessions.find_one({"session_id": session_id}, {"_id": 0})
     if not session:
         return {"error": "Session not found", "session_id": session_id}
-    return session
+
+    def safe_float(v):
+        try:
+            f = float(v)
+            return None if math.isnan(f) or math.isinf(f) else f
+        except Exception:
+            return None
+
+    # Normalize scenario shape — support both per_share and price_per_share
+    def norm_scenario(s):
+        if not s:
+            return None
+        ps = safe_float(s.get("per_share") or s.get("price_per_share"))
+        return {
+            "price_per_share": ps,
+            "per_share": ps,
+            "upside_pct": safe_float(s.get("upside_pct")),
+            "rating": s.get("rating", ""),
+            "key_assumption": s.get("key_assumption", ""),
+            "growth_rate_used": safe_float(s.get("growth_rate_used")),
+            "wacc_used": safe_float(s.get("wacc_used")),
+        }
+
+    # Build top-level scenarios (from run-scenarios or analyze)
+    raw_scen = session.get("scenarios") or {}
+    scenarios = {
+        "bull": norm_scenario(raw_scen.get("bull")),
+        "base": norm_scenario(raw_scen.get("base")),
+        "bear": norm_scenario(raw_scen.get("bear")),
+    }
+
+    # Build DCF output — normalize for frontend
+    dcf_raw = session.get("dcf_output") or {}
+    dcf_sc  = dcf_raw.get("scenarios") or {}
+    dcf_output = None
+    if dcf_raw:
+        dcf_output = {
+            "status": "complete",
+            "current_price": safe_float(dcf_raw.get("current_price")),
+            "scenarios": {
+                "bull": norm_scenario(dcf_sc.get("bull")),
+                "base": norm_scenario(dcf_sc.get("base")),
+                "bear": norm_scenario(dcf_sc.get("bear")),
+            },
+            "sensitivity_table": dcf_raw.get("sensitivity_table") or {},
+            "reverse_dcf": dcf_raw.get("reverse_dcf"),
+            "inputs": dcf_raw.get("inputs") or {},
+        }
+        # If top-level scenarios are empty, use DCF scenarios
+        if not any(scenarios.values()):
+            scenarios = dcf_output["scenarios"]
+
+    return {
+        "session_id": session.get("session_id"),
+        "ticker": session.get("ticker"),
+        "sector": session.get("sector"),
+        "status": session.get("status"),
+        "created_at": session.get("created_at"),
+        "hypothesis": session.get("hypothesis", ""),
+        "variant_view": session.get("variant_view", ""),
+        "catalysts": session.get("catalysts") or [],
+        "assumptionChanges": session.get("assumptionChanges") or [],
+        "scenarios": scenarios,
+        "dcf_output": dcf_output,
+        "current_price": safe_float(session.get("current_price") or (dcf_raw.get("current_price") if dcf_raw else None)),
+        "market_data": session.get("market_data") or {},
+    }
 
 
 @api_router.post("/research/{session_id}/run-scenarios")
