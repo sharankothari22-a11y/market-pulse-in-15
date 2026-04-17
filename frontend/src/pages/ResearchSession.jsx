@@ -224,8 +224,14 @@ export const ResearchSession = ({ onSessionChange }) => {
     try {
       setRunningScenarios(true);
       setError(null);
-      await apiPost(API_ENDPOINTS.researchScenarios(sessionId), {});
-      await refreshSession();
+      // Run the real DCF engine — populates both scenarios and DCF panel
+      const result = await apiPost('/api/research/' + sessionId + '/dcf', {});
+      // Fetch normalized session
+      const data = await apiGet(API_ENDPOINTS.research(sessionId));
+      setResearchData(data);
+      if (data.dcf_output && data.dcf_output.status === 'complete') {
+        setDcfData(data.dcf_output);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -280,22 +286,41 @@ export const ResearchSession = ({ onSessionChange }) => {
     }
   };
 
-  const runDCF = async (version = dcfModelVersion) => {
+  const runDCF = async () => {
     const sid = researchData?.session_id;
-    if (!sid) return;
+    const tkr = researchData?.ticker;
+    if (!sid || !tkr) return;
     setDcfLoading(true);
     try {
-      await apiPost('/api/research/' + sid + '/dcf?model_version=' + version, {});
-      setTimeout(() => refreshDCF(sid), 1000);
-    } catch (e) { console.error(e); }
+      // Run the real DCF endpoint
+      const result = await apiPost('/api/research/' + sid + '/dcf', {});
+      // Fetch normalized session to get dcf_output in correct shape
+      const data = await apiGet(API_ENDPOINTS.research(sid));
+      setResearchData(data);
+      if (data.dcf_output && data.dcf_output.status === 'complete') {
+        setDcfData(data.dcf_output);
+      } else if (result.scenarios) {
+        // Fallback: use direct response
+        setDcfData({
+          status: 'complete',
+          current_price: result.current_price,
+          scenarios: result.scenarios,
+          sensitivity_table: result.sensitivity_table || {},
+          reverse_dcf: result.reverse_dcf,
+          inputs: result.inputs || {},
+        });
+      }
+    } catch (e) { console.error('DCF error:', e); }
     finally { setDcfLoading(false); }
   };
   const refreshDCF = async (sid) => {
     const sessionId = sid || researchData?.session_id;
     if (!sessionId) return;
     try {
-      const data = await apiGet('/api/research/' + sessionId + '/dcf');
-      if (data?.status !== 'not_run') setDcfData(data);
+      const data = await apiGet(API_ENDPOINTS.research(sessionId));
+      if (data.dcf_output && data.dcf_output.status === 'complete') {
+        setDcfData(data.dcf_output);
+      }
     } catch (e) { console.error(e); }
   };
   const downloadReport = async () => {
@@ -314,13 +339,19 @@ export const ResearchSession = ({ onSessionChange }) => {
     finally { setReportLoading(false); }
   };
   const getScenarios = () => {
-    if (!researchData?.scenarios) return [];
+    // Prefer DCF scenarios (real numbers) over run-scenarios (hardcoded)
+    const src = (dcfData?.scenarios && Object.keys(dcfData.scenarios).length > 0)
+      ? dcfData.scenarios
+      : researchData?.scenarios;
+    if (!src) return [];
     return SCENARIO_KEYS
-      .filter(key => researchData.scenarios[key] != null)
+      .filter(key => src[key] != null)
       .map(key => ({
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1),
-        ...researchData.scenarios[key],
+        ...src[key],
+        // normalize field name
+        price_per_share: src[key]?.per_share ?? src[key]?.price_per_share,
       }));
   };
 
@@ -703,12 +734,7 @@ export const ResearchSession = ({ onSessionChange }) => {
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">DCF Valuation</h3>
-                  <div className="flex items-center gap-2">
-                    <select value={dcfModelVersion} onChange={e => setDcfModelVersion(e.target.value)} className="text-xs bg-[#f8fafc] border border-[#e5e7eb] rounded px-2 py-1">
-                      <option value="base">Base</option>
-                      <option value="analyst">Analyst</option>
-                      <option value="data_driven">Data-Driven</option>
-                    </select>
+                <div className="flex items-center gap-2">
                     <button onClick={() => runDCF()} disabled={dcfLoading} className="flex items-center gap-1 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
                       {dcfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                       {dcfLoading ? 'Running...' : 'Run DCF'}
@@ -722,7 +748,7 @@ export const ResearchSession = ({ onSessionChange }) => {
                 </div>
                 {!dcfData || dcfData.status === 'not_run' ? (
                   <div className="text-center py-4 text-xs text-[#94a3b8]">
-                    <p>Click Run DCF → Run notebook → Click ↻ Refresh</p>
+                    <p>Click <b>Run DCF</b> to generate valuation</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
