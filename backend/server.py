@@ -624,17 +624,20 @@ async def get_prices(ticker: str, days: int = 90):
 
 @api_router.get("/sessions")
 async def get_sessions():
-    import json
-    from fastapi.responses import JSONResponse
-    sessions = await db.research_sessions.find({}, {"_id": 0}).to_list(100)
-    clean = []
-    for s in sessions:
-        try:
-            clean.append(json.loads(json.dumps(s, default=str)))
-        except Exception:
-            clean.append({"session_id": str(s.get("session_id","")), "ticker": str(s.get("ticker","")), "sector": str(s.get("sector","")), "status": str(s.get("status",""))})
-    return JSONResponse(content=clean)
-
+    try:
+        import json
+        from fastapi.responses import JSONResponse
+        sessions = await db.research_sessions.find({}, {"_id": 0}).to_list(100)
+        clean = []
+        for s in sessions:
+            try:
+                clean.append(json.loads(json.dumps(s, default=str)))
+            except Exception:
+                clean.append({"session_id": str(s.get("session_id","")), "ticker": str(s.get("ticker",""))})
+        return JSONResponse(content=clean)
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @api_router.post("/research/new")
 async def create_research_session(data: dict):
@@ -1075,7 +1078,6 @@ body{{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;line-height:1.5}
         headers={"Content-Disposition": f"attachment; filename={ticker}_research_report.html"}
     )
 
-app.include_router(api_router)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # RESEARCH PLATFORM INTEGRATION
@@ -1092,56 +1094,39 @@ except Exception as _e:
 
 @api_router.post("/research/analyze")
 async def analyze_ticker(request: Request):
-    """Full research_platform pipeline — runs collectors + builds assumptions."""
+    """Create research session — works without research_platform."""
     body = await request.json()
     ticker = body.get("ticker", "").upper().strip()
     hypothesis = body.get("hypothesis", "")
-    sector = body.get("sector", "auto")
+    variant_view = body.get("variant_view", "")
+    sector_input = body.get("sector", "auto")
 
     if not ticker:
         raise HTTPException(status_code=400, detail="ticker required")
 
-    if not RP_AVAILABLE:
-        raise HTTPException(status_code=503, detail="research_platform not available")
+    sector = sector_input if sector_input not in ("auto", "universal", "") else detect_sector(ticker)
+    session_id = f"{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    try:
-        import asyncio
-        loop = asyncio.get_event_loop()
+    session_doc = {
+        "session_id": session_id,
+        "ticker": ticker,
+        "sector": sector,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "scenarios": {},
+        "hypothesis": hypothesis or f"Analysis session for {ticker}",
+        "variant_view": variant_view,
+        "catalysts": [],
+        "assumptionChanges": [],
+    }
+    await db.research_sessions.insert_one(session_doc)
 
-        def _run():
-            sess = _rp_new_session(ticker=ticker, hypothesis=hypothesis)
-            assumptions = _rp_build_assumptions(sess)
-            sid = getattr(sess, 'session_id', None)
-            return sid, assumptions
-
-        session_id, assumptions = await loop.run_in_executor(None, _run)
-        if not session_id:
-            session_id = f"{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-        try:
-            assumptions_safe = json.loads(json.dumps(assumptions, default=str))
-        except Exception:
-            assumptions_safe = {}
-
-        await db.research_sessions.insert_one({
-            "session_id": session_id,
-            "ticker": ticker,
-            "sector": sector,
-            "hypothesis": hypothesis,
-            "status": "analyzed",
-            "assumptions_summary": {k: v for k, v in assumptions_safe.items() if not isinstance(v, dict)} if assumptions_safe else {},
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-
-        return {
-            "session_id": session_id,
-            "ticker": ticker,
-            "sector": sector,
-            "status": "analyzed",
-            "assumptions_built": True,
-            "message": "Research platform analysis complete. Click Run DCF to proceed."
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "session_id": session_id,
+        "ticker": ticker,
+        "sector": sector,
+        "status": "active",
+        "message": "Session created. Click Run Scenarios to generate price targets."
+    }
 
 app.include_router(api_router)
