@@ -640,11 +640,69 @@ async def market_overview():
         "commodities": commodities,
         "fii_dii": fii_dii,
         "news": news,
+        "indices": await fetch_indices_safe(),
         "last_updated": datetime.now(timezone.utc).isoformat(),
         "_meta": {
             "movers_source": movers_source,
             "movers_stale": movers_stale,
         },
+    }
+
+# ---------- Indices (NIFTY 50 + SENSEX) ----------
+
+INDICES = [
+    ("NIFTY 50", "^NSEI"),
+    ("SENSEX", "^BSESN"),
+]
+
+async def fetch_indices_safe() -> dict:
+    """Fetch NIFTY 50 and SENSEX levels. Never raises."""
+    out = {}
+    if YF_AVAILABLE:
+        try:
+            loop = asyncio.get_event_loop()
+            def _fetch_one(name: str, symbol: str):
+                try:
+                    tk = yf.Ticker(symbol)
+                    hist = tk.history(period="2d")
+                    if hist is not None and not hist.empty:
+                        price = _safe_float(hist["Close"].iloc[-1])
+                        prev = _safe_float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
+                        change = (price - prev) if (price and prev) else None
+                        change_pct = ((change / prev) * 100) if (change and prev) else None
+                        return name, {
+                            "name": name,
+                            "symbol": symbol,
+                            "value": price,
+                            "prev_close": prev,
+                            "change": change,
+                            "change_percent": change_pct,
+                        }
+                except Exception as e:
+                    logger.debug(f"indices {symbol}: {e}")
+                return name, {"name": name, "symbol": symbol, "value": None,
+                              "prev_close": None, "change": None, "change_percent": None}
+
+            results = await asyncio.gather(
+                *[loop.run_in_executor(None, _fetch_one, n, s) for n, s in INDICES],
+                return_exceptions=True,
+            )
+            for res in results:
+                if isinstance(res, tuple):
+                    name, data = res
+                    # Frontend typically keys on "NIFTY50" and "SENSEX" (no space)
+                    key = name.replace(" ", "")
+                    out[key] = data
+                    out[name] = data  # support both with and without space
+            if out:
+                await cache_set("indices", out)
+                return out
+        except Exception as e:
+            logger.warning(f"indices fetch failed: {e}")
+    cached, _ = await cache_get("indices")
+    return cached or {
+        "NIFTY50": {"name": "NIFTY 50", "value": None, "change_percent": None},
+        "SENSEX": {"name": "SENSEX", "value": None, "change_percent": None},
     }
 
 # ---------- Sessions ----------
@@ -808,9 +866,34 @@ async def analyze(request: Request):
     price_per_share = (equity_value / shares_out) if shares_out else 0
     upside_pct = ((price_per_share - current_price) / current_price * 100) if current_price else 0
 
+    # Create session so frontend can navigate to /research/<session_id>
+    now = datetime.now(timezone.utc)
+    session_id = now.strftime("%y%m%d_%H%M%S")
+    session_doc = {
+        "_id": session_id,
+        "session_id": session_id,
+        "ticker": ticker,
+        "sector": "general",
+        "hypothesis": f"Analysis session for {ticker}",
+        "status": "active",
+        "created_at": now,
+    }
+    db = _get_db()
+    if db is not None:
+        try:
+            await db.sessions.insert_one(session_doc)
+        except Exception as e:
+            logger.debug(f"analyze session insert: {e}")
+
     response = {
+        "session_id": session_id,
+        "id": session_id,  # some frontends look for .id instead of .session_id
         "ticker": ticker,
         "ticker_ns": ticker_ns,
+        "sector": "general",
+        "hypothesis": f"Analysis session for {ticker}",
+        "status": "active",
+        "created_at": now.isoformat(),
         "price_data": price_data,
         "dcf": {
             "current_price": current_price,
@@ -830,9 +913,74 @@ async def analyze(request: Request):
 
     # Cache for next time yfinance fails
     await cache_set(cache_key, response)
+    # Also cache by session_id so GET /research/{session_id} works
+    await cache_set(f"session:{session_id}", response)
     return response
 
 # ---------- Other stubs for completeness (never 500) ----------
+
+# GET session detail — frontend navigates here after analyze
+@api_router.get("/research/{session_id}")
+@safe_endpoint(lambda: {"session_id": "unknown", "ticker": "UNKNOWN", "status": "not_found", "_fallback": True})
+async def get_session(session_id: str):
+    # 1. Try Mongo
+    db = _get_db()
+    if db is not None:
+        try:
+            doc = await db.sessions.find_one({"_id": session_id})
+            if doc:
+                doc["_id"] = str(doc.get("_id", ""))
+                # Convert datetime to ISO string
+                if isinstance(doc.get("created_at"), datetime):
+                    doc["created_at"] = doc["created_at"].isoformat()
+                return doc
+        except Exception as e:
+            logger.debug(f"get_session mongo: {e}")
+    # 2. Try cache (analyze endpoint caches by session_id)
+    cached, _ = await cache_get(f"session:{session_id}")
+    if cached:
+        return cached
+    # 3. Skeleton session so frontend doesn't crash
+    return {
+        "session_id": session_id,
+        "id": session_id,
+        "ticker": "UNKNOWN",
+        "sector": "general",
+        "status": "not_found",
+        "hypothesis": "Session not found",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+# Research sub-endpoints — all return safe empty payloads
+@api_router.post("/research/{session_id}/run-scenarios")
+@safe_endpoint(lambda: {"scenarios": [], "_fallback": True})
+async def run_scenarios(session_id: str):
+    return {"session_id": session_id, "scenarios": []}
+
+@api_router.post("/research/{session_id}/catalyst")
+@safe_endpoint(lambda: {"catalysts": [], "_fallback": True})
+async def add_catalyst(session_id: str, request: Request):
+    return {"session_id": session_id, "catalysts": []}
+
+@api_router.post("/research/{session_id}/thesis")
+@safe_endpoint(lambda: {"thesis": "", "_fallback": True})
+async def update_thesis(session_id: str, request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    return {"session_id": session_id, "thesis": body.get("thesis", "")}
+
+@api_router.post("/research/{session_id}/dcf")
+@safe_endpoint(lambda: {"dcf": None, "_fallback": True})
+async def run_dcf(session_id: str, request: Request):
+    return {"session_id": session_id, "dcf": None, "message": "DCF endpoint stub"}
+
+@api_router.get("/research/{session_id}/dcf")
+@safe_endpoint(lambda: {"dcf": None, "_fallback": True})
+async def get_dcf(session_id: str):
+    return {"session_id": session_id, "dcf": None}
 
 @api_router.get("/macro")
 @safe_endpoint(lambda: {"indicators": []})
