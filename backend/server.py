@@ -1290,7 +1290,10 @@ except Exception as _e:
 
 @api_router.post("/research/analyze")
 async def analyze_ticker(request: Request):
-    """Create research session — works without research_platform."""
+    """One-click full analysis: create session → fetch data → run DCF → store results."""
+    import math
+    import yfinance as yf
+
     body = await request.json()
     ticker = body.get("ticker", "").upper().strip()
     hypothesis = body.get("hypothesis", "")
@@ -1303,11 +1306,12 @@ async def analyze_ticker(request: Request):
     sector = sector_input if sector_input not in ("auto", "universal", "") else detect_sector(ticker)
     session_id = f"{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+    # ── Step 1: Create session ────────────────────────────────────────────────
     session_doc = {
         "session_id": session_id,
         "ticker": ticker,
         "sector": sector,
-        "status": "active",
+        "status": "running",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "scenarios": {},
         "hypothesis": hypothesis or f"Analysis session for {ticker}",
@@ -1317,12 +1321,192 @@ async def analyze_ticker(request: Request):
     }
     await db.research_sessions.insert_one(session_doc)
 
+    # ── Step 2: Fetch live market data ────────────────────────────────────────
+    try:
+        yf_ticker = yf.Ticker(ticker + ".NS")
+        info = yf_ticker.info or {}
+        if not info.get("currentPrice") and not info.get("regularMarketPrice"):
+            yf_ticker = yf.Ticker(ticker + ".BO")
+            info = yf_ticker.info or {}
+    except Exception:
+        info = {}
+
+    def safe(v, default=0.0):
+        if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
+            return default
+        try: return float(v)
+        except: return default
+
+    def cf(v):
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)): return None
+        return v
+
+    current_price = safe(info.get("currentPrice") or info.get("regularMarketPrice"), 0)
+    market_cap    = safe(info.get("marketCap"), 0)
+    shares_out    = safe(info.get("sharesOutstanding"), market_cap / max(current_price, 1))
+    total_debt    = safe(info.get("totalDebt"), 0)
+    cash          = safe(info.get("totalCash") or info.get("cash"), 0)
+    net_debt      = total_debt - cash
+    revenue       = safe(info.get("totalRevenue"), 0)
+    ebitda        = safe(info.get("ebitda"), revenue * 0.18)
+    ebit          = safe(info.get("ebit") or info.get("operatingIncome"), ebitda * 0.75)
+    net_income    = safe(info.get("netIncomeToCommon") or info.get("netIncome"), 0)
+    beta          = safe(info.get("beta"), 1.1)
+    tax_rate      = safe(info.get("effectiveTaxRate"), 0.25)
+    capex         = abs(safe(info.get("capitalExpenditures"), revenue * 0.05))
+
+    # Store market data in session
+    market_data = {
+        "current_price": cf(current_price), "market_cap": cf(market_cap),
+        "shares_outstanding": cf(shares_out), "net_debt": cf(net_debt),
+        "revenue": cf(revenue), "ebitda": cf(ebitda), "net_income": cf(net_income),
+        "beta": cf(beta), "company_name": info.get("longName", ticker),
+        "industry": info.get("industry", ""), "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.research_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {"market_data": market_data}}
+    )
+
+    # ── Step 3: Run DCF ───────────────────────────────────────────────────────
+    risk_free = 0.067; erp = 0.055
+    cost_of_equity = risk_free + beta * erp
+    cost_of_debt = 0.085
+    total_cap = market_cap + total_debt
+    we = market_cap / total_cap if total_cap > 0 else 0.8
+    wd = total_debt / total_cap if total_cap > 0 else 0.2
+    wacc = max(0.08, min(we * cost_of_equity + wd * cost_of_debt * (1 - tax_rate), 0.20))
+
+    # NBFC/Banking: use net income instead of FCFF
+    is_financial = sector in ("banking", "nbfc")
+    if is_financial:
+        net_debt = 0  # loan book is not corporate debt
+        base_fcf = max(net_income * 0.7, revenue * 0.05) if net_income > 0 else revenue * 0.05
+    else:
+        nopat = ebit * (1 - tax_rate)
+        da = ebitda - ebit
+        base_fcf = nopat + da - capex - (revenue * 0.01)
+        if base_fcf <= 0:
+            base_fcf = max(ebitda * 0.3, revenue * 0.05)
+
+    sector_growth = {
+        "banking": (0.14, 0.10, 0.05), "it": (0.18, 0.13, 0.07),
+        "pharma": (0.15, 0.11, 0.05), "fmcg": (0.12, 0.09, 0.04),
+        "petroleum_energy": (0.12, 0.08, 0.03), "real_estate": (0.15, 0.10, 0.04),
+        "auto": (0.13, 0.09, 0.04),
+    }
+    bull_g, base_g, bear_g = sector_growth.get(sector, (0.13, 0.09, 0.04))
+    terminal_g = 0.04
+
+    def run_dcf(growth_rate, wacc_adj=0.0, years=10):
+        w = wacc + wacc_adj
+        pv = 0.0; fcf = base_fcf
+        for yr in range(1, years + 1):
+            fcf = fcf * (1 + growth_rate)
+            pv += fcf / ((1 + w) ** yr)
+        tg = min(terminal_g, w - 0.01)
+        tv_pv = (fcf * (1 + tg)) / (w - tg) / ((1 + w) ** years)
+        ev = pv + tv_pv
+        equity_val = ev - net_debt
+        ps = equity_val / shares_out if shares_out > 0 else 0
+        upside = ((ps - current_price) / current_price * 100) if current_price > 0 else 0
+        return {
+            "per_share": round(max(ps, 0), 2),
+            "enterprise_value": round(ev, 0),
+            "upside_pct": round(upside, 1),
+            "rating": "BUY" if upside > 15 else "SELL" if upside < -10 else "HOLD",
+            "growth_rate_used": round(growth_rate * 100, 1),
+            "wacc_used": round((wacc + wacc_adj) * 100, 2),
+        }
+
+    bull = run_dcf(bull_g, -0.005)
+    base = run_dcf(base_g)
+    bear = run_dcf(bear_g, 0.01)
+
+    # Sensitivity table
+    wacc_vals = [wacc-0.02, wacc-0.01, wacc, wacc+0.01, wacc+0.02]
+    tg_vals   = [0.025, 0.03, 0.035, 0.04, 0.045]
+    matrix = []
+    for w in wacc_vals:
+        row = []
+        for tg in tg_vals:
+            tg2 = min(tg, w - 0.01)
+            pv_fcfs = sum(base_fcf * (1+base_g)**yr / (1+w)**yr for yr in range(1, 11))
+            fcf_t = base_fcf * (1 + base_g) ** 10
+            tv_pv = (fcf_t * (1+tg2) / (w-tg2)) / (1+w)**10
+            ps = max((pv_fcfs + tv_pv - net_debt) / shares_out, 0) if shares_out > 0 else 0
+            row.append(round(ps, 1))
+        matrix.append(row)
+
+    sensitivity_table = {"wacc_vs_growth": {
+        "rows": [f"{w*100:.1f}%" for w in wacc_vals],
+        "cols": [f"{tg*100:.1f}%" for tg in tg_vals],
+        "matrix": matrix,
+    }}
+
+    # Reverse DCF
+    reverse = None
+    if market_cap > 0 and base_fcf > 0:
+        ev_mkt = market_cap + net_debt
+        lo, hi = -0.05, 0.50
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            pv = sum(base_fcf*(1+mid)**yr/(1+wacc)**yr for yr in range(1, 11))
+            tg2 = min(terminal_g, wacc-0.01)
+            tv_pv = (base_fcf*(1+mid)**10*(1+tg2)/(wacc-tg2))/(1+wacc)**10
+            if pv + tv_pv < ev_mkt: lo = mid
+            else: hi = mid
+        ig = round((lo+hi)/2*100, 2)
+        reverse = {
+            "implied_growth_rate": ig,
+            "interpretation": f"Market pricing in {ig:.1f}% FCF growth. " + (
+                "Appears stretched." if ig > 20 else "Appears reasonable." if ig > 5 else "Implies deep value."
+            )
+        }
+
+    dcf_output = {
+        "meta": {"ticker": ticker, "sector": sector, "run_at": datetime.now(timezone.utc).isoformat()},
+        "inputs": {
+            "current_price": cf(current_price), "market_cap": cf(market_cap),
+            "shares_outstanding": cf(shares_out), "net_debt": cf(net_debt),
+            "revenue": cf(revenue), "ebitda": cf(ebitda), "base_fcf": cf(base_fcf),
+            "wacc": round(wacc*100, 2), "beta": cf(beta),
+        },
+        "scenarios": {"bull": bull, "base": base, "bear": bear},
+        "sensitivity_table": sensitivity_table,
+        "reverse_dcf": reverse,
+        "current_price": cf(current_price),
+        "status": "complete",
+    }
+
+    # ── Step 4: Save everything to MongoDB ────────────────────────────────────
+    await db.research_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "status": "complete",
+            "dcf_output": dcf_output,
+            "dcf_status": "complete",
+            "dcf_updated_at": datetime.now(timezone.utc).isoformat(),
+            "scenarios": {"bull": bull, "base": base, "bear": bear},
+        }}
+    )
+
+    # Also write to disk for report generator
+    session_dir = ROOT_DIR / "ai_engine" / "sessions" / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+    import json as _jplain
+    (session_dir / "dcf_output.json").write_text(_jplain.dumps(dcf_output, indent=2, default=str))
+
     return {
         "session_id": session_id,
         "ticker": ticker,
         "sector": sector,
-        "status": "active",
-        "message": "Session created. Click Run Scenarios to generate price targets."
+        "status": "complete",
+        "company_name": info.get("longName", ticker),
+        "current_price": cf(current_price),
+        "scenarios": {"bull": bull, "base": base, "bear": bear},
+        "dcf_output": dcf_output,
+        "message": f"Analysis complete for {ticker}. Bull: ₹{bull['per_share']}, Base: ₹{base['per_share']}, Bear: ₹{bear['per_share']}",
     }
 
 app.include_router(api_router)
