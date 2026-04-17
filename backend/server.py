@@ -633,6 +633,10 @@ async def market_overview():
     news = news_res if isinstance(news_res, list) else []
     fii_dii = fii_res if isinstance(fii_res, list) else []
 
+    indices = await fetch_indices_safe()
+    nifty = indices.get("NIFTY50") or indices.get("NIFTY 50") or {}
+    sensex = indices.get("SENSEX") or {}
+
     return {
         "top_movers": top_movers,
         "fx": fx,
@@ -640,7 +644,17 @@ async def market_overview():
         "commodities": commodities,
         "fii_dii": fii_dii,
         "news": news,
-        "indices": await fetch_indices_safe(),
+        "indices": indices,
+        # Flat index fields — frontend may look for these directly
+        "nifty": nifty,
+        "nifty50": nifty,
+        "NIFTY50": nifty,
+        "sensex": sensex,
+        "SENSEX": sensex,
+        "nifty_value": nifty.get("value"),
+        "nifty_change_percent": nifty.get("change_percent"),
+        "sensex_value": sensex.get("value"),
+        "sensex_change_percent": sensex.get("change_percent"),
         "last_updated": datetime.now(timezone.utc).isoformat(),
         "_meta": {
             "movers_source": movers_source,
@@ -894,6 +908,16 @@ async def analyze(request: Request):
         "hypothesis": f"Analysis session for {ticker}",
         "status": "active",
         "created_at": now.isoformat(),
+        # Flat price fields — frontend may look for any of these
+        "price": current_price,
+        "ltp": current_price,
+        "last_price": current_price,
+        "current_price": current_price,
+        "prev_close": (price_data or {}).get("prev_close"),
+        "change": (price_data or {}).get("change"),
+        "change_percent": (price_data or {}).get("change_pct"),
+        "change_pct": (price_data or {}).get("change_pct"),
+        # Also keep nested shape for consumers that expect it
         "price_data": price_data,
         "dcf": {
             "current_price": current_price,
@@ -919,6 +943,53 @@ async def analyze(request: Request):
 
 # ---------- Other stubs for completeness (never 500) ----------
 
+async def _enrich_with_live_price(session: dict) -> dict:
+    """Add live price fields to a session doc so frontend always has data."""
+    ticker = session.get("ticker", "").upper()
+    if not ticker or ticker == "UNKNOWN":
+        return session
+    ticker_ns = ticker if "." in ticker else f"{ticker}.NS"
+    price = None
+    prev_close = None
+    if YF_AVAILABLE:
+        try:
+            loop = asyncio.get_event_loop()
+            def _fetch():
+                tk = yf.Ticker(ticker_ns)
+                hist = tk.history(period="2d")
+                p = _safe_float(hist["Close"].iloc[-1]) if (hist is not None and not hist.empty) else None
+                pc = _safe_float(hist["Close"].iloc[-2]) if (hist is not None and len(hist) >= 2) else None
+                return p, pc
+            price, prev_close = await loop.run_in_executor(None, _fetch)
+        except Exception as e:
+            logger.debug(f"enrich price {ticker}: {e}")
+    # Cache fallback
+    if price is None:
+        cached, _ = await cache_get(f"session:{session.get('session_id') or session.get('_id')}")
+        if cached and cached.get("price") is not None:
+            return {**session, **{
+                "price": cached.get("price"),
+                "ltp": cached.get("price"),
+                "last_price": cached.get("price"),
+                "current_price": cached.get("price"),
+                "prev_close": cached.get("prev_close"),
+                "change": cached.get("change"),
+                "change_percent": cached.get("change_percent"),
+                "change_pct": cached.get("change_pct"),
+            }}
+    change = (price - prev_close) if (price is not None and prev_close) else None
+    change_pct = (change / prev_close * 100) if (change is not None and prev_close) else None
+    return {**session, **{
+        "price": price,
+        "ltp": price,
+        "last_price": price,
+        "current_price": price,
+        "prev_close": prev_close,
+        "change": change,
+        "change_percent": change_pct,
+        "change_pct": change_pct,
+    }}
+
 # GET session detail — frontend navigates here after analyze
 @api_router.get("/research/{session_id}")
 @safe_endpoint(lambda: {"session_id": "unknown", "ticker": "UNKNOWN", "status": "not_found", "_fallback": True})
@@ -930,13 +1001,14 @@ async def get_session(session_id: str):
             doc = await db.sessions.find_one({"_id": session_id})
             if doc:
                 doc["_id"] = str(doc.get("_id", ""))
-                # Convert datetime to ISO string
                 if isinstance(doc.get("created_at"), datetime):
                     doc["created_at"] = doc["created_at"].isoformat()
+                # Enrich with live price
+                doc = await _enrich_with_live_price(doc)
                 return doc
         except Exception as e:
             logger.debug(f"get_session mongo: {e}")
-    # 2. Try cache (analyze endpoint caches by session_id)
+    # 2. Try cache (analyze endpoint caches by session_id) — already has flat fields
     cached, _ = await cache_get(f"session:{session_id}")
     if cached:
         return cached
