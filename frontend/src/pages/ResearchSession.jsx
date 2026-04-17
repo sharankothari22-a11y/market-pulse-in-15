@@ -152,8 +152,21 @@ export const ResearchSession = ({ onSessionChange }) => {
       try {
         setLoading(true);
         const data = await apiGet(API_ENDPOINTS.research(sessionId));
+        // Normalize scenario field names
+        const normalizeScenario = (s) => s ? { ...s, price_per_share: s.per_share ?? s.price_per_share } : null;
+        if (data.scenarios) {
+          data.scenarios = {
+            bull: normalizeScenario(data.scenarios.bull),
+            base: normalizeScenario(data.scenarios.base),
+            bear: normalizeScenario(data.scenarios.bear),
+          };
+        }
         setResearchData(data);
         if (data.ticker) setTicker(data.ticker);
+        // Auto-load DCF if it already exists on the session
+        if (data.dcf_output) {
+          setDcfData(data.dcf_output);
+        }
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -167,16 +180,26 @@ export const ResearchSession = ({ onSessionChange }) => {
   const refreshSession = async () => {
     if (!sessionId) return;
     const data = await apiGet(API_ENDPOINTS.research(sessionId));
+    const normalizeScenario = (s) => s ? { ...s, price_per_share: s.per_share ?? s.price_per_share } : null;
+    if (data.scenarios) {
+      data.scenarios = {
+        bull: normalizeScenario(data.scenarios.bull),
+        base: normalizeScenario(data.scenarios.base),
+        bear: normalizeScenario(data.scenarios.bear),
+      };
+    }
     setResearchData(data);
+    if (data.dcf_output) setDcfData(data.dcf_output);
   };
 
-  // Create session from modal
+  // Create session from modal — one click does everything
   const handleCreateSession = async () => {
     if (!modalTicker.trim()) return;
     try {
       setAnalyzing(true);
       setError(null);
-      const newSession = await apiPost(API_ENDPOINTS.researchNew, {
+      // Single call: creates session + fetches data + runs DCF all at once
+      const result = await apiPost(API_ENDPOINTS.researchNew, {
         ticker: modalTicker.toUpperCase(),
         hypothesis: modalHypothesis,
         variant_view: modalVariant,
@@ -185,13 +208,34 @@ export const ResearchSession = ({ onSessionChange }) => {
       setShowNewModal(false);
       setModalTicker(''); setModalHypothesis(''); setModalVariant(''); setModalSector('auto');
 
-      setSessionId(newSession.session_id);
-      setTicker(newSession.ticker);
+      setSessionId(result.session_id);
+      setTicker(result.ticker);
 
-      // Run scenarios immediately
-      await apiPost(API_ENDPOINTS.researchScenarios(newSession.session_id), {});
-      const data = await apiGet(API_ENDPOINTS.research(newSession.session_id));
-      setResearchData(data);
+      // Normalize scenarios field names (backend returns per_share, frontend expects price_per_share)
+      const normalizeScenario = (s) => s ? { ...s, price_per_share: s.per_share ?? s.price_per_share } : null;
+      const scenarios = {
+        bull: normalizeScenario(result.scenarios?.bull),
+        base: normalizeScenario(result.scenarios?.base),
+        bear: normalizeScenario(result.scenarios?.bear),
+      };
+
+      // Build researchData from the analyze response directly — no extra API call needed
+      setResearchData({
+        session_id: result.session_id,
+        ticker: result.ticker,
+        sector: result.sector,
+        status: result.status,
+        hypothesis: result.hypothesis || modalHypothesis || `Analysis for ${result.ticker}`,
+        variant_view: result.variant_view || modalVariant || '',
+        catalysts: [],
+        assumptionChanges: [],
+        scenarios,
+      });
+
+      // Populate DCF panel from the same response
+      if (result.dcf_output) {
+        setDcfData(result.dcf_output);
+      }
 
       // Refresh sessions list
       const list = await apiGet(API_ENDPOINTS.sessions);
@@ -396,7 +440,7 @@ export const ResearchSession = ({ onSessionChange }) => {
                 className="px-4 py-2 text-sm bg-[#2563eb] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 flex items-center gap-2"
               >
                 {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}
-                {analyzing ? 'Starting...' : 'Start Session'}
+                {analyzing ? 'Analyzing...' : 'Start Analysis'}
               </button>
             </div>
           </div>
@@ -424,7 +468,7 @@ export const ResearchSession = ({ onSessionChange }) => {
           data-testid="analyze-btn"
         >
           {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}
-          {analyzing ? 'Starting...' : 'Analyze'}
+          {analyzing ? 'Analyzing...' : 'Analyze'}
         </button>
         <button
           onClick={() => { setModalTicker(''); setShowNewModal(true); }}
