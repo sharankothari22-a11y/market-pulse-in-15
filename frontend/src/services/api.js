@@ -18,7 +18,7 @@ export const API_ENDPOINTS = {
   alerts: '/api/alerts',
 
   // Research
-  researchNew: '/api/research/new',
+  researchNew: '/api/research/analyze',
   research: (sessionId) => `/api/research/${sessionId}`,
   researchReport: (sessionId) => `/api/research/${sessionId}/report`,
   researchSignals: (sessionId) => `/api/research/${sessionId}/signals`,
