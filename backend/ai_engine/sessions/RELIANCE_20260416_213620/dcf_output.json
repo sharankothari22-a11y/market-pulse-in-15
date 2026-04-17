@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "ticker": "RELIANCE.NS",
+    "model_version": "base",
+    "run_at": "2026-04-17T00:00:00+00:00",
+    "tv_method": "Gordon Growth",
+    "wacc_pct": 8.39,
+    "terminal_growth_pct": 2.0,
+    "currency": "INR",
+    "units": "Millions",
+    "forecast_years": 5,
+    "status": "ok",
+    "error_message": null
+  },
+  "valuation": {
+    "enterprise_value": -6075601,
+    "net_debt": 2689300,
+    "equity_value": -8764901,
+    "shares_outstanding": 6760,
+    "per_share": -647.69,
+    "pv_fcffs": -1809244,
+    "pv_terminal_value": -4266356,
+    "current_price": 1330,
+    "upside_pct": -148.7
+  },
+  "scenarios": {
+    "base": {
+      "per_share": -647.69,
+      "upside_pct": -148.7,
+      "rating": "Avoid",
+      "key_assumption": "Base DCF at 8.39% WACC"
+    },
+    "bull": {
+      "per_share": -518.15,
+      "upside_pct": -138.9,
+      "rating": "Avoid",
+      "key_assumption": "Bull case"
+    },
+    "bear": {
+      "per_share": -777.23,
+      "upside_pct": -158.4,
+      "rating": "Avoid",
+      "key_assumption": "Bear case"
+    }
+  },
+  "sensitivity_table": {
+    "wacc_vs_growth": {
+      "rows": [
+        "6.0%",
+        "7.0%",
+        "8.0%",
+        "9.0%",
+        "10.0%",
+        "11.0%",
+        "12.0%"
+      ],
+      "cols": [
+        "1.0%",
+        "2.0%",
+        "2.5%",
+        "3.0%",
+        "3.5%"
+      ],
+      "matrix": [
+        [
+          -779,
+          -895,
+          -978,
+          -1088,
+          -1242
+        ],
+        [
+          -688,
+          -762,
+          -812,
+          -874,
+          -954
+        ],
+        [
+          -623,
+          -674,
+          -707,
+          -746,
+          -795
+        ],
+        [
+          -574,
+          -611,
+          -634,
+          -661,
+          -693
+        ],
+        [
+          -536,
+          -564,
+          -581,
+          -600,
+          -622
+        ],
+        [
+          -505,
+          -527,
+          -540,
+          -554,
+          -571
+        ],
+        [
+          -480,
+          -497,
+          -508,
+          -519,
+          -531
+        ]
+      ]
+    }
+  },
+  "forecast": [],
+  "checks": {
+    "wacc_gt_zero": true,
+    "g_lt_wacc": true,
+    "fcff_present": false
+  }
+}
