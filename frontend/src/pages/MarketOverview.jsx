@@ -69,10 +69,10 @@ const transformCommodities = (commodities = []) =>
   commodities.map((item, idx) => ({
     id: item.symbol || item.id || idx,
     title: item.symbol || item.name || 'Unknown',
-    value: formatCurrency(item.price || item.current_price, 'USD'),
-    change: formatPercent(item.change_24h || item.change_percent) || '—',
-    changeType: parseFloat(item.change_24h || item.change_percent || 0) >= 0 ? 'positive' : 'negative',
-    subtitle: item.market_cap ? `MCap $${(item.market_cap / 1e9).toFixed(1)}B` : '',
+    value: formatCurrency(item.price || item.current_price, item.currency === 'INR' ? 'INR' : 'USD'),
+    change: formatPercent(item.change_24h ?? item.change_pct ?? item.change_percent) || '—',
+    changeType: parseFloat(item.change_24h ?? item.change_pct ?? item.change_percent ?? 0) >= 0 ? 'positive' : 'negative',
+    subtitle: item.unit || item.market_cap_cr ? `MCap ₹${item.market_cap_cr}Cr` : '',
   }));
 
 const transformFxRates = (fx = {}) => {
@@ -391,7 +391,10 @@ export const MarketOverview = () => {
     );
   }
 
-  const commodities = transformCommodities(marketData?.commodities || []);
+  const commodities = transformCommodities([
+    ...(marketData?.commodities || []),
+    ...(marketData?.crypto || []).slice(0, 4),
+  ]);
   const fxRates     = transformFxRates(marketData?.fx || {});
   const fiiDii      = transformFiiDii(marketData?.fii_dii || []);
   const fiiDiiChart = transformFiiDiiChart(marketData?.fii_dii || []);
