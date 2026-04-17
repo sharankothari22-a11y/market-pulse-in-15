@@ -838,11 +838,21 @@ async def analyze(request: Request):
         except Exception as e:
             logger.warning(f"analyze yfinance failed for {ticker}: {e}")
 
-    # If yfinance gave nothing, try cache
+    # Don't early-return from cache — we always want to go through the full
+    # response-building path below so all fields (session_id, flat prices,
+    # etc.) are present. Cache is only used when yfinance fully crashes.
+
+    # If history() returned null price but info has currentPrice, use that
     if price_data is None or price_data.get("price") is None:
-        cached, _ = await cache_get(cache_key)
-        if cached:
-            return {**cached, "_stale": True}
+        info_price = _safe_float(info.get("currentPrice") or info.get("regularMarketPrice"))
+        info_prev = _safe_float(info.get("previousClose") or (price_data or {}).get("prev_close"))
+        if info_price is not None:
+            price_data = {
+                "price": info_price,
+                "prev_close": info_prev,
+                "change": (info_price - info_prev) if (info_prev is not None) else None,
+                "change_pct": ((info_price - info_prev) / info_prev * 100) if (info_prev) else None,
+            }
 
     # Safe DCF skeleton — never divides by zero
     current_price = _safe_float(info.get("currentPrice") or (price_data or {}).get("price"), 0)
