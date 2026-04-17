@@ -33,6 +33,7 @@ import logging
 import asyncio
 import traceback
 import subprocess
+import functools
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
@@ -515,8 +516,12 @@ def safe_endpoint(fallback_factory):
     Decorator: catches any exception from an endpoint, logs it with full
     traceback, and returns a structured 200 with fallback data instead of 500.
     fallback_factory: callable that returns the fallback response dict.
+
+    Uses functools.wraps to preserve the wrapped function's signature so
+    FastAPI's dependency injection reads the real parameters, not *args/**kwargs.
     """
     def decorator(fn):
+        @functools.wraps(fn)
         async def wrapper(*args, **kwargs):
             try:
                 return await fn(*args, **kwargs)
@@ -538,7 +543,6 @@ def safe_endpoint(fallback_factory):
                         "_fallback": True,
                     },
                 )
-        wrapper.__name__ = fn.__name__
         return wrapper
     return decorator
 
