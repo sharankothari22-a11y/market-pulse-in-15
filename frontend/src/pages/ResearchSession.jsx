@@ -157,6 +157,17 @@ export const ResearchSession = ({ onSessionChange }) => {
         // Auto-populate DCF panel from session data
         if (data.dcf_output && data.dcf_output.status === 'complete') {
           setDcfData(data.dcf_output);
+        } else {
+          // Session has no DCF yet — auto-run it silently
+          try {
+            const sid = data.session_id;
+            await apiPost('/api/research/' + sid + '/dcf', {});
+            const fresh = await apiGet(API_ENDPOINTS.research(sid));
+            setResearchData(fresh);
+            if (fresh.dcf_output && fresh.dcf_output.status === 'complete') {
+              setDcfData(fresh.dcf_output);
+            }
+          } catch (e) { console.error('Auto DCF failed:', e); }
         }
         setError(null);
       } catch (err) {
@@ -474,26 +485,34 @@ export const ResearchSession = ({ onSessionChange }) => {
         </button>
       </section>
 
-      {/* Past sessions chips */}
-      {sessions.length > 0 && (
-        <section className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-[#94a3b8]">Recent:</span>
-          {sessions.slice(0, 6).map(s => (
-            <button
-              key={s.session_id}
-              onClick={() => { setSessionId(s.session_id); setTicker(s.ticker || ''); }}
-              className={cn(
-                "px-3 py-1 text-xs rounded-full border transition-colors",
-                s.session_id === sessionId
-                  ? "bg-[#2563eb] text-white border-[#2563eb]"
-                  : "bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#2563eb] hover:text-[#2563eb]"
-              )}
-            >
-              {s.ticker}
-            </button>
-          ))}
-        </section>
-      )}
+      {/* Past sessions chips — deduplicated, newest per ticker */}
+      {sessions.length > 0 && (() => {
+        const seen = new Set();
+        const unique = sessions.filter(s => {
+          if (seen.has(s.ticker)) return false;
+          seen.add(s.ticker);
+          return true;
+        });
+        return (
+          <section className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-[#94a3b8]">Recent:</span>
+            {unique.slice(0, 8).map(s => (
+              <button
+                key={s.session_id}
+                onClick={() => { setSessionId(s.session_id); setTicker(s.ticker || ''); }}
+                className={cn(
+                  "px-3 py-1 text-xs rounded-full border transition-colors",
+                  s.session_id === sessionId
+                    ? "bg-[#2563eb] text-white border-[#2563eb]"
+                    : "bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#2563eb] hover:text-[#2563eb]"
+                )}
+              >
+                {s.ticker}
+              </button>
+            ))}
+          </section>
+        );
+      })()}
 
       {error && (
         <div className="p-3 bg-[#dc2626]/10 border border-[#dc2626]/30 rounded-lg text-[#dc2626] text-sm">{error}</div>
