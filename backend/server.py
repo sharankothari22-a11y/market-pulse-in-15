@@ -861,7 +861,7 @@ async def run_dcf_endpoint(session_id: str, model_version: str = "base"):
     await db.research_sessions.update_one(
         {"session_id": session_id},
         {"$set": {
-            "assumptions": assumptions,
+            "assumptions": assumptions if isinstance(assumptions, dict) else {},
             "dcf_model_version": model_version,
             "dcf_status": "assumptions_written",
             "dcf_updated_at": datetime.now(timezone.utc).isoformat(),
@@ -1066,5 +1066,74 @@ body{{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;line-height:1.5}
         content=html,
         headers={"Content-Disposition": f"attachment; filename={ticker}_research_report.html"}
     )
+
+app.include_router(api_router)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RESEARCH PLATFORM INTEGRATION
+# ─────────────────────────────────────────────────────────────────────────────
+import sys as _sys
+_sys.path.insert(0, '/app/backend/research_platform')
+
+try:
+    from ai_engine.session_manager import new_session as _rp_new_session
+    from ai_engine.dcf_bridge import build_full_assumptions as _rp_build_assumptions
+    RP_AVAILABLE = True
+except Exception as _e:
+    RP_AVAILABLE = False
+
+@api_router.post("/research/analyze")
+async def analyze_ticker(request: Request):
+    """Full research_platform pipeline — runs collectors + builds assumptions."""
+    body = await request.json()
+    ticker = body.get("ticker", "").upper().strip()
+    hypothesis = body.get("hypothesis", "")
+    sector = body.get("sector", "auto")
+
+    if not ticker:
+        raise HTTPException(status_code=400, detail="ticker required")
+
+    if not RP_AVAILABLE:
+        raise HTTPException(status_code=503, detail="research_platform not available")
+
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+
+        def _run():
+            sess = _rp_new_session(ticker=ticker, hypothesis=hypothesis)
+            assumptions = _rp_build_assumptions(sess)
+            sid = getattr(sess, 'session_id', None)
+            return sid, assumptions
+
+        session_id, assumptions = await loop.run_in_executor(None, _run)
+        if not session_id:
+            session_id = f"{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        try:
+            assumptions_safe = json.loads(json.dumps(assumptions, default=str))
+        except Exception:
+            assumptions_safe = {}
+
+        await db.research_sessions.insert_one({
+            "session_id": session_id,
+            "ticker": ticker,
+            "sector": sector,
+            "hypothesis": hypothesis,
+            "status": "analyzed",
+            "assumptions": assumptions_safe,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+        return {
+            "session_id": session_id,
+            "ticker": ticker,
+            "sector": sector,
+            "status": "analyzed",
+            "assumptions_built": True,
+            "message": "Research platform analysis complete. Click Run DCF to proceed."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 app.include_router(api_router)
