@@ -830,88 +830,165 @@ import json as _json_dcf
 from fastapi.responses import HTMLResponse
 from fastapi import Request
 
+
+
 @api_router.post("/research/{session_id}/dcf")
 async def run_dcf_endpoint(session_id: str, model_version: str = "base"):
-    """Write assumptions.json for DCF and store in MongoDB session."""
+    """Run a full server-side DCF — no notebook required."""
+    import math
+    import yfinance as yf
+
     session = await db.research_sessions.find_one({"session_id": session_id})
     if not session:
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
     ticker = session.get("ticker", session_id.split("_")[0])
-    sector = session.get("sector", "other")
+    sector = session.get("sector", "universal")
 
-    assumptions = {
-        "schema_version": "1.0",
-        "meta": {
-            "ticker": ticker,
-            "sector": sector,
-            "session_id": session_id,
-            "model_version": model_version,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        },
-        "wacc_inputs": {
-            "risk_free": 4.0,
-            "equity_risk_premium": 5.5,
-            "beta": 1.2 if sector == "petroleum_energy" else 1.1,
-            "cost_of_debt_pretax": 5.0,
-            "tax_rate": 25.0,
-            "target_debt_weight": 20.0,
-            "wacc_direct": None,
-        },
-        "dcf_parameters": {
-            "forecast_years": 5,
-            "terminal_growth": 2.0,
-            "exit_multiple": 12.0,
-            "use_exit_multiple": False,
-            "mid_year": True,
-        },
-        "driver_overrides": {
-            "revenue_growth": None if model_version == "base" else 0.12,
-            "ebit_margin": None if model_version == "base" else 0.18,
-            "capex_pct": None,
-            "da_pct": None,
-            "nwc_pct": None,
-        },
-        "sensitivity": {
-            "wacc_grid": [0.07, 0.08, 0.09, 0.10, 0.11, 0.12],
-            "growth_grid": [0.01, 0.02, 0.025, 0.03, 0.035],
-        },
+    try:
+        yf_ticker = yf.Ticker(ticker + ".NS")
+        info = yf_ticker.info or {}
+        if not info.get("currentPrice") and not info.get("regularMarketPrice"):
+            yf_ticker = yf.Ticker(ticker + ".BO")
+            info = yf_ticker.info or {}
+    except Exception:
+        info = {}
+
+    def safe(v, default=0.0):
+        if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
+            return default
+        try: return float(v)
+        except: return default
+
+    current_price = safe(info.get("currentPrice") or info.get("regularMarketPrice"), 0)
+    market_cap    = safe(info.get("marketCap"), 0)
+    shares_out    = safe(info.get("sharesOutstanding"), market_cap / max(current_price, 1))
+    total_debt    = safe(info.get("totalDebt"), 0)
+    cash          = safe(info.get("totalCash") or info.get("cash"), 0)
+    net_debt      = total_debt - cash
+    revenue       = safe(info.get("totalRevenue"), 0)
+    ebitda        = safe(info.get("ebitda"), revenue * 0.18)
+    ebit          = safe(info.get("ebit") or info.get("operatingIncome"), ebitda * 0.75)
+    beta          = safe(info.get("beta"), 1.1)
+    tax_rate      = safe(info.get("effectiveTaxRate"), 0.25)
+    capex         = abs(safe(info.get("capitalExpenditures"), revenue * 0.05))
+
+    risk_free = 0.067; erp = 0.055
+    cost_of_equity = risk_free + beta * erp
+    cost_of_debt = 0.085
+    total_cap = market_cap + total_debt
+    we = market_cap / total_cap if total_cap > 0 else 0.8
+    wd = total_debt / total_cap if total_cap > 0 else 0.2
+    wacc = max(0.08, min(we * cost_of_equity + wd * cost_of_debt * (1 - tax_rate), 0.20))
+
+    nopat = ebit * (1 - tax_rate)
+    da = ebitda - ebit
+    base_fcf = nopat + da - capex - (revenue * 0.01)
+    if base_fcf <= 0:
+        base_fcf = max(ebitda * 0.3, revenue * 0.05)
+
+    sector_growth = {
+        "banking": (0.14, 0.10, 0.05), "it": (0.18, 0.13, 0.07),
+        "pharma": (0.15, 0.11, 0.05), "fmcg": (0.12, 0.09, 0.04),
+        "petroleum_energy": (0.12, 0.08, 0.03), "real_estate": (0.15, 0.10, 0.04),
+        "auto": (0.13, 0.09, 0.04),
+    }
+    bull_g, base_g, bear_g = sector_growth.get(sector, (0.13, 0.09, 0.04))
+    terminal_g = 0.04
+
+    def run_dcf(growth_rate, wacc_adj=0.0, years=10):
+        w = wacc + wacc_adj
+        pv = 0.0; fcf = base_fcf
+        for yr in range(1, years + 1):
+            fcf = fcf * (1 + growth_rate)
+            pv += fcf / ((1 + w) ** yr)
+        tg = min(terminal_g, w - 0.01)
+        tv_pv = (fcf * (1 + tg)) / (w - tg) / ((1 + w) ** years)
+        ev = pv + tv_pv
+        equity_val = ev - net_debt
+        ps = equity_val / shares_out if shares_out > 0 else 0
+        upside = ((ps - current_price) / current_price * 100) if current_price > 0 else 0
+        return {
+            "per_share": round(max(ps, 0), 2),
+            "enterprise_value": round(ev, 0),
+            "upside_pct": round(upside, 1),
+            "rating": "BUY" if upside > 15 else "SELL" if upside < -10 else "HOLD",
+            "growth_rate_used": round(growth_rate * 100, 1),
+            "wacc_used": round((wacc + wacc_adj) * 100, 2),
+        }
+
+    bull = run_dcf(bull_g, -0.005); base = run_dcf(base_g); bear = run_dcf(bear_g, 0.01)
+
+    wacc_vals = [wacc-0.02, wacc-0.01, wacc, wacc+0.01, wacc+0.02]
+    tg_vals   = [0.025, 0.03, 0.035, 0.04, 0.045]
+    matrix = []
+    for w in wacc_vals:
+        row = []
+        for tg in tg_vals:
+            tg2 = min(tg, w - 0.01)
+            fcf_t = base_fcf * (1 + base_g) ** 10
+            pv_fcfs = sum(base_fcf * (1+base_g)**yr / (1+w)**yr for yr in range(1,11))
+            tv_pv = (fcf_t * (1+tg2) / (w-tg2)) / (1+w)**10
+            ps = max((pv_fcfs + tv_pv - net_debt) / shares_out, 0) if shares_out > 0 else 0
+            row.append(round(ps, 1))
+        matrix.append(row)
+
+    sensitivity_table = {"wacc_vs_growth": {
+        "rows": [f"{w*100:.1f}%" for w in wacc_vals],
+        "cols": [f"{tg*100:.1f}%" for tg in tg_vals],
+        "matrix": matrix,
+    }}
+
+    reverse = None
+    if market_cap > 0 and base_fcf > 0:
+        ev_mkt = market_cap + net_debt
+        lo, hi = -0.05, 0.50
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            pv = sum(base_fcf*(1+mid)**yr/(1+wacc)**yr for yr in range(1,11))
+            tg2 = min(terminal_g, wacc-0.01)
+            tv_pv = (base_fcf*(1+mid)**10*(1+tg2)/(wacc-tg2))/(1+wacc)**10
+            if pv + tv_pv < ev_mkt: lo = mid
+            else: hi = mid
+        ig = round((lo+hi)/2*100, 2)
+        reverse = {"implied_growth_rate": ig, "interpretation":
+            f"Market pricing in {ig:.1f}% FCF growth. " + (
+            "Appears stretched." if ig>20 else "Appears reasonable." if ig>5 else "Implies deep value.")}
+
+    def cf(v):
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)): return None
+        return v
+
+    dcf_output = {
+        "meta": {"ticker": ticker, "sector": sector, "model_version": model_version,
+                  "run_at": datetime.now(timezone.utc).isoformat()},
+        "inputs": {"current_price": cf(current_price), "market_cap": cf(market_cap),
+                   "shares_outstanding": cf(shares_out), "net_debt": cf(net_debt),
+                   "revenue": cf(revenue), "ebitda": cf(ebitda), "base_fcf": cf(base_fcf),
+                   "wacc": round(wacc*100,2), "beta": cf(beta)},
+        "scenarios": {"bull": bull, "base": base, "bear": bear},
+        "sensitivity_table": sensitivity_table,
+        "reverse_dcf": reverse,
+        "current_price": cf(current_price),
+        "status": "complete",
     }
 
-    # Save assumptions to MongoDB session
     await db.research_sessions.update_one(
         {"session_id": session_id},
-        {"$set": {
-            "assumptions": assumptions if isinstance(assumptions, dict) else {},
-            "dcf_model_version": model_version,
-            "dcf_status": "assumptions_written",
-            "dcf_updated_at": datetime.now(timezone.utc).isoformat(),
-        }}
+        {"$set": {"dcf_output": dcf_output, "dcf_status": "complete",
+                  "dcf_model_version": model_version,
+                  "dcf_updated_at": datetime.now(timezone.utc).isoformat()}}
     )
 
-    # Also write to disk for DCF notebook to pick up
     session_dir = ROOT_DIR / "ai_engine" / "sessions" / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
-    (session_dir / "assumptions.json").write_text(
-        _json_dcf.dumps(assumptions, indent=2, default=str)
-    )
-    (session_dir / "session_meta.json").write_text(
-        _json_dcf.dumps({
-            "ticker": ticker,
-            "sector": sector,
-            "sector_mapped": sector,
-            "session_id": session_id,
-        }, indent=2)
-    )
+    import json as _jplain
+    (session_dir / "dcf_output.json").write_text(_jplain.dumps(dcf_output, indent=2, default=str))
 
-    return {
-        "status": "assumptions_written",
-        "session_id": session_id,
-        "model_version": model_version,
-        "ticker": ticker,
-        "assumptions_path": str(session_dir / "assumptions.json"),
-        "message": "assumptions.json written. Run DCF notebook then click Refresh.",
-    }
+    return {"status": "complete", "session_id": session_id, "ticker": ticker,
+            "scenarios": {"bull": bull, "base": base, "bear": bear},
+            "current_price": cf(current_price),
+            "message": f"DCF complete for {ticker}. Bull: ₹{bull['per_share']}, Base: ₹{base['per_share']}, Bear: ₹{bear['per_share']}"}
 
 
 @api_router.get("/research/{session_id}/dcf")
@@ -1017,81 +1094,190 @@ async def upload_dcf_output(session_id: str, request: Request):
 
 @api_router.get("/research/{session_id}/report/download")
 async def download_report(session_id: str):
-    """Generate and return HTML research report."""
+    """Generate a rich 2-page HTML research report."""
+    import math
     session = await db.research_sessions.find_one({"session_id": session_id})
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    ticker  = session.get("ticker", "N/A")
-    sector  = session.get("sector", "N/A")
-    thesis  = session.get("hypothesis", "")
-    variant = session.get("variant_view", "")
-    dcf     = session.get("dcf_output", {})
-    sc      = dcf.get("scenarios", {}) if dcf else {}
-    val     = dcf.get("valuation", {}) if dcf else {}
+    ticker    = session.get("ticker", "N/A")
+    sector    = session.get("sector", "N/A")
+    thesis    = session.get("hypothesis", "") or ""
+    variant   = session.get("variant_view", "") or ""
+    catalysts = session.get("catalysts", []) or []
+    scen_raw  = session.get("scenarios", {}) or {}
+    dcf       = session.get("dcf_output", {}) or {}
+    sc        = dcf.get("scenarios", {}) or {}
+    inputs    = dcf.get("inputs", {}) or {}
+    rev_dcf   = dcf.get("reverse_dcf") or {}
+    sens      = dcf.get("sensitivity_table", {}) or {}
+    cur_price = dcf.get("current_price") or inputs.get("current_price") or 0
+    now_str   = datetime.now().strftime("%d %b %Y %H:%M IST")
 
-    def fmt(v, pre="₹"):
-        try: return f"{pre}{float(v):,.0f}" if v else "N/A"
-        except: return "N/A"
-    def fpct(v):
+    def cf(v):
         try:
             f = float(v)
-            return f"{f:+.1f}%"
-        except: return "N/A"
+            return None if math.isnan(f) or math.isinf(f) else f
+        except Exception:
+            return None
 
-    scenario_html = ""
-    for label, color in [("bull","#28a745"),("base","#1a73e8"),("bear","#dc3545")]:
-        s = sc.get(label, {})
-        scenario_html += f"""
-        <div style="flex:1;border:2px solid {color};border-radius:8px;padding:16px;text-align:center">
-          <div style="color:{color};font-weight:700;font-size:11px;text-transform:uppercase;margin-bottom:6px">{label}</div>
-          <div style="font-size:26px;font-weight:900">{fmt(s.get('per_share'))}</div>
-          <div style="color:{color};font-size:13px;margin-top:4px">{fpct(s.get('upside_pct'))}</div>
-          <div style="color:#666;font-size:11px;margin-top:4px">{s.get('rating','')}</div>
-          <div style="color:#999;font-size:10px;margin-top:8px;font-style:italic">{s.get('key_assumption','')}</div>
-        </div>"""
+    def fmt(v):
+        f = cf(v)
+        return ("Rs." + f"{f:,.0f}") if f is not None else "N/A"
 
-    html = f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>{ticker} Research Report</title>
-<style>
-@page{{size:A4;margin:15mm}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;line-height:1.5}}
-@media print{{.no-print{{display:none!important}}}}
-</style></head><body>
-<div class="no-print" style="background:#1a1a2e;color:white;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:99">
-  <span>📄 <strong>{ticker}</strong> — Research Report</span>
-  <button onclick="window.print()" style="background:#e94560;color:white;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-weight:bold">🖨️ Save as PDF</button>
-</div>
-<div style="padding:24px;max-width:800px;margin:0 auto">
-  <div style="background:#1a1a2e;color:white;padding:20px;border-radius:8px;margin-bottom:20px">
-    <h1 style="font-size:22px;font-weight:900">{ticker}</h1>
-    <div style="color:#a0aec0;font-size:11px;margin-top:6px">Sector: {sector} &nbsp;|&nbsp; {datetime.now().strftime('%d %b %Y %H:%M IST')}</div>
-  </div>
+    def fpct(v):
+        f = cf(v)
+        return (f"{f:+.1f}%") if f is not None else "N/A"
 
-  {"<div style='background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:20px'><div style='font-size:10px;font-weight:700;text-transform:uppercase;color:#4a5568;margin-bottom:8px'>Investment Thesis</div><div style='margin-bottom:6px'>" + thesis + "</div><div style='color:#666;font-style:italic'>" + variant + "</div></div>" if thesis else ""}
+    COLORS = {"bull": "#16a34a", "base": "#2563eb", "bear": "#dc2626"}
 
-  <div style="margin-bottom:20px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#4a5568;margin-bottom:10px">DCF Valuation</div>
-    {"<div style='display:flex;gap:12px'>" + scenario_html + "</div>" if sc else "<div style='color:#999;text-align:center;padding:20px'>DCF not run yet</div>"}
-  </div>
+    def make_card(key, ps, up, rat, extra=""):
+        c = COLORS.get(key, "#666")
+        badge = ""
+        if rat:
+            badge = '<div style="margin-top:6px"><span style="color:' + c + ';padding:2px 8px;border:1px solid ' + c + ';border-radius:4px;font-size:10px;font-weight:700">' + rat + '</span></div>'
+        return (
+            '<div style="flex:1;border:2px solid ' + c + ';border-radius:8px;padding:14px;text-align:center">'
+            '<div style="color:' + c + ';font-weight:800;font-size:10px;text-transform:uppercase">' + key.upper() + '</div>'
+            '<div style="font-size:22px;font-weight:900;margin:6px 0">' + fmt(ps) + '</div>'
+            '<div style="color:' + c + ';font-size:12px">' + fpct(up) + '</div>'
+            + extra + badge +
+            '</div>'
+        )
 
-  {"<div style='background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:20px'><div style='font-size:10px;font-weight:700;text-transform:uppercase;color:#4a5568;margin-bottom:8px'>Valuation Summary</div><table style='width:100%;border-collapse:collapse'><tr><td style='padding:3px 8px;color:#666'>Enterprise Value</td><td style='padding:3px 8px;font-weight:700'>" + fmt(val.get('enterprise_value'),'') + "</td></tr><tr><td style='padding:3px 8px;color:#666'>Per Share (Base)</td><td style='padding:3px 8px;font-weight:700'>" + fmt(val.get('per_share')) + "</td></tr><tr><td style='padding:3px 8px;color:#666'>Current Price</td><td style='padding:3px 8px;font-weight:700'>" + fmt(val.get('current_price')) + "</td></tr><tr><td style='padding:3px 8px;color:#666'>Upside</td><td style='padding:3px 8px;font-weight:700;color:" + ('#28a745' if (val.get('upside_pct') or 0) > 0 else '#dc3545') + "'>" + fpct(val.get('upside_pct')) + "</td></tr></table></div>" if val else ""}
+    # Scenario cards (run-scenarios)
+    scen_cards = ""
+    for key in ["bull", "base", "bear"]:
+        s = scen_raw.get(key) or {}
+        if s:
+            scen_cards += make_card(key, s.get("price_per_share") or s.get("per_share"), s.get("upside_pct"), s.get("rating", ""))
 
-  <div style="color:#999;font-size:9px;text-align:center;border-top:1px solid #eee;padding-top:12px;margin-top:20px">
-    Generated by Unified Financial Intelligence System &nbsp;|&nbsp; Session: {session_id} &nbsp;|&nbsp; This is not investment advice
-  </div>
-</div></body></html>"""
+    # DCF cards
+    dcf_cards = ""
+    for key in ["bull", "base", "bear"]:
+        s = sc.get(key) or {}
+        if s:
+            g = str(s.get("growth_rate_used", "")) + "% g / " + str(s.get("wacc_used", "")) + "% WACC"
+            extra = '<div style="color:#666;font-size:10px;margin-top:4px">' + g + '</div>'
+            dcf_cards += make_card(key, s.get("per_share"), s.get("upside_pct"), s.get("rating", ""), extra)
+
+    # Sensitivity table
+    sens_html = ""
+    wg = sens.get("wacc_vs_growth") or {}
+    if wg.get("matrix"):
+        rows = wg.get("rows", [])
+        cols = wg.get("cols", [])
+        matrix = wg.get("matrix", [])
+        sens_html = '<table style="width:100%;border-collapse:collapse;font-size:10px"><tr><th style="padding:4px;background:#f1f5f9;border:1px solid #e2e8f0">WACC/g</th>'
+        for col in cols:
+            sens_html += '<th style="padding:4px;background:#f1f5f9;border:1px solid #e2e8f0">' + col + '</th>'
+        sens_html += '</tr>'
+        cp = cf(cur_price)
+        for ri, row in enumerate(matrix):
+            rl = rows[ri] if ri < len(rows) else ""
+            sens_html += '<tr><td style="padding:4px;font-weight:700;background:#f1f5f9;border:1px solid #e2e8f0">' + rl + '</td>'
+            for cell in row:
+                f = cf(cell)
+                if f is not None and cp and cp > 0:
+                    up = (f - cp) / cp * 100
+                    bg = "#dcfce7" if up > 20 else "#fef9c3" if up > 0 else "#fee2e2"
+                    tc = "#16a34a" if up > 20 else "#d97706" if up > 0 else "#dc2626"
+                    cv = "Rs." + str(int(f))
+                else:
+                    bg, tc, cv = "#f8fafc", "#94a3b8", "--"
+                sens_html += '<td style="padding:4px;text-align:center;background:' + bg + ';color:' + tc + ';border:1px solid #e2e8f0;font-weight:600">' + cv + '</td>'
+            sens_html += '</tr>'
+        sens_html += '</table>'
+
+    # Catalysts
+    cat_html = ""
+    for cat in catalysts:
+        desc = cat.get("description") or cat.get("event", "")
+        typ  = cat.get("catalyst_type") or cat.get("type", "event")
+        dt   = cat.get("expected_date") or cat.get("timeline", "TBD")
+        cat_html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0"><span>' + desc + '</span><span style="color:#666;font-size:10px">' + typ + " - " + dt + '</span></div>'
+
+    # Inputs
+    input_html = ""
+    for k, v in inputs.items():
+        if v is None or k in ["ticker", "sector"]:
+            continue
+        input_html += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f5f5f5"><span style="color:#64748b">' + k.replace("_", " ").title() + '</span><span style="font-weight:700">' + str(v) + '</span></div>'
+
+    cp_str = ("Rs." + f"{cf(cur_price):,.2f}") if cf(cur_price) else "--"
+
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>" + ticker + " Research Report</title>"
+    html += "<style>@page{size:A4;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;line-height:1.5}.section{background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:14px}.stitle{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:10px}@media print{.np{display:none!important}}</style>"
+    html += "</head><body>"
+    html += '<div class="np" style="background:#0f172a;color:white;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:99">'
+    html += '<span>Research Report: <b>' + ticker + '</b> &nbsp;<span style="color:#94a3b8;font-size:10px">' + sector + ' - ' + now_str + '</span></span>'
+    html += '<button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-weight:700">Export PDF</button></div>'
+    html += '<div style="padding:20px;max-width:820px;margin:0 auto">'
+
+    # Header
+    html += '<div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);color:white;padding:22px;border-radius:10px;margin-bottom:16px">'
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+    html += '<div><h1 style="font-size:28px;font-weight:900">' + ticker + '</h1>'
+    html += '<div style="color:#94a3b8;font-size:11px;margin-top:4px">' + sector.replace("_"," ").title() + ' | Session ' + session_id[-12:] + ' | ' + now_str + '</div></div>'
+    html += '<div style="text-align:right"><div style="font-size:10px;color:#94a3b8">Current Price</div><div style="font-size:22px;font-weight:800">' + cp_str + '</div></div>'
+    html += '</div></div>'
+
+    # Thesis
+    if thesis:
+        html += '<div class="section"><div class="stitle">Investment Thesis</div>'
+        html += '<p style="font-size:12px;margin-bottom:6px">' + thesis + '</p>'
+        if variant:
+            html += '<p style="color:#2563eb;font-style:italic;font-size:11px">Variant: ' + variant + '</p>'
+        html += '</div>'
+
+    # Scenario cards
+    if scen_cards:
+        html += '<div class="section"><div class="stitle">Scenario Analysis (AI-Generated)</div><div style="display:flex;gap:10px">' + scen_cards + '</div></div>'
+
+    # DCF cards
+    html += '<div class="section"><div class="stitle">DCF Valuation</div>'
+    if dcf_cards:
+        html += '<div style="display:flex;gap:10px">' + dcf_cards + '</div>'
+    else:
+        html += '<p style="color:#94a3b8;text-align:center;padding:12px">Click Run DCF on the Research page to generate valuation</p>'
+    html += '</div>'
+
+    # Page 2
+    html += '<div style="page-break-before:always;margin-top:8px"></div>'
+
+    # Inputs
+    if input_html:
+        html += '<div class="section"><div class="stitle">Model Inputs</div>' + input_html + '</div>'
+
+    # Sensitivity
+    if sens_html:
+        cp_note = ("vs current Rs." + f"{cf(cur_price):,.0f}") if cf(cur_price) else ""
+        html += '<div class="section"><div class="stitle">Sensitivity Analysis (WACC vs Terminal Growth)</div>' + sens_html
+        html += '<p style="color:#94a3b8;font-size:9px;text-align:center;margin-top:6px">Green=upside&gt;20% / Yellow&gt;0% / Red=downside ' + cp_note + '</p></div>'
+
+    # Reverse DCF
+    if rev_dcf:
+        html += '<div class="section"><div class="stitle">Reverse DCF</div>'
+        html += '<p style="font-size:13px;font-weight:700;color:#d97706">Market pricing in ' + str(rev_dcf.get("implied_growth_rate", "--")) + '% annual FCF growth</p>'
+        html += '<p style="color:#64748b;font-size:11px;margin-top:6px">' + rev_dcf.get("interpretation", "") + '</p></div>'
+
+    # Catalysts
+    if cat_html:
+        html += '<div class="section"><div class="stitle">Catalysts</div>' + cat_html + '</div>'
+
+    # Footer
+    html += '<div style="color:#94a3b8;font-size:9px;text-align:center;border-top:1px solid #e2e8f0;padding-top:10px;margin-top:16px">'
+    html += 'Beaver Intelligence - Session: ' + session_id + ' - ' + now_str + '<br>'
+    html += '<b>For research purposes only. Not investment advice.</b></div>'
+    html += '</div></body></html>'
 
     return HTMLResponse(
         content=html,
-        headers={"Content-Disposition": f"attachment; filename={ticker}_research_report.html"}
+        headers={"Content-Disposition": f"attachment; filename={ticker}_report.html"}
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RESEARCH PLATFORM INTEGRATION
-# ─────────────────────────────────────────────────────────────────────────────
+
 import sys as _sys
 _sys.path.insert(0, '/app/backend/research_platform')
 
