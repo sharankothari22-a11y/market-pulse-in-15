@@ -684,18 +684,29 @@ async def fetch_indices_safe() -> dict:
                         prev = _safe_float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
                         change = (price - prev) if (price and prev) else None
                         change_pct = ((change / prev) * 100) if (change and prev) else None
+                        change_type = "neutral"
+                        if change is not None:
+                            change_type = "positive" if change >= 0 else "negative"
                         return name, {
                             "name": name,
                             "symbol": symbol,
                             "value": price,
+                            "price": price,               # alias
+                            "ltp": price,                 # alias
+                            "last": price,                # alias
                             "prev_close": prev,
                             "change": change,
                             "change_percent": change_pct,
+                            "change_pct": change_pct,     # alias
+                            "changeType": change_type,    # what IndexPill reads
                         }
                 except Exception as e:
                     logger.debug(f"indices {symbol}: {e}")
                 return name, {"name": name, "symbol": symbol, "value": None,
-                              "prev_close": None, "change": None, "change_percent": None}
+                              "price": None, "ltp": None, "last": None,
+                              "prev_close": None, "change": None,
+                              "change_percent": None, "change_pct": None,
+                              "changeType": "neutral"}
 
             results = await asyncio.gather(
                 *[loop.run_in_executor(None, _fetch_one, n, s) for n, s in INDICES],
