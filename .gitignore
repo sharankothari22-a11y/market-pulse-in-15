@@ -32,3 +32,8 @@ logs/
 # Secrets
 .env.local
 secrets.json
+
+# Local DCF notebook runs (papermill outputs — not source)
+.dcf_local_run/
+notebooks/DCF_Output_*.xlsm
+notebooks/DCF_Output_*.xlsx
