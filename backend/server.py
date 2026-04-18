@@ -1446,6 +1446,7 @@ def _execute_notebook_blocking(
 
         # Execute via papermill
         # Working directory = notebooks folder so relative paths work
+        # Note: papermill 2.7+ doesn't accept stderr_file as str - use logging instead
         pm.execute_notebook(
             input_path=str(patched_nb),
             output_path=str(executed_nb),
@@ -1453,9 +1454,7 @@ def _execute_notebook_blocking(
             kernel_name="python3",
             cwd=str(DCF_NOTEBOOK_SRC.parent),
             progress_bar=False,
-            log_output=False,
-            stderr_file=str(run_dir / "stderr.log"),
-            stdout_file=str(run_dir / "stdout.log"),
+            log_output=True,  # emit cell outputs to logger instead of stderr_file
             execution_timeout=timeout,
         )
 
@@ -1494,15 +1493,32 @@ def _execute_notebook_blocking(
 
     except Exception as e:
         elapsed = (datetime.now(timezone.utc) - start).total_seconds()
-        # Try to extract a useful error from the stderr log
         err_detail = str(e)[:500]
+
+        # Try to extract the actual cell error from the partially-executed notebook
         try:
-            stderr_log = run_dir / "stderr.log"
-            if stderr_log.exists():
-                tail = stderr_log.read_text()[-800:]
-                err_detail = f"{err_detail}\n---notebook stderr tail---\n{tail}"
-        except Exception:
-            pass
+            if executed_nb.exists():
+                import nbformat
+                nb_err = nbformat.read(str(executed_nb), as_version=4)
+                for idx, cell in enumerate(nb_err.cells):
+                    if cell.cell_type != "code":
+                        continue
+                    for out in cell.get("outputs", []):
+                        if out.get("output_type") == "error":
+                            tb = "\n".join(out.get("traceback", []))
+                            # Strip ANSI escape codes
+                            import re as _re
+                            tb = _re.sub(r"\x1b\[[0-9;]*[mK]", "", tb)
+                            err_detail = (
+                                f"{str(e)[:200]}\n"
+                                f"---failing cell {idx}---\n"
+                                f"{tb[-1500:]}"
+                            )
+                            break
+                    if "failing cell" in err_detail:
+                        break
+        except Exception as _inner:
+            logger.debug(f"[dcf] could not extract cell error: {_inner}")
 
         result.update({
             "status": "failed",
