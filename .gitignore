@@ -37,3 +37,5 @@ secrets.json
 .dcf_local_run/
 notebooks/DCF_Output_*.xlsm
 notebooks/DCF_Output_*.xlsx
+notebooks/DCF_Output_*.summary.json
+notebooks/DCF_Output_*.debug.json
