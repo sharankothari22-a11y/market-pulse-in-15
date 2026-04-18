@@ -18,7 +18,8 @@ export const API_ENDPOINTS = {
   alerts: '/api/alerts',
 
   // Research
-  researchNew: '/api/research/analyze',
+  researchAnalyze: '/api/research/analyze',       // one-shot: creates session + runs analysis + returns price
+  researchNew: '/api/research/new',               // legacy: just creates a session stub
   research: (sessionId) => `/api/research/${sessionId}`,
   researchReport: (sessionId) => `/api/research/${sessionId}/report`,
   researchSignals: (sessionId) => `/api/research/${sessionId}/signals`,
@@ -26,6 +27,7 @@ export const API_ENDPOINTS = {
   researchAssumption: (sessionId) => `/api/research/${sessionId}/assumption`,
   researchCatalyst: (sessionId) => `/api/research/${sessionId}/catalyst`,
   researchThesis: (sessionId) => `/api/research/${sessionId}/thesis`,
+  researchDcf: (sessionId) => `/api/research/${sessionId}/dcf`,
   sessions: '/api/sessions',
 
   // Chat
