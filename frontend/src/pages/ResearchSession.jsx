@@ -7,6 +7,17 @@ import { cn } from '@/lib/utils';
 
 const SCENARIO_KEYS = ['bull', 'base', 'bear'];
 
+// Guard: reject invalid session IDs that have caused 404s in the past
+const isValidSessionId = (id) =>
+  !!id && typeof id === 'string' && id !== 'undefined' && id !== 'null' && id.length > 2;
+
+// Unwrap backend list responses — supports both shapes: [..] and {sessions: [..]}
+const unwrapList = (raw, key) => {
+  if (Array.isArray(raw)) return raw;
+  if (raw && Array.isArray(raw[key])) return raw[key];
+  return [];
+};
+
 const assumptionColumns = [
   { header: 'Assumption', accessor: 'assumption', className: 'font-medium' },
   { header: 'Old', accessor: 'old', className: 'text-[#64748b]' },
@@ -22,7 +33,7 @@ const assumptionColumns = [
 ];
 
 // Simple sparkline using SVG
-const PriceChart = ({ ticker }) => {
+const PriceChart = ({ ticker, livePrice }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +52,18 @@ const PriceChart = ({ ticker }) => {
     };
     fetchPrices();
   }, [ticker]);
+
+  // Fallback: if no chart data but we have a live price, show the price card
+  if (!loading && chartData.length === 0 && livePrice != null) {
+    return (
+      <div className="h-24 flex flex-col items-center justify-center">
+        <span className="text-xs text-[#64748b] uppercase tracking-wider">Current Price</span>
+        <span className="text-2xl font-bold text-[#0f172a] mt-1">
+          ₹{typeof livePrice === 'number' ? livePrice.toFixed(2) : livePrice}
+        </span>
+      </div>
+    );
+  }
 
   if (loading) return (
     <div className="h-24 flex items-center justify-center">
@@ -95,7 +118,6 @@ export const ResearchSession = ({ onSessionChange }) => {
   const [researchData, setResearchData] = useState(null);
   const [dcfData, setDcfData] = useState(null);
   const [dcfLoading, setDcfLoading] = useState(false);
-  const [dcfModelVersion, setDcfModelVersion] = useState('analyst');
   const [reportLoading, setReportLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -103,7 +125,7 @@ export const ResearchSession = ({ onSessionChange }) => {
   const [runningScenarios, setRunningScenarios] = useState(false);
   const [error, setError] = useState(null);
 
-  // Modal state
+  // Modal state (optional — Analyze button now works without opening modal)
   const [showNewModal, setShowNewModal] = useState(false);
   const [modalTicker, setModalTicker] = useState('');
   const [modalHypothesis, setModalHypothesis] = useState('');
@@ -132,12 +154,8 @@ export const ResearchSession = ({ onSessionChange }) => {
     const fetchSessions = async () => {
       try {
         const data = await apiGet(API_ENDPOINTS.sessions);
-        const list = Array.isArray(data) ? data : [];
+        const list = unwrapList(data, 'sessions');
         setSessions(list);
-        if (list.length > 0 && !sessionId) {
-          setSessionId(list[0].session_id);
-          setTicker(list[0].ticker || '');
-        }
       } catch (err) {
         console.error('Failed to fetch sessions:', err);
       }
@@ -145,29 +163,32 @@ export const ResearchSession = ({ onSessionChange }) => {
     fetchSessions();
   }, []);
 
-  // Fetch research data when sessionId changes
+  // Fetch research data when sessionId changes — GUARDED against invalid IDs
   useEffect(() => {
-    if (!sessionId) return;
+    if (!isValidSessionId(sessionId)) return;
     const fetchResearchData = async () => {
       try {
         setLoading(true);
         const data = await apiGet(API_ENDPOINTS.research(sessionId));
+        // If backend returned a not-found skeleton, don't overwrite current state
+        if (data && data.status === 'not_found') {
+          console.warn('Session not found:', sessionId);
+          setError(null);
+          return;
+        }
         setResearchData(data);
-        if (data.ticker) setTicker(data.ticker);
-        // Auto-populate DCF panel from session data
+        if (data.ticker && data.ticker !== 'UNKNOWN') setTicker(data.ticker);
         if (data.dcf_output && data.dcf_output.status === 'complete') {
           setDcfData(data.dcf_output);
-        } else {
-          // Session has no DCF yet — auto-run it silently
-          try {
-            const sid = data.session_id;
-            await apiPost('/api/research/' + sid + '/dcf', {});
-            const fresh = await apiGet(API_ENDPOINTS.research(sid));
-            setResearchData(fresh);
-            if (fresh.dcf_output && fresh.dcf_output.status === 'complete') {
-              setDcfData(fresh.dcf_output);
-            }
-          } catch (e) { console.error('Auto DCF failed:', e); }
+        } else if (data.dcf) {
+          // Our hardened backend's analyze endpoint returns .dcf directly
+          setDcfData({
+            status: 'complete',
+            current_price: data.dcf.current_price,
+            scenarios: {
+              base: { per_share: data.dcf.fair_value, upside_pct: data.dcf.upside_pct, rating: data.dcf.upside_pct > 15 ? 'BUY' : data.dcf.upside_pct < -15 ? 'SELL' : 'HOLD' }
+            },
+          });
         }
         setError(null);
       } catch (err) {
@@ -180,7 +201,7 @@ export const ResearchSession = ({ onSessionChange }) => {
   }, [sessionId]);
 
   const refreshSession = async () => {
-    if (!sessionId) return;
+    if (!isValidSessionId(sessionId)) return;
     const data = await apiGet(API_ENDPOINTS.research(sessionId));
     setResearchData(data);
     if (data.dcf_output && data.dcf_output.status === 'complete') {
@@ -188,33 +209,40 @@ export const ResearchSession = ({ onSessionChange }) => {
     }
   };
 
-  // Create session from modal — one click does everything
-  const handleCreateSession = async () => {
-    if (!modalTicker.trim()) return;
+  // Primary Analyze action — one click, no modal, calls /api/research/analyze directly
+  const handleAnalyze = async () => {
+    const t = ticker.trim().toUpperCase();
+    if (!t) return;
     try {
       setAnalyzing(true);
       setError(null);
-      const result = await apiPost(API_ENDPOINTS.researchNew, {
-        ticker: modalTicker.toUpperCase(),
-        hypothesis: modalHypothesis,
-        variant_view: modalVariant,
-        sector: modalSector,
-      });
-      setShowNewModal(false);
-      setModalTicker(''); setModalHypothesis(''); setModalVariant(''); setModalSector('auto');
-
-      setSessionId(result.session_id);
-      setTicker(result.ticker);
-
-      // Fetch the normalized session data
-      const data = await apiGet(API_ENDPOINTS.research(result.session_id));
-      setResearchData(data);
-      if (data.dcf_output && data.dcf_output.status === 'complete') {
-        setDcfData(data.dcf_output);
+      const result = await apiPost(API_ENDPOINTS.researchAnalyze, { ticker: t });
+      // Guard: if no session_id came back, show error instead of breaking
+      if (!result || !result.session_id) {
+        setError('Backend did not return a session ID');
+        return;
       }
-
-      const list = await apiGet(API_ENDPOINTS.sessions);
-      setSessions(Array.isArray(list) ? list : []);
+      // Use the response directly as researchData (it has all fields)
+      setResearchData(result);
+      setSessionId(result.session_id);
+      if (result.dcf) {
+        setDcfData({
+          status: 'complete',
+          current_price: result.dcf.current_price,
+          scenarios: {
+            base: {
+              per_share: result.dcf.fair_value,
+              upside_pct: result.dcf.upside_pct,
+              rating: result.dcf.upside_pct > 15 ? 'BUY' : result.dcf.upside_pct < -15 ? 'SELL' : 'HOLD'
+            }
+          },
+        });
+      }
+      // Refresh session list
+      try {
+        const list = await apiGet(API_ENDPOINTS.sessions);
+        setSessions(unwrapList(list, 'sessions'));
+      } catch (_) {}
     } catch (err) {
       setError(err.message);
     } finally {
@@ -222,22 +250,51 @@ export const ResearchSession = ({ onSessionChange }) => {
     }
   };
 
-  // Quick analyze from search bar (opens modal pre-filled)
-  const handleAnalyze = () => {
-    if (ticker.trim()) {
-      setModalTicker(ticker.toUpperCase());
-      setShowNewModal(true);
+  // Full-form creation via modal (for users who want to add hypothesis etc.)
+  const handleCreateSession = async () => {
+    if (!modalTicker.trim()) return;
+    try {
+      setAnalyzing(true);
+      setError(null);
+      const result = await apiPost(API_ENDPOINTS.researchAnalyze, {
+        ticker: modalTicker.toUpperCase(),
+        hypothesis: modalHypothesis,
+        variant_view: modalVariant,
+        sector: modalSector,
+      });
+      setShowNewModal(false);
+      setModalTicker(''); setModalHypothesis(''); setModalVariant(''); setModalSector('auto');
+      if (!result || !result.session_id) {
+        setError('Backend did not return a session ID');
+        return;
+      }
+      setResearchData(result);
+      setSessionId(result.session_id);
+      setTicker(result.ticker || '');
+      if (result.dcf) {
+        setDcfData({
+          status: 'complete',
+          current_price: result.dcf.current_price,
+          scenarios: {
+            base: { per_share: result.dcf.fair_value, upside_pct: result.dcf.upside_pct, rating: 'HOLD' }
+          },
+        });
+      }
+      const list = await apiGet(API_ENDPOINTS.sessions);
+      setSessions(unwrapList(list, 'sessions'));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAnalyzing(false);
     }
   };
 
   const handleRunScenarios = async () => {
-    if (!sessionId) return;
+    if (!isValidSessionId(sessionId)) return;
     try {
       setRunningScenarios(true);
       setError(null);
-      // Run the real DCF engine — populates both scenarios and DCF panel
-      const result = await apiPost('/api/research/' + sessionId + '/dcf', {});
-      // Fetch normalized session
+      await apiPost(`/api/research/${sessionId}/dcf`, {});
       const data = await apiGet(API_ENDPOINTS.research(sessionId));
       setResearchData(data);
       if (data.dcf_output && data.dcf_output.status === 'complete') {
@@ -251,7 +308,7 @@ export const ResearchSession = ({ onSessionChange }) => {
   };
 
   const handleAddCatalyst = async () => {
-    if (!catDesc.trim() || !sessionId) return;
+    if (!catDesc.trim() || !isValidSessionId(sessionId)) return;
     try {
       setAddingCat(true);
       await apiPost(`/api/research/${sessionId}/catalyst`, {
@@ -270,7 +327,7 @@ export const ResearchSession = ({ onSessionChange }) => {
   };
 
   const handleSaveHypothesis = async () => {
-    if (!hypInput.trim() || !sessionId) return;
+    if (!hypInput.trim() || !isValidSessionId(sessionId)) return;
     try {
       await apiPost(`/api/research/${sessionId}/thesis`, {
         thesis: hypInput,
@@ -284,7 +341,7 @@ export const ResearchSession = ({ onSessionChange }) => {
   };
 
   const handleSaveVariant = async () => {
-    if (!variantInput.trim() || !sessionId) return;
+    if (!variantInput.trim() || !isValidSessionId(sessionId)) return;
     try {
       await apiPost(`/api/research/${sessionId}/thesis`, {
         thesis: researchData?.hypothesis || '',
@@ -298,48 +355,37 @@ export const ResearchSession = ({ onSessionChange }) => {
   };
 
   const runDCF = async () => {
-    const sid = researchData?.session_id;
-    const tkr = researchData?.ticker;
-    if (!sid || !tkr) return;
+    const sid = researchData?.session_id || sessionId;
+    if (!isValidSessionId(sid)) return;
     setDcfLoading(true);
     try {
-      // Run the real DCF endpoint
-      const result = await apiPost('/api/research/' + sid + '/dcf', {});
-      // Fetch normalized session to get dcf_output in correct shape
+      await apiPost(`/api/research/${sid}/dcf`, {});
       const data = await apiGet(API_ENDPOINTS.research(sid));
       setResearchData(data);
       if (data.dcf_output && data.dcf_output.status === 'complete') {
         setDcfData(data.dcf_output);
-      } else if (result.scenarios) {
-        // Fallback: use direct response
-        setDcfData({
-          status: 'complete',
-          current_price: result.current_price,
-          scenarios: result.scenarios,
-          sensitivity_table: result.sensitivity_table || {},
-          reverse_dcf: result.reverse_dcf,
-          inputs: result.inputs || {},
-        });
       }
     } catch (e) { console.error('DCF error:', e); }
     finally { setDcfLoading(false); }
   };
-  const refreshDCF = async (sid) => {
-    const sessionId = sid || researchData?.session_id;
-    if (!sessionId) return;
+
+  const refreshDCF = async () => {
+    const sid = researchData?.session_id || sessionId;
+    if (!isValidSessionId(sid)) return;
     try {
-      const data = await apiGet(API_ENDPOINTS.research(sessionId));
+      const data = await apiGet(API_ENDPOINTS.research(sid));
       if (data.dcf_output && data.dcf_output.status === 'complete') {
         setDcfData(data.dcf_output);
       }
     } catch (e) { console.error(e); }
   };
+
   const downloadReport = async () => {
     const sid = researchData?.session_id;
-    if (!sid) return;
+    if (!isValidSessionId(sid)) return;
     setReportLoading(true);
     try {
-      const res = await fetch('/api/research/' + sid + '/report/download');
+      const res = await fetch(`/api/research/${sid}/report/download`);
       const html = await res.text();
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
@@ -349,8 +395,8 @@ export const ResearchSession = ({ onSessionChange }) => {
     } catch (e) { console.error(e); }
     finally { setReportLoading(false); }
   };
+
   const getScenarios = () => {
-    // Prefer DCF scenarios (real numbers) over run-scenarios (hardcoded)
     const src = (dcfData?.scenarios && Object.keys(dcfData.scenarios).length > 0)
       ? dcfData.scenarios
       : researchData?.scenarios;
@@ -361,10 +407,16 @@ export const ResearchSession = ({ onSessionChange }) => {
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1),
         ...src[key],
-        // normalize field name
         price_per_share: src[key]?.per_share ?? src[key]?.price_per_share,
       }));
   };
+
+  // Pick the best available price from the response (tries every field name)
+  const livePrice = researchData?.price ?? researchData?.ltp ?? researchData?.last_price
+    ?? researchData?.current_price ?? researchData?.dcf?.current_price
+    ?? researchData?.price_data?.price;
+  const liveChangePct = researchData?.change_percent ?? researchData?.change_pct
+    ?? researchData?.price_data?.change_pct;
 
   return (
     <div className="page-content p-6 space-y-6 overflow-y-auto bg-[#ffffff]" data-testid="research-session-page">
@@ -379,7 +431,6 @@ export const ResearchSession = ({ onSessionChange }) => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-[#64748b] uppercase tracking-wide block mb-1">Ticker</label>
@@ -410,29 +461,26 @@ export const ResearchSession = ({ onSessionChange }) => {
               </div>
               <div>
                 <label className="text-xs font-medium text-[#64748b] uppercase tracking-wide block mb-1">
-                  Hypothesis <span className="normal-case font-normal text-[#94a3b8]">— your research question</span>
+                  Hypothesis
                 </label>
                 <textarea
                   className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb] resize-none"
                   rows={2}
-                  placeholder="e.g. RELIANCE undervalued — GRM recovery not priced in"
                   value={modalHypothesis}
                   onChange={e => setModalHypothesis(e.target.value)}
                 />
               </div>
               <div>
                 <label className="text-xs font-medium text-[#64748b] uppercase tracking-wide block mb-1">
-                  Variant View <span className="normal-case font-normal text-[#94a3b8]">— what you see that consensus doesn't</span>
+                  Variant View
                 </label>
                 <input
                   className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                  placeholder="e.g. Consensus uses $6/bbl GRM; we model $9/bbl"
                   value={modalVariant}
                   onChange={e => setModalVariant(e.target.value)}
                 />
               </div>
             </div>
-
             <div className="flex justify-end gap-2 mt-5">
               <button
                 onClick={() => setShowNewModal(false)}
@@ -477,19 +525,19 @@ export const ResearchSession = ({ onSessionChange }) => {
           {analyzing ? 'Analyzing...' : 'Analyze'}
         </button>
         <button
-          onClick={() => { setModalTicker(''); setShowNewModal(true); }}
+          onClick={() => { setModalTicker(ticker); setShowNewModal(true); }}
           className="p-2.5 border border-[#e5e7eb] rounded-lg hover:bg-[#f8fafc] text-[#64748b] hover:text-[#0f172a]"
-          title="New session"
+          title="New session with full form"
         >
           <Plus className="w-4 h-4" />
         </button>
       </section>
 
-      {/* Past sessions chips — deduplicated, newest per ticker */}
+      {/* Past sessions chips — deduplicated */}
       {sessions.length > 0 && (() => {
         const seen = new Set();
         const unique = sessions.filter(s => {
-          if (seen.has(s.ticker)) return false;
+          if (!s.ticker || seen.has(s.ticker)) return false;
           seen.add(s.ticker);
           return true;
         });
@@ -498,11 +546,11 @@ export const ResearchSession = ({ onSessionChange }) => {
             <span className="text-xs text-[#94a3b8]">Recent:</span>
             {unique.slice(0, 8).map(s => (
               <button
-                key={s.session_id}
+                key={s.session_id || s._id}
                 onClick={() => { setSessionId(s.session_id); setTicker(s.ticker || ''); }}
                 className={cn(
                   "px-3 py-1 text-xs rounded-full border transition-colors",
-                  s.session_id === sessionId
+                  (s.session_id || s._id) === sessionId
                     ? "bg-[#2563eb] text-white border-[#2563eb]"
                     : "bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#2563eb] hover:text-[#2563eb]"
                 )}
@@ -519,7 +567,7 @@ export const ResearchSession = ({ onSessionChange }) => {
       )}
 
       {/* Info Bar */}
-      {researchData && (
+      {researchData && researchData.status !== 'not_found' && (
         <section className="flex items-center gap-4 text-sm" data-testid="info-bar">
           <span className="text-[#0f172a] font-medium">{researchData.ticker}</span>
           <span className="text-[#94a3b8]">|</span>
@@ -536,12 +584,20 @@ export const ResearchSession = ({ onSessionChange }) => {
           <Loader2 className="w-6 h-6 animate-spin text-[#2563eb]" />
           <span className="ml-2 text-[#64748b]">Loading research data...</span>
         </div>
-      ) : researchData ? (
+      ) : researchData && researchData.status !== 'not_found' ? (
         <>
-          {/* Price Chart */}
+          {/* Price Chart or current-price card */}
           {researchData.ticker && (
             <section className="dashboard-card">
-              <PriceChart ticker={researchData.ticker} />
+              <PriceChart ticker={researchData.ticker} livePrice={livePrice} />
+              {livePrice != null && liveChangePct != null && (
+                <div className="mt-2 text-xs flex items-center gap-2">
+                  <span className={cn("font-medium", liveChangePct >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                    {liveChangePct >= 0 ? '▲' : '▼'} {liveChangePct.toFixed(2)}%
+                  </span>
+                  <span className="text-[#94a3b8]">vs prev close</span>
+                </div>
+              )}
             </section>
           )}
 
@@ -549,8 +605,6 @@ export const ResearchSession = ({ onSessionChange }) => {
           <section className="grid grid-cols-2 gap-6" data-testid="research-content">
             {/* Left Column */}
             <div className="space-y-6">
-
-              {/* Hypothesis */}
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">Hypothesis</h3>
@@ -572,18 +626,15 @@ export const ResearchSession = ({ onSessionChange }) => {
                     <button
                       onClick={handleSaveHypothesis}
                       className="px-3 py-1.5 text-xs bg-[#2563eb] text-white rounded-md hover:bg-[#1d4ed8]"
-                    >
-                      Save
-                    </button>
+                    >Save</button>
                   </div>
                 ) : (
                   <p className="text-sm text-[#0f172a] leading-relaxed">
-                    {researchData.hypothesis || <span className="text-[#94a3b8] italic">No hypothesis set — click edit to add one</span>}
+                    {researchData.hypothesis || <span className="text-[#94a3b8] italic">No hypothesis set</span>}
                   </p>
                 )}
               </div>
 
-              {/* Variant View */}
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">Variant View</h3>
@@ -600,14 +651,11 @@ export const ResearchSession = ({ onSessionChange }) => {
                       className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                       value={variantInput}
                       onChange={e => setVariantInput(e.target.value)}
-                      placeholder="What do you see that consensus doesn't?"
                     />
                     <button
                       onClick={handleSaveVariant}
                       className="px-3 py-1.5 text-xs bg-[#2563eb] text-white rounded-md hover:bg-[#1d4ed8]"
-                    >
-                      Save
-                    </button>
+                    >Save</button>
                   </div>
                 ) : (
                   <p className="text-sm text-[#0f172a] leading-relaxed">
@@ -616,7 +664,6 @@ export const ResearchSession = ({ onSessionChange }) => {
                 )}
               </div>
 
-              {/* Catalysts */}
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">Catalysts</h3>
@@ -627,7 +674,6 @@ export const ResearchSession = ({ onSessionChange }) => {
                     <Plus className="w-3 h-3" /> Add
                   </button>
                 </div>
-
                 {showCatForm && (
                   <div className="mb-3 p-3 bg-[#f8fafc] rounded-lg border border-[#e5e7eb] space-y-2">
                     <input
@@ -660,16 +706,12 @@ export const ResearchSession = ({ onSessionChange }) => {
                         disabled={!catDesc.trim() || addingCat}
                         className="px-3 py-1.5 text-xs bg-[#2563eb] text-white rounded hover:bg-[#1d4ed8] disabled:opacity-50 flex items-center gap-1"
                       >
-                        {addingCat && <Loader2 className="w-3 h-3 animate-spin" />}
-                        Log
+                        {addingCat && <Loader2 className="w-3 h-3 animate-spin" />} Log
                       </button>
-                      <button onClick={() => setShowCatForm(false)} className="px-3 py-1.5 text-xs border border-[#e5e7eb] rounded hover:bg-[#f1f5f9]">
-                        Cancel
-                      </button>
+                      <button onClick={() => setShowCatForm(false)} className="px-3 py-1.5 text-xs border border-[#e5e7eb] rounded hover:bg-[#f1f5f9]">Cancel</button>
                     </div>
                   </div>
                 )}
-
                 <div className="space-y-2">
                   {(researchData.catalysts || []).map((cat, idx) => (
                     <div key={idx} className="flex items-start justify-between p-3 bg-[#f1f5f9] rounded-lg">
@@ -691,15 +733,13 @@ export const ResearchSession = ({ onSessionChange }) => {
 
             {/* Right Column */}
             <div className="space-y-6">
-              {/* Scenario Analysis */}
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">Scenario Analysis</h3>
                   <button
                     onClick={handleRunScenarios}
-                    disabled={!sessionId || runningScenarios}
+                    disabled={!isValidSessionId(sessionId) || runningScenarios}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#2563eb] text-white rounded-md hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    data-testid="run-scenarios-btn"
                   >
                     {runningScenarios ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                     {runningScenarios ? 'Running...' : 'Run Scenarios'}
@@ -708,16 +748,10 @@ export const ResearchSession = ({ onSessionChange }) => {
                 <div className="grid grid-cols-3 gap-3">
                   {getScenarios().length > 0 ? (
                     getScenarios().map((scenario) => (
-                      <div
-                        key={scenario.key}
-                        className={cn(
-                          "px-4 py-3 rounded-lg border",
-                          scenario.key === 'bull' ? 'bg-[#16a34a]/10 border-[#16a34a]' :
-                          scenario.key === 'bear' ? 'bg-[#dc2626]/10 border-[#dc2626]' :
-                          'bg-[#2563eb]/10 border-[#2563eb]'
-                        )}
-                        data-testid={`scenario-badge-${scenario.key}`}
-                      >
+                      <div key={scenario.key} className={cn("px-4 py-3 rounded-lg border",
+                        scenario.key === 'bull' ? 'bg-[#16a34a]/10 border-[#16a34a]' :
+                        scenario.key === 'bear' ? 'bg-[#dc2626]/10 border-[#dc2626]' :
+                        'bg-[#2563eb]/10 border-[#2563eb]')}>
                         <p className={cn("text-xs uppercase tracking-wider font-medium",
                           scenario.key === 'bull' ? 'text-[#16a34a]' :
                           scenario.key === 'bear' ? 'text-[#dc2626]' : 'text-[#2563eb]')}>
@@ -733,14 +767,6 @@ export const ResearchSession = ({ onSessionChange }) => {
                           scenario.key === 'bear' ? 'text-[#dc2626]' : 'text-[#2563eb]')}>
                           {typeof scenario.upside_pct === 'number' ? `${scenario.upside_pct >= 0 ? '+' : ''}${scenario.upside_pct.toFixed(1)}%` : 'N/A'}
                         </p>
-                        {scenario.rating && (
-                          <span className={cn("inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded",
-                            scenario.rating === 'BUY' ? 'bg-[#16a34a]/20 text-[#16a34a]' :
-                            scenario.rating === 'SELL' ? 'bg-[#dc2626]/20 text-[#dc2626]' :
-                            'bg-[#d97706]/20 text-[#d97706]')}>
-                            {scenario.rating}
-                          </span>
-                        )}
                       </div>
                     ))
                   ) : (
@@ -749,16 +775,15 @@ export const ResearchSession = ({ onSessionChange }) => {
                 </div>
               </div>
 
-              {/* DCF Valuation Cards */}
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider">DCF Valuation</h3>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => runDCF()} disabled={dcfLoading} className="flex items-center gap-1 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <button onClick={runDCF} disabled={dcfLoading} className="flex items-center gap-1 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
                       {dcfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                       {dcfLoading ? 'Running...' : 'Run DCF'}
                     </button>
-                    <button onClick={() => refreshDCF()} className="text-xs bg-[#f1f5f9] text-[#64748b] px-2 py-1.5 rounded-lg">↻</button>
+                    <button onClick={refreshDCF} className="text-xs bg-[#f1f5f9] text-[#64748b] px-2 py-1.5 rounded-lg">↻</button>
                     <button onClick={downloadReport} disabled={reportLoading} className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
                       {reportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : '📄'}
                       {reportLoading ? 'Loading...' : 'Report'}
@@ -787,66 +812,7 @@ export const ResearchSession = ({ onSessionChange }) => {
                   </div>
                 )}
               </div>
-
-              {/* Reverse DCF */}
-              <div className="dashboard-card">
-                <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-2">Reverse DCF</h3>
-                <p className="text-sm text-[#0f172a] leading-relaxed">
-                  {dcfData?.reverse_dcf ? (
-                  <div>
-                    <p className="text-sm text-[#0f172a]">Market pricing in <span className="font-bold text-[#d97706]">{dcfData.reverse_dcf.implied_growth_rate}% growth</span></p>
-                    <p className="text-xs text-[#64748b] mt-1">{dcfData.reverse_dcf.interpretation}</p>
-                  </div>
-                ) : <p className="text-sm text-[#94a3b8]">Run DCF to see implied market assumptions</p>}
-                </p>
-              </div>
-
-              {/* Sensitivity Table */}
-              <div className="dashboard-card">
-                <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Sensitivity Analysis</h3>
-                {dcfData?.sensitivity_table?.wacc_vs_growth?.matrix?.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead><tr>
-                        <th className="text-[#94a3b8] p-1 text-left">WACC</th>
-                        {dcfData.sensitivity_table.wacc_vs_growth.cols.map(c => <th key={c} className="text-[#64748b] p-1 text-center">{c}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {dcfData.sensitivity_table.wacc_vs_growth.rows.map((row, ri) => (
-                          <tr key={row}>
-                            <td className="text-[#64748b] p-1 font-semibold">{row}</td>
-                            {dcfData.sensitivity_table.wacc_vs_growth.matrix[ri].map((val, ci) => {
-                              const cp = dcfData.current_price;
-                              const up = cp && val ? ((val - cp) / cp * 100) : null;
-                              const bg = up == null ? '#f1f5f9' : up > 20 ? '#dcfce7' : up > 0 ? '#fef9c3' : '#fee2e2';
-                              const tc = up == null ? '#94a3b8' : up > 20 ? '#16a34a' : up > 0 ? '#d97706' : '#dc2626';
-                              return <td key={ci} className="p-1 text-center rounded" style={{backgroundColor:bg,color:tc}}>{val ? '₹'+Math.round(val) : '—'}</td>;
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-5 gap-1" data-testid="sensitivity-table">
-                    {[...Array(25)].map((_, idx) => (
-                      <div key={idx} className="aspect-square bg-[#f1f5f9] border border-[#e5e7eb] rounded flex items-center justify-center text-xs text-[#94a3b8]">{idx === 12 ? '●' : ''}</div>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-[#94a3b8] mt-2 text-center">WACC vs Terminal Growth</p>
-              </div>
             </div>
-          </section>
-
-          {/* Assumption Changes */}
-          <section className="dashboard-card" data-testid="assumption-changes-section">
-            <h3 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Assumption Changes</h3>
-            {researchData.assumptionChanges && researchData.assumptionChanges.length > 0 ? (
-              <DataTable columns={assumptionColumns} rows={researchData.assumptionChanges} maxHeight={220} />
-            ) : (
-              <p className="text-sm text-[#64748b]">No assumption changes recorded</p>
-            )}
           </section>
         </>
       ) : (
