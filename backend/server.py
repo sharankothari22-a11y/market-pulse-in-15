@@ -704,10 +704,17 @@ async def fetch_indices_safe() -> dict:
             for res in results:
                 if isinstance(res, tuple):
                     name, data = res
-                    # Frontend typically keys on "NIFTY50" and "SENSEX" (no space)
-                    key = name.replace(" ", "")
-                    out[key] = data
-                    out[name] = data  # support both with and without space
+                    # Expose under every common key the frontend might read:
+                    # "NIFTY 50" (with space), "NIFTY50" (no space), "nifty" (lowercase)
+                    key_nospace = name.replace(" ", "")
+                    out[name] = data                        # "NIFTY 50" / "SENSEX"
+                    out[key_nospace] = data                 # "NIFTY50" / "SENSEX"
+                    out[key_nospace.lower()] = data         # "nifty50" / "sensex"
+                    # Special shortname for NIFTY 50 → "nifty" (TopBar.jsx uses this)
+                    if "NIFTY" in key_nospace:
+                        out["nifty"] = data
+                    if "SENSEX" in key_nospace:
+                        out["sensex"] = data
             if out:
                 await cache_set("indices", out)
                 return out
@@ -716,7 +723,9 @@ async def fetch_indices_safe() -> dict:
     cached, _ = await cache_get("indices")
     return cached or {
         "NIFTY50": {"name": "NIFTY 50", "value": None, "change_percent": None},
+        "nifty": {"name": "NIFTY 50", "value": None, "change_percent": None},
         "SENSEX": {"name": "SENSEX", "value": None, "change_percent": None},
+        "sensex": {"name": "SENSEX", "value": None, "change_percent": None},
     }
 
 # ---------- Sessions ----------
