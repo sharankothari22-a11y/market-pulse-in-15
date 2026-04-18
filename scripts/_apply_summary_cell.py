@@ -64,8 +64,30 @@ try:
 except Exception:
     _upside = None
 
+# Model warnings — surface obviously-wrong outputs rather than ship silently
+_warnings = []
+try:
+    if _fv is not None and float(_fv) < 0:
+        _warnings.append("Fair value is negative — model likely outside its reliable range for this ticker.")
+    if _upside is not None and abs(float(_upside)) > 100:
+        _warnings.append("Implied upside/downside exceeds 100% — treat with skepticism.")
+    _fore_fcf_series = _series(_FORE, "FCFF")
+    _hist_fcf_series = _series(_HIST, "FCFF")
+    _any_neg_fore = any((r.get("fcff") is not None and float(r["fcff"]) < 0) for r in _fore_fcf_series)
+    _last2_hist = [r for r in _hist_fcf_series if r.get("fcff") is not None][-2:]
+    _last2_pos = (len(_last2_hist) == 2 and all(float(r["fcff"]) > 0 for r in _last2_hist))
+    if _any_neg_fore and _last2_pos:
+        _warnings.append("Forecast projects negative FCF despite recent positive history — check capex/NWC assumptions.")
+    _wacc = _VAL.get("WACC")
+    _tg = globals().get("TERMINAL_GROWTH")
+    if _wacc is not None and _tg is not None and float(_tg) >= float(_wacc) * 100.0:
+        _warnings.append("Terminal growth exceeds WACC — Gordon model invalid.")
+except Exception as _e:
+    _warnings.append(f"warning-check error: {_e}")
+
 _summary = {
     "schema_version": 1,
+    "model_warnings": _warnings,
     "ticker": TICKER,
     "currency": LOCAL_CURRENCY,
     "region": REGION,
