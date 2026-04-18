@@ -79,6 +79,65 @@ except Exception as e:
     HTTPX_AVAILABLE = False
     print(f"[startup] httpx not available: {e}")
 
+# ---------- research_platform — the real research engine ----------
+# Each import is wrapped so one broken module doesn't disable the others.
+# If ANY import fails, the corresponding feature falls back to simple logic.
+RP_AVAILABLE = False
+_rp_errors = []
+try:
+    # Ensure research_platform is on the path (it's a sibling folder)
+    _rp_path = Path(__file__).parent / "research_platform"
+    if _rp_path.exists() and str(_rp_path) not in sys.path:
+        sys.path.insert(0, str(_rp_path))
+except Exception as e:
+    _rp_errors.append(f"path_setup: {e}")
+
+try:
+    from ai_engine.session_manager import new_session as rp_new_session, load_session as rp_load_session, list_sessions as rp_list_sessions
+    RP_SESSION_MGR = True
+except Exception as e:
+    RP_SESSION_MGR = False
+    rp_new_session = rp_load_session = rp_list_sessions = None
+    _rp_errors.append(f"session_manager: {e}")
+
+try:
+    from ai_engine.scenario_engine import run_scenarios as rp_run_scenarios
+    RP_SCENARIOS = True
+except Exception as e:
+    RP_SCENARIOS = False
+    rp_run_scenarios = None
+    _rp_errors.append(f"scenario_engine: {e}")
+
+try:
+    from ai_engine.scoring import score_session as rp_score_session
+    RP_SCORING = True
+except Exception as e:
+    RP_SCORING = False
+    rp_score_session = None
+    _rp_errors.append(f"scoring: {e}")
+
+try:
+    from ai_engine.pdf_builder import build_report as rp_build_report
+    RP_PDF = True
+except Exception as e:
+    RP_PDF = False
+    rp_build_report = None
+    _rp_errors.append(f"pdf_builder: {e}")
+
+try:
+    from ai_engine.audit_export import export_to_excel as rp_export_excel, export_to_html as rp_export_html
+    RP_EXPORT = True
+except Exception as e:
+    RP_EXPORT = False
+    rp_export_excel = rp_export_html = None
+    _rp_errors.append(f"audit_export: {e}")
+
+RP_AVAILABLE = RP_SESSION_MGR and RP_SCENARIOS and RP_SCORING
+if RP_AVAILABLE:
+    print(f"[startup] ✓ research_platform loaded (scenarios, scoring, sessions)")
+else:
+    print(f"[startup] ⚠ research_platform partial/unavailable: {_rp_errors}")
+
 # =====================================================================
 # LOGGING
 # =====================================================================
@@ -579,6 +638,15 @@ async def health():
         "mongo": "connected" if db is not None else "unavailable",
         "yfinance": "available" if YF_AVAILABLE else "unavailable",
         "twelve_data": "configured" if TWELVE_DATA_KEY else "not_configured",
+        "research_platform": {
+            "available": RP_AVAILABLE,
+            "session_manager": RP_SESSION_MGR,
+            "scenarios": RP_SCENARIOS,
+            "scoring": RP_SCORING,
+            "pdf_builder": RP_PDF,
+            "audit_export": RP_EXPORT,
+            "errors": _rp_errors if _rp_errors else None,
+        },
         "uptime_since": STARTUP_TIME,
     }
 
@@ -915,17 +983,93 @@ async def analyze(request: Request):
     price_per_share = (equity_value / shares_out) if shares_out else 0
     upside_pct = ((price_per_share - current_price) / current_price * 100) if current_price else 0
 
-    # Create session so frontend can navigate to /research/<session_id>
+    # ═══════════════════════════════════════════════════════════════════
+    # RESEARCH PLATFORM integration — the real engine, guarded by try/except
+    # ═══════════════════════════════════════════════════════════════════
+    rp_session_id = None
+    rp_scenarios = None
+    rp_scoring_data = None
+    rp_sector = _detect_sector_simple(ticker)
+
+    if RP_AVAILABLE:
+        try:
+            # Create a real research session folder on disk
+            rp_ses = rp_new_session(
+                ticker=ticker,
+                hypothesis=body.get("hypothesis") or f"Analysis session for {ticker}",
+                variant_view=body.get("variant_view") or "",
+                catalysts=body.get("catalysts") or [],
+            )
+            rp_session_id = rp_ses.session_id
+
+            # Build assumptions WITHOUT the DB-dependent dcf_bridge.
+            # Use actuals from yfinance + sector defaults.
+            rp_assumptions = _build_rp_assumptions(
+                ticker=ticker,
+                sector=rp_sector,
+                current_price=current_price,
+                market_cap=market_cap,
+                total_revenue=total_revenue,
+                net_income=net_income,
+                shares_out=shares_out,
+                beta=beta,
+                info=info,
+            )
+            rp_ses.initialize_assumptions(rp_assumptions)
+
+            # Run scenarios (Bull / Base / Bear + sensitivity + reverse DCF)
+            if RP_SCENARIOS and rp_run_scenarios:
+                try:
+                    base_revenue_cr = (total_revenue / 1e7) if total_revenue else 100.0
+                    scenario_result = rp_run_scenarios(
+                        rp_ses,
+                        rp_assumptions,
+                        shares_outstanding=(shares_out / 1e7) if shares_out else None,
+                        base_revenue=max(base_revenue_cr, 1.0),
+                    )
+                    # Read back the structured JSON that was written to disk
+                    rp_scenarios = rp_ses.get_scenarios()
+                    logger.info(f"[analyze] RP scenarios ran for {ticker}")
+                except Exception as e:
+                    logger.warning(f"[analyze] RP scenarios failed: {e}")
+
+            # Run scoring (5-dimension composite)
+            if RP_SCORING and rp_score_session:
+                try:
+                    scoring = rp_score_session(rp_ses, sector=rp_sector)
+                    rp_scoring_data = {
+                        "composite_score": round(scoring.composite_score, 1),
+                        "recommendation": scoring.recommendation,
+                        "business_quality": scoring.business_quality,
+                        "financial_strength": round(scoring.financial_strength, 1),
+                        "growth_quality": round(scoring.growth_quality, 1),
+                        "valuation_attractiveness": round(scoring.valuation_attractiveness, 1),
+                        "risk_score": round(scoring.risk_score, 1),
+                        "market_positioning": round(scoring.market_positioning, 1),
+                        "rationale": scoring.rationale[:5],
+                        "caveats": scoring.caveats[:5],
+                    }
+                    logger.info(f"[analyze] RP scoring: {scoring.recommendation} ({scoring.composite_score:.0f})")
+                except Exception as e:
+                    logger.warning(f"[analyze] RP scoring failed: {e}")
+
+        except Exception as e:
+            logger.error(f"[analyze] RP integration failed, falling back: {e}")
+            rp_session_id = None
+
+    # Create Mongo session (use RP session_id if we got one, else fallback)
     now = datetime.now(timezone.utc)
-    session_id = now.strftime("%y%m%d_%H%M%S")
+    session_id = rp_session_id or now.strftime("%y%m%d_%H%M%S")
     session_doc = {
         "_id": session_id,
         "session_id": session_id,
         "ticker": ticker,
-        "sector": "general",
-        "hypothesis": f"Analysis session for {ticker}",
+        "sector": rp_sector,
+        "hypothesis": body.get("hypothesis") or f"Analysis session for {ticker}",
+        "variant_view": body.get("variant_view") or "",
         "status": "active",
         "created_at": now,
+        "rp_session_id": rp_session_id,  # link to filesystem session
     }
     db = _get_db()
     if db is not None:
@@ -939,10 +1083,12 @@ async def analyze(request: Request):
         "id": session_id,  # some frontends look for .id instead of .session_id
         "ticker": ticker,
         "ticker_ns": ticker_ns,
-        "sector": "general",
-        "hypothesis": f"Analysis session for {ticker}",
+        "sector": rp_sector,
+        "hypothesis": body.get("hypothesis") or f"Analysis session for {ticker}",
+        "variant_view": body.get("variant_view") or "",
         "status": "active",
         "created_at": now.isoformat(),
+        "rp_session_id": rp_session_id,
         # Flat price fields — frontend may look for any of these
         "price": current_price,
         "ltp": current_price,
@@ -954,6 +1100,11 @@ async def analyze(request: Request):
         "change_pct": (price_data or {}).get("change_pct"),
         # Also keep nested shape for consumers that expect it
         "price_data": price_data,
+        # Use RP scenarios if available, else fall back to simple DCF
+        "scenarios": (rp_scenarios.get("scenarios") if rp_scenarios else None),
+        "sensitivity": (rp_scenarios.get("sensitivity") if rp_scenarios else None),
+        "reverse_dcf": (rp_scenarios.get("reverse_dcf") if rp_scenarios else None),
+        "scoring": rp_scoring_data,
         "dcf": {
             "current_price": current_price,
             "fair_value": round(price_per_share, 2),
@@ -967,6 +1118,9 @@ async def analyze(request: Request):
         "meta": {
             "data_source": "yfinance" if info else "skeleton",
             "fallback_used": not bool(info),
+            "research_platform": bool(rp_session_id),
+            "has_scenarios": bool(rp_scenarios),
+            "has_scoring": bool(rp_scoring_data),
         },
     }
 
@@ -975,6 +1129,115 @@ async def analyze(request: Request):
     # Also cache by session_id so GET /research/{session_id} works
     await cache_set(f"session:{session_id}", response)
     return response
+
+
+# ═══════════════════════════════════════════════════════════════════
+# RESEARCH PLATFORM helpers
+# ═══════════════════════════════════════════════════════════════════
+
+_SECTOR_TICKER_MAP = {
+    "petroleum_energy": ["RELIANCE", "BPCL", "IOCL", "IOC", "HPCL", "ONGC", "GAIL", "OIL"],
+    "banking_nbfc": ["HDFCBANK", "ICICIBANK", "SBIN", "AXISBANK", "KOTAKBANK",
+                     "BAJFINANCE", "BAJAJFINSV", "INDUSINDBK", "IDFCFIRSTB", "FEDERALBNK",
+                     "PNB", "BANKBARODA", "IRFC", "RECLTD", "PFC", "HDFCLIFE", "ICICIGI"],
+    "it_tech": ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM", "LTIM", "PERSISTENT", "COFORGE"],
+    "pharma": ["SUNPHARMA", "DRREDDY", "CIPLA", "LUPIN", "DIVISLAB", "AUROPHARMA", "TORNTPHARM"],
+    "fmcg_retail": ["HINDUNILVR", "ITC", "NESTLEIND", "DABUR", "MARICO", "BRITANNIA", "GODREJCP"],
+    "real_estate": ["DLF", "GODREJPROP", "OBEROIRLTY", "PRESTIGE", "BRIGADE", "SOBHA"],
+    "auto": ["TATAMOTORS", "MARUTI", "M&M", "BAJAJ-AUTO", "HEROMOTOCO", "EICHERMOT", "TVSMOTOR"],
+}
+
+
+def _detect_sector_simple(ticker: str) -> str:
+    """Map ticker to sector. Falls back to 'other' if not in map."""
+    t = ticker.upper().replace(".NS", "").replace(".BO", "")
+    for sector, tickers in _SECTOR_TICKER_MAP.items():
+        if t in tickers:
+            return sector
+    return "other"
+
+
+def _build_rp_assumptions(
+    ticker: str,
+    sector: str,
+    current_price: float,
+    market_cap: float,
+    total_revenue: float,
+    net_income: float,
+    shares_out: float,
+    beta: float,
+    info: dict,
+) -> dict:
+    """
+    Build the assumptions dict that scenario_engine.run_scenarios() and
+    scoring.score_session() expect. Uses yfinance actuals + sector defaults.
+    DOES NOT touch the database (dcf_bridge.pull_live_inputs) since that
+    would require a configured DATABASE_URL which Emergent doesn't have.
+    """
+    # Sector-default WACCs and terminal growth
+    sector_wacc = {
+        "petroleum_energy": 10.5, "banking_nbfc": 12.0, "pharma": 11.0,
+        "it_tech": 11.5, "fmcg_retail": 10.0, "auto": 11.0,
+        "real_estate": 12.5, "other": 11.0,
+    }.get(sector, 11.0)
+    sector_tg = {
+        "petroleum_energy": 2.5, "banking_nbfc": 4.0, "pharma": 4.0,
+        "it_tech": 4.5, "fmcg_retail": 5.0, "auto": 3.5,
+        "real_estate": 3.5, "other": 3.5,
+    }.get(sector, 3.5)
+
+    # Derive basic financial metrics from yfinance
+    ebitda = _safe_float(info.get("ebitda"), 0)
+    ebitda_margin = (ebitda / total_revenue * 100) if total_revenue else None
+    if ebitda_margin is None or ebitda_margin <= 0:
+        ebitda_margin = {
+            "petroleum_energy": 12.0, "banking_nbfc": 30.0, "pharma": 22.0,
+            "it_tech": 23.0, "fmcg_retail": 20.0, "auto": 13.0,
+            "real_estate": 25.0, "other": 18.0,
+        }.get(sector, 18.0)
+
+    revenue_growth = _safe_float(info.get("revenueGrowth"), 0) * 100 if info.get("revenueGrowth") else None
+    if revenue_growth is None:
+        revenue_growth = 8.0
+    revenue_growth = max(-10.0, min(30.0, revenue_growth))
+
+    net_debt = max(_safe_float(info.get("totalDebt"), 0) - _safe_float(info.get("totalCash"), 0), 0)
+
+    return {
+        "current_price_inr": current_price,
+        "market_cap": market_cap,
+        "base_revenue": (total_revenue / 1e7) if total_revenue else 100.0,  # ₹ Cr
+        "shares_outstanding": (shares_out / 1e7) if shares_out else None,   # Cr
+        "net_debt": (net_debt / 1e7) if net_debt else 0.0,                  # ₹ Cr
+        "beta": beta,
+        "revenue_growth": revenue_growth,
+        "revenue_growth_y1": revenue_growth,
+        "revenue_growth_y2": revenue_growth * 0.95,
+        "revenue_growth_y3": revenue_growth * 0.90,
+        "revenue_growth_y4": revenue_growth * 0.85,
+        "revenue_growth_y5": revenue_growth * 0.80,
+        "ebitda_margin": ebitda_margin,
+        "ebit_margin": ebitda_margin * 0.85,
+        "gross_margin": min(ebitda_margin + 12, 70),
+        "capex_pct_revenue": 5.0,
+        "wacc": sector_wacc,
+        "terminal_growth_rate": sector_tg,
+        "cost_of_debt": 8.5,
+        "equity_risk_premium": 6.5,
+        "risk_free_rate": 7.2,
+        "tax_rate": 25.0,
+        "working_capital_days": 45.0,
+        "debt_equity_ratio": 0.3,
+        "_sector": sector,
+        "_data_source": "yfinance",
+        "_confidence_tags": {
+            "revenue_growth": "medium",
+            "ebitda_margin": "medium",
+            "wacc": "medium",
+            "terminal_growth_rate": "medium",
+        },
+    }
+
 
 # ---------- Other stubs for completeness (never 500) ----------
 
@@ -1091,6 +1354,51 @@ async def get_dcf(session_id: str):
 
 # ---------- Report Downloads (HTML + XLSX) ----------
 
+def _find_rp_session(session_id: str):
+    """
+    Find a research_platform session by various means:
+      1. Direct session_id match
+      2. Search filesystem sessions for matching rp_session_id in meta
+      3. None if not found
+    Returns ResearchSession or None. Never raises.
+    """
+    if not RP_SESSION_MGR or rp_load_session is None:
+        return None
+
+    # Strategy 1: direct load (session_id IS the RP session_id)
+    try:
+        return rp_load_session(session_id)
+    except Exception:
+        pass
+
+    # Strategy 2: scan sessions folder for a matching ticker
+    # (when Mongo session_id != RP session_id, e.g. fallback IDs)
+    try:
+        if rp_list_sessions is not None:
+            all_sessions = rp_list_sessions()
+            # Look for exact session_id match
+            for s in all_sessions:
+                if s.get("session_id") == session_id:
+                    return rp_load_session(session_id)
+    except Exception:
+        pass
+
+    return None
+
+
+def _find_rp_session_by_ticker(ticker: str):
+    """Find the most recent RP session for a given ticker. Returns None on failure."""
+    if not RP_SESSION_MGR or rp_list_sessions is None or rp_load_session is None:
+        return None
+    try:
+        sessions = rp_list_sessions(ticker=ticker)
+        if sessions:
+            return rp_load_session(sessions[0]["session_id"])
+    except Exception:
+        pass
+    return None
+
+
 async def _load_session_for_report(session_id: str) -> dict:
     """Fetch session data from Mongo or cache for report generation."""
     db = _get_db()
@@ -1117,8 +1425,42 @@ async def _load_session_for_report(session_id: str) -> dict:
 
 @api_router.get("/research/{session_id}/report/download")
 async def report_download_html(session_id: str):
-    """Return a self-contained HTML report for the session."""
-    from fastapi.responses import HTMLResponse
+    """
+    Return HTML report for the session.
+    Prefers the full 2-page research_platform report if available.
+    Falls back to the simple HTML summary if research_platform fails.
+    """
+    from fastapi.responses import HTMLResponse, Response
+
+    # ─── Try research_platform's pdf_builder first ───────────────────────
+    if RP_AVAILABLE and RP_PDF and rp_build_report:
+        try:
+            # Find the matching filesystem session — try by ID first, then by ticker
+            rp_ses = _find_rp_session(session_id)
+            if rp_ses is None:
+                # Look up ticker from Mongo and find latest RP session for it
+                db = _get_db()
+                if db is not None:
+                    try:
+                        doc = await db.sessions.find_one({"_id": session_id})
+                        if doc and doc.get("ticker"):
+                            rp_ses = _find_rp_session_by_ticker(doc["ticker"])
+                    except Exception:
+                        pass
+            if rp_ses is not None:
+                # Determine sector for report styling
+                meta = rp_ses.get_meta() if hasattr(rp_ses, "get_meta") else {}
+                sector = meta.get("sector") or meta.get("_sector") or \
+                         _detect_sector_simple(rp_ses.ticker)
+                # Generate the real 2-page A4 report
+                html_path = rp_build_report(rp_ses, sector=sector)
+                html_content = Path(html_path).read_text(encoding="utf-8")
+                logger.info(f"[report] served RP report for {session_id} → {rp_ses.session_id}")
+                return HTMLResponse(content=html_content, status_code=200)
+        except Exception as e:
+            logger.warning(f"[report] RP pdf_builder failed, falling back: {e}")
+
+    # ─── Fallback: simple HTML report from cached data ────────────────────
     try:
         session = await _load_session_for_report(session_id)
         ticker = session.get("ticker", "UNKNOWN")
@@ -1198,8 +1540,41 @@ async def report_download_html(session_id: str):
 
 @api_router.get("/research/{session_id}/report/xlsx")
 async def report_download_xlsx(session_id: str):
-    """Return an XLSX spreadsheet with session details."""
+    """
+    Return XLSX spreadsheet with session details.
+    Prefers research_platform's 6-sheet Excel (assumptions, history, scenarios,
+    sensitivity, insights, sources) if available.
+    Falls back to a simple one-sheet summary if that fails.
+    """
     from fastapi.responses import Response
+
+    # ─── Try research_platform's audit_export first ───────────────────────
+    if RP_AVAILABLE and RP_EXPORT and rp_export_excel:
+        try:
+            rp_ses = _find_rp_session(session_id)
+            if rp_ses is None:
+                db = _get_db()
+                if db is not None:
+                    try:
+                        doc = await db.sessions.find_one({"_id": session_id})
+                        if doc and doc.get("ticker"):
+                            rp_ses = _find_rp_session_by_ticker(doc["ticker"])
+                    except Exception:
+                        pass
+            if rp_ses is not None:
+                xlsx_path = rp_export_excel(rp_ses)
+                content = Path(xlsx_path).read_bytes()
+                ticker = rp_ses.ticker
+                logger.info(f"[report] served RP xlsx for {session_id} → {rp_ses.session_id} ({len(content)} bytes)")
+                return Response(
+                    content=content,
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{ticker}_research.xlsx"'},
+                )
+        except Exception as e:
+            logger.warning(f"[report] RP audit_export failed, falling back: {e}")
+
+    # ─── Fallback: simple one-sheet XLSX ──────────────────────────────────
     try:
         try:
             from openpyxl import Workbook
