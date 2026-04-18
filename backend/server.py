@@ -687,24 +687,29 @@ async def fetch_indices_safe() -> dict:
                         change_type = "neutral"
                         if change is not None:
                             change_type = "positive" if change >= 0 else "negative"
+                        # Pre-formatted display strings for the pill
+                        value_fmt = f"{price:,.2f}" if price is not None else "—"
+                        change_fmt = f"{change_pct:+.2f}%" if change_pct is not None else "—"
                         return name, {
                             "name": name,
                             "symbol": symbol,
-                            "value": price,
+                            "value": value_fmt,           # display string "24,353.55"
+                            "raw_value": price,           # raw number for toLocaleString
                             "price": price,               # alias
                             "ltp": price,                 # alias
                             "last": price,                # alias
                             "prev_close": prev,
-                            "change": change,
+                            "change": change_fmt,         # display string "+0.65%" — frontend renders this
+                            "change_raw": change,         # raw delta number
                             "change_percent": change_pct,
                             "change_pct": change_pct,     # alias
-                            "changeType": change_type,    # what IndexPill reads
+                            "changeType": change_type,    # "positive" / "negative" / "neutral"
                         }
                 except Exception as e:
                     logger.debug(f"indices {symbol}: {e}")
-                return name, {"name": name, "symbol": symbol, "value": None,
-                              "price": None, "ltp": None, "last": None,
-                              "prev_close": None, "change": None,
+                return name, {"name": name, "symbol": symbol, "value": "—",
+                              "raw_value": None, "price": None, "ltp": None, "last": None,
+                              "prev_close": None, "change": "—", "change_raw": None,
                               "change_percent": None, "change_pct": None,
                               "changeType": "neutral"}
 
@@ -1083,6 +1088,240 @@ async def run_dcf(session_id: str, request: Request):
 @safe_endpoint(lambda: {"dcf": None, "_fallback": True})
 async def get_dcf(session_id: str):
     return {"session_id": session_id, "dcf": None}
+
+# ---------- Report Downloads (HTML + XLSX) ----------
+
+async def _load_session_for_report(session_id: str) -> dict:
+    """Fetch session data from Mongo or cache for report generation."""
+    db = _get_db()
+    if db is not None:
+        try:
+            doc = await db.sessions.find_one({"_id": session_id})
+            if doc:
+                doc["_id"] = str(doc.get("_id", ""))
+                if isinstance(doc.get("created_at"), datetime):
+                    doc["created_at"] = doc["created_at"].isoformat()
+                # Enrich with cached analyze response for price/DCF
+                cached, _ = await cache_get(f"session:{session_id}")
+                if cached:
+                    # Merge, prefer cached for numeric fields
+                    for k in ("price", "ltp", "prev_close", "change", "change_percent", "dcf"):
+                        if cached.get(k) is not None:
+                            doc[k] = cached[k]
+                return doc
+        except Exception as e:
+            logger.debug(f"report load mongo: {e}")
+    cached, _ = await cache_get(f"session:{session_id}")
+    return cached or {"session_id": session_id, "ticker": "UNKNOWN", "status": "not_found"}
+
+
+@api_router.get("/research/{session_id}/report/download")
+async def report_download_html(session_id: str):
+    """Return a self-contained HTML report for the session."""
+    from fastapi.responses import HTMLResponse
+    try:
+        session = await _load_session_for_report(session_id)
+        ticker = session.get("ticker", "UNKNOWN")
+        price = session.get("price") or session.get("current_price") or (session.get("dcf") or {}).get("current_price")
+        prev_close = session.get("prev_close")
+        change_pct = session.get("change_percent") or session.get("change_pct")
+        dcf = session.get("dcf") or {}
+        hypothesis = session.get("hypothesis", "—")
+        sector = session.get("sector", "general")
+        created = session.get("created_at", "")
+        status = session.get("status", "active")
+
+        def fmt(v, suffix=""):
+            if v is None:
+                return "—"
+            try:
+                return f"{float(v):,.2f}{suffix}"
+            except Exception:
+                return str(v)
+
+        html = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>{ticker} Research Report</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 2rem auto; padding: 2rem; color: #0f172a; }}
+  h1 {{ border-bottom: 2px solid #2563eb; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }}
+  h2 {{ color: #334155; margin-top: 2rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3rem; }}
+  .meta {{ color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }}
+  .card {{ background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin: 1rem 0; }}
+  .kv {{ display: grid; grid-template-columns: 200px 1fr; gap: 0.5rem; margin: 0.25rem 0; }}
+  .kv .k {{ color: #64748b; font-weight: 500; }}
+  .kv .v {{ color: #0f172a; font-weight: 600; font-variant-numeric: tabular-nums; }}
+  .positive {{ color: #16a34a; }}
+  .negative {{ color: #dc2626; }}
+  .footer {{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; color: #94a3b8; font-size: 0.8rem; }}
+</style></head>
+<body>
+  <h1>{ticker}</h1>
+  <div class="meta">
+    Sector: {sector} &middot; Session: {session_id} &middot; Status: {status}<br>
+    Generated: {datetime.now(timezone.utc).isoformat()} &middot; Created: {created}
+  </div>
+
+  <h2>Price Snapshot</h2>
+  <div class="card">
+    <div class="kv"><span class="k">Current Price</span><span class="v">₹{fmt(price)}</span></div>
+    <div class="kv"><span class="k">Previous Close</span><span class="v">₹{fmt(prev_close)}</span></div>
+    <div class="kv"><span class="k">Change (%)</span><span class="v {'positive' if (change_pct or 0) >= 0 else 'negative'}">{fmt(change_pct, '%')}</span></div>
+  </div>
+
+  <h2>DCF Valuation</h2>
+  <div class="card">
+    <div class="kv"><span class="k">Fair Value (Base)</span><span class="v">₹{fmt(dcf.get('fair_value'))}</span></div>
+    <div class="kv"><span class="k">Upside vs Current</span><span class="v {'positive' if (dcf.get('upside_pct') or 0) >= 0 else 'negative'}">{fmt(dcf.get('upside_pct'), '%')}</span></div>
+    <div class="kv"><span class="k">WACC</span><span class="v">{fmt((dcf.get('wacc') or 0) * 100, '%')}</span></div>
+    <div class="kv"><span class="k">Growth Rate</span><span class="v">{fmt((dcf.get('growth') or 0) * 100, '%')}</span></div>
+    <div class="kv"><span class="k">Terminal Growth</span><span class="v">{fmt((dcf.get('terminal_growth') or 0) * 100, '%')}</span></div>
+    <div class="kv"><span class="k">Enterprise Value</span><span class="v">₹{fmt(dcf.get('enterprise_value'))}</span></div>
+    <div class="kv"><span class="k">Equity Value</span><span class="v">₹{fmt(dcf.get('equity_value'))}</span></div>
+  </div>
+
+  <h2>Hypothesis</h2>
+  <div class="card"><p>{hypothesis}</p></div>
+
+  <div class="footer">
+    Market Pulse Research · Automated report · Figures from yfinance at time of analysis.
+    Not investment advice. Verify all numbers independently before making decisions.
+  </div>
+</body></html>"""
+        return HTMLResponse(content=html, status_code=200)
+    except Exception as e:
+        logger.error(f"report_download failed: {e}\n{traceback.format_exc()}")
+        return HTMLResponse(
+            content=f"<html><body><h1>Report unavailable</h1><p>{str(e)}</p></body></html>",
+            status_code=200,
+        )
+
+
+@api_router.get("/research/{session_id}/report/xlsx")
+async def report_download_xlsx(session_id: str):
+    """Return an XLSX spreadsheet with session details."""
+    from fastapi.responses import Response
+    try:
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment
+        except ImportError:
+            # openpyxl not installed → fall back to CSV
+            return await report_download_csv(session_id)
+
+        session = await _load_session_for_report(session_id)
+        ticker = session.get("ticker", "UNKNOWN")
+        price = session.get("price") or (session.get("dcf") or {}).get("current_price")
+        prev_close = session.get("prev_close")
+        change_pct = session.get("change_percent") or session.get("change_pct")
+        dcf = session.get("dcf") or {}
+
+        wb = Workbook()
+
+        # Sheet 1: Summary
+        ws = wb.active
+        ws.title = "Summary"
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 25
+        header_font = Font(bold=True, size=14, color="FFFFFF")
+        header_fill = PatternFill("solid", fgColor="2563EB")
+        section_font = Font(bold=True, size=11, color="1E40AF")
+        label_font = Font(color="64748B")
+
+        ws['A1'] = f"{ticker} — Research Report"
+        ws['A1'].font = header_font
+        ws['A1'].fill = header_fill
+        ws.merge_cells('A1:B1')
+        ws.row_dimensions[1].height = 28
+
+        rows = [
+            ("", ""),
+            ("SESSION DETAILS", ""),
+            ("Ticker", ticker),
+            ("Sector", session.get("sector", "general")),
+            ("Session ID", session_id),
+            ("Status", session.get("status", "active")),
+            ("Created", session.get("created_at", "")),
+            ("Generated", datetime.now(timezone.utc).isoformat()),
+            ("", ""),
+            ("PRICE", ""),
+            ("Current Price", price),
+            ("Previous Close", prev_close),
+            ("Change %", f"{change_pct:.2f}%" if change_pct is not None else "—"),
+            ("", ""),
+            ("DCF VALUATION", ""),
+            ("Fair Value (Base)", dcf.get("fair_value")),
+            ("Upside %", f"{dcf.get('upside_pct'):.2f}%" if dcf.get("upside_pct") is not None else "—"),
+            ("WACC", f"{dcf.get('wacc') * 100:.2f}%" if dcf.get("wacc") else "—"),
+            ("Growth Rate", f"{dcf.get('growth') * 100:.2f}%" if dcf.get("growth") else "—"),
+            ("Terminal Growth", f"{dcf.get('terminal_growth') * 100:.2f}%" if dcf.get("terminal_growth") else "—"),
+            ("Enterprise Value", dcf.get("enterprise_value")),
+            ("Equity Value", dcf.get("equity_value")),
+            ("", ""),
+            ("HYPOTHESIS", ""),
+            ("Thesis", session.get("hypothesis", "—")),
+        ]
+        for i, (k, v) in enumerate(rows, start=2):
+            ws.cell(row=i, column=1, value=k)
+            ws.cell(row=i, column=2, value=v)
+            if k in ("SESSION DETAILS", "PRICE", "DCF VALUATION", "HYPOTHESIS"):
+                ws.cell(row=i, column=1).font = section_font
+            elif k:
+                ws.cell(row=i, column=1).font = label_font
+
+        # Save to bytes
+        import io
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        return Response(
+            content=buf.read(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{ticker}_report.xlsx"'},
+        )
+    except Exception as e:
+        logger.error(f"report_xlsx failed: {e}\n{traceback.format_exc()}")
+        # Fallback to CSV on any error
+        return await report_download_csv(session_id)
+
+
+@api_router.get("/research/{session_id}/report/csv")
+async def report_download_csv(session_id: str):
+    """Return a CSV version of the report. Always works, no dependencies."""
+    from fastapi.responses import Response
+    try:
+        session = await _load_session_for_report(session_id)
+        ticker = session.get("ticker", "UNKNOWN")
+        dcf = session.get("dcf") or {}
+        rows = [
+            ("Ticker", ticker),
+            ("Sector", session.get("sector", "general")),
+            ("Session ID", session_id),
+            ("Status", session.get("status", "active")),
+            ("Created", session.get("created_at", "")),
+            ("Current Price", session.get("price") or dcf.get("current_price") or ""),
+            ("Previous Close", session.get("prev_close") or ""),
+            ("Change %", session.get("change_percent") or session.get("change_pct") or ""),
+            ("Fair Value", dcf.get("fair_value") or ""),
+            ("Upside %", dcf.get("upside_pct") or ""),
+            ("WACC", dcf.get("wacc") or ""),
+            ("Growth", dcf.get("growth") or ""),
+            ("Terminal Growth", dcf.get("terminal_growth") or ""),
+            ("Enterprise Value", dcf.get("enterprise_value") or ""),
+            ("Equity Value", dcf.get("equity_value") or ""),
+            ("Hypothesis", session.get("hypothesis", "")),
+        ]
+        csv_lines = ["Field,Value"] + [f'"{k}","{v}"' for k, v in rows]
+        csv_content = "\n".join(csv_lines)
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{ticker}_report.csv"'},
+        )
+    except Exception as e:
+        logger.error(f"report_csv failed: {e}")
+        return Response(content="Field,Value\nerror," + str(e), media_type="text/csv", status_code=200)
+
 
 @api_router.get("/macro")
 @safe_endpoint(lambda: {"indicators": []})
