@@ -1458,19 +1458,32 @@ def _execute_notebook_blocking(
             execution_timeout=timeout,
         )
 
-        # The notebook writes output to: notebooks/DCF_Output_{TICKER}_{CCY}.xlsx
-        # Where TICKER is the bare ticker (no .NS) and CCY is something like INR/USD.
+        # The notebook writes output to: notebooks/DCF_Output_{TICKER}_{CCY}.xls[mx]
+        # Where TICKER may be bare (RELIANCE) or exchange-suffixed (RELIANCE.NS).
+        # Extension may be .xlsx or .xlsm (template has macros, so .xlsm is common).
         bare_ticker = ticker_clean.replace(".NS", "").replace(".BO", "")
-        # Match any currency
-        candidates = list(DCF_NOTEBOOK_SRC.parent.glob(f"DCF_Output_{bare_ticker}_*.xlsx"))
-        # Also check for ticker-with-suffix variant just in case
-        if not candidates:
-            candidates = list(DCF_NOTEBOOK_SRC.parent.glob(f"DCF_Output_*{bare_ticker}*.xlsx"))
+
+        # Try multiple patterns, most-specific first
+        candidates = []
+        for pattern in [
+            f"DCF_Output_{ticker_ns}_*.xlsm",   # RELIANCE.NS_INR.xlsm ← actual
+            f"DCF_Output_{ticker_ns}_*.xlsx",
+            f"DCF_Output_{bare_ticker}_*.xlsm",
+            f"DCF_Output_{bare_ticker}_*.xlsx",
+            f"DCF_Output_*{bare_ticker}*.xlsm",
+            f"DCF_Output_*{bare_ticker}*.xlsx",
+        ]:
+            hits = list(DCF_NOTEBOOK_SRC.parent.glob(pattern))
+            if hits:
+                candidates = hits
+                break
 
         if not candidates:
+            # List everything that starts with DCF_Output_ so the error is useful
+            all_outputs = list(DCF_NOTEBOOK_SRC.parent.glob("DCF_Output_*"))
             raise FileNotFoundError(
-                f"Notebook ran but no DCF_Output_{bare_ticker}_*.xlsx found in "
-                f"{DCF_NOTEBOOK_SRC.parent}"
+                f"Notebook ran but no DCF_Output_{bare_ticker}_*.xls[mx] found in "
+                f"{DCF_NOTEBOOK_SRC.parent}. Files present: {[p.name for p in all_outputs]}"
             )
 
         # Pick the newest
@@ -1647,18 +1660,28 @@ async def dcf_status(session_id: str):
         except Exception:
             pass
 
+    # Choose download URL matching actual output extension
+    download_url = None
+    if state.get("status") == "complete":
+        output_filename = state.get("output_filename", "") or ""
+        if output_filename.lower().endswith(".xlsm"):
+            download_url = f"/api/research/{session_id}/dcf/output.xlsm"
+        else:
+            download_url = f"/api/research/{session_id}/dcf/output.xlsx"
+
     return {
         "session_id": session_id,
         **state,
         # Don't leak local filesystem path to frontend
         "output_path": None,
-        "download_url": f"/api/research/{session_id}/dcf/output.xlsx" if state.get("status") == "complete" else None,
+        "download_url": download_url,
     }
 
 
 @api_router.get("/research/{session_id}/dcf/output.xlsx")
+@api_router.get("/research/{session_id}/dcf/output.xlsm")
 async def dcf_output_download(session_id: str):
-    """Download the DCF notebook's output xlsx for a completed run."""
+    """Download the DCF notebook's output xlsx/xlsm for a completed run."""
     from fastapi.responses import Response
 
     async with _DCF_LOCK:
@@ -1667,25 +1690,32 @@ async def dcf_output_download(session_id: str):
     if not state or state.get("status") != "complete":
         # Try to find output on disk (maybe backend restarted after run)
         run_dir = _dcf_run_dir(session_id)
-        candidates = sorted(run_dir.glob("DCF_Output_*.xlsx"), key=lambda p: p.stat().st_mtime)
+        candidates = sorted(
+            list(run_dir.glob("DCF_Output_*.xlsm")) + list(run_dir.glob("DCF_Output_*.xlsx")),
+            key=lambda p: p.stat().st_mtime,
+        )
         if not candidates:
             raise HTTPException(
                 status_code=404,
                 detail="No completed DCF run for this session. POST to /dcf/run first.",
             )
         output_path = candidates[-1]
-        ticker = output_path.stem.replace("DCF_Output_", "").split("_")[0]
     else:
         output_path = Path(state["output_path"])
-        ticker = state.get("ticker", "UNKNOWN").replace(".NS", "")
 
     if not output_path.exists():
         raise HTTPException(status_code=404, detail=f"Output file missing: {output_path.name}")
 
+    # Use correct MIME: .xlsm has macros, different content type
+    if output_path.suffix.lower() == ".xlsm":
+        media_type = "application/vnd.ms-excel.sheet.macroEnabled.12"
+    else:
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
     content = output_path.read_bytes()
     return Response(
         content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{output_path.name}"'},
     )
 
