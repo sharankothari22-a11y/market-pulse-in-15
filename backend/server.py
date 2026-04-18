@@ -631,6 +631,13 @@ async def root():
 @api_router.get("/health")
 async def health():
     db = _get_db()
+    # Check DCF notebook prerequisites
+    dcf_notebook_present = DCF_NOTEBOOK_SRC.exists() if 'DCF_NOTEBOOK_SRC' in globals() else False
+    try:
+        import papermill as _pm
+        papermill_available = True
+    except Exception:
+        papermill_available = False
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -646,6 +653,11 @@ async def health():
             "pdf_builder": RP_PDF,
             "audit_export": RP_EXPORT,
             "errors": _rp_errors if _rp_errors else None,
+        },
+        "dcf_notebook": {
+            "notebook_present": dcf_notebook_present,
+            "papermill_available": papermill_available,
+            "ready": dcf_notebook_present and papermill_available,
         },
         "uptime_since": STARTUP_TIME,
     }
@@ -1320,6 +1332,356 @@ async def get_session(session_id: str):
         "hypothesis": "Session not found",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DCF NOTEBOOK EXECUTION — async, papermill-based
+# ═══════════════════════════════════════════════════════════════════════════
+
+# In-memory per-session DCF run state
+# {session_id: {"status": str, "started_at": datetime, "completed_at": datetime|None,
+#               "elapsed": float, "error": str|None, "output_path": str|None, "ticker": str}}
+_DCF_RUNS: dict[str, dict] = {}
+_DCF_LOCK = asyncio.Lock()
+
+# Paths
+DCF_NOTEBOOK_SRC = Path("/app/notebooks/DCF_Multi_Source_Pipeline_REFACTORED.ipynb")
+DCF_RUN_ROOT = Path("/tmp/dcf_runs")
+DCF_RUN_ROOT.mkdir(parents=True, exist_ok=True)
+
+# Max wait for a notebook run (seconds)
+DCF_TIMEOUT_SECONDS = 180
+
+
+def _dcf_run_dir(session_id: str) -> Path:
+    d = DCF_RUN_ROOT / session_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _execute_notebook_blocking(
+    session_id: str,
+    ticker: str,
+    timeout: int = DCF_TIMEOUT_SECONDS,
+) -> dict:
+    """
+    Run the DCF notebook for a ticker using papermill.
+    Writes to /tmp/dcf_runs/{session_id}/.
+    This function is BLOCKING — call it from a background thread.
+
+    Returns: {status, elapsed, output_path, error}
+    """
+    start = datetime.now(timezone.utc)
+    run_dir = _dcf_run_dir(session_id)
+
+    # Clean ticker (strip trailing spaces the notebook has in its default)
+    ticker_clean = ticker.strip().upper()
+    ticker_ns = ticker_clean if "." in ticker_clean else f"{ticker_clean}.NS"
+
+    # Output notebook (executed copy) — papermill writes the executed version here
+    executed_nb = run_dir / f"{ticker_clean}_executed.ipynb"
+
+    # Result dict
+    result = {
+        "status": "running",
+        "ticker": ticker_clean,
+        "started_at": start.isoformat(),
+        "output_path": None,
+        "error": None,
+        "elapsed": 0.0,
+    }
+
+    try:
+        import papermill as pm
+
+        if not DCF_NOTEBOOK_SRC.exists():
+            raise FileNotFoundError(f"Notebook not found: {DCF_NOTEBOOK_SRC}")
+
+        # Parameters to inject via papermill. These get written into a new cell
+        # at the top of the notebook, which runs BEFORE Cell 2. Cell 2 has:
+        #   TICKER_INPUT = "RELIANCE.NS "
+        # which would overwrite our injected value. So we override differently
+        # after-the-fact via the execute_notebook `parameters` dict.
+        #
+        # Strategy: papermill injects parameters BEFORE Cell 2 runs. Cell 2 then
+        # reassigns TICKER_INPUT. To shadow it, we use a wrapper notebook
+        # approach: we rewrite Cell 2 in a copy of the notebook so
+        # TICKER_INPUT uses globals().get() like the other params already do.
+
+        # Read notebook, patch Cell 2, save to run dir
+        import nbformat
+        nb_content = nbformat.read(str(DCF_NOTEBOOK_SRC), as_version=4)
+
+        patched_cell_source = None
+        for cell in nb_content.cells:
+            if cell.cell_type != "code":
+                continue
+            if "TICKER_INPUT" in cell.source and "MASTER CONFIG" in cell.source:
+                # Replace the hard-coded TICKER_INPUT line with a globals()-aware version
+                lines = cell.source.split("\n")
+                new_lines = []
+                for line in lines:
+                    stripped = line.lstrip()
+                    if stripped.startswith("TICKER_INPUT =") and "globals" not in line:
+                        # Preserve indentation
+                        indent = line[:len(line) - len(stripped)]
+                        new_lines.append(
+                            f'{indent}TICKER_INPUT = globals().get("TICKER_INPUT") or "{ticker_ns}"'
+                        )
+                    else:
+                        new_lines.append(line)
+                cell.source = "\n".join(new_lines)
+                patched_cell_source = cell.source
+                break
+
+        if patched_cell_source is None:
+            raise RuntimeError("Could not find TICKER_INPUT cell to patch")
+
+        # Save patched notebook
+        patched_nb = run_dir / "patched_input.ipynb"
+        nbformat.write(nb_content, str(patched_nb))
+
+        logger.info(f"[dcf] Running notebook for {ticker_clean} (session {session_id})")
+        logger.info(f"[dcf]   patched notebook: {patched_nb}")
+        logger.info(f"[dcf]   executed output:  {executed_nb}")
+
+        # Execute via papermill
+        # Working directory = notebooks folder so relative paths work
+        pm.execute_notebook(
+            input_path=str(patched_nb),
+            output_path=str(executed_nb),
+            parameters={"TICKER_INPUT": ticker_ns},
+            kernel_name="python3",
+            cwd=str(DCF_NOTEBOOK_SRC.parent),
+            progress_bar=False,
+            log_output=False,
+            stderr_file=str(run_dir / "stderr.log"),
+            stdout_file=str(run_dir / "stdout.log"),
+            execution_timeout=timeout,
+        )
+
+        # The notebook writes output to: notebooks/DCF_Output_{TICKER}_{CCY}.xlsx
+        # Where TICKER is the bare ticker (no .NS) and CCY is something like INR/USD.
+        bare_ticker = ticker_clean.replace(".NS", "").replace(".BO", "")
+        # Match any currency
+        candidates = list(DCF_NOTEBOOK_SRC.parent.glob(f"DCF_Output_{bare_ticker}_*.xlsx"))
+        # Also check for ticker-with-suffix variant just in case
+        if not candidates:
+            candidates = list(DCF_NOTEBOOK_SRC.parent.glob(f"DCF_Output_*{bare_ticker}*.xlsx"))
+
+        if not candidates:
+            raise FileNotFoundError(
+                f"Notebook ran but no DCF_Output_{bare_ticker}_*.xlsx found in "
+                f"{DCF_NOTEBOOK_SRC.parent}"
+            )
+
+        # Pick the newest
+        output_file = max(candidates, key=lambda p: p.stat().st_mtime)
+
+        # Copy to session-specific folder so we keep it even if notebook re-runs
+        session_output = run_dir / output_file.name
+        import shutil
+        shutil.copy2(output_file, session_output)
+
+        elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+        result.update({
+            "status": "complete",
+            "output_path": str(session_output),
+            "output_filename": output_file.name,
+            "elapsed": round(elapsed, 1),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info(f"[dcf] ✓ {ticker_clean} complete in {elapsed:.1f}s → {output_file.name}")
+
+    except Exception as e:
+        elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+        # Try to extract a useful error from the stderr log
+        err_detail = str(e)[:500]
+        try:
+            stderr_log = run_dir / "stderr.log"
+            if stderr_log.exists():
+                tail = stderr_log.read_text()[-800:]
+                err_detail = f"{err_detail}\n---notebook stderr tail---\n{tail}"
+        except Exception:
+            pass
+
+        result.update({
+            "status": "failed",
+            "error": err_detail,
+            "elapsed": round(elapsed, 1),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.error(f"[dcf] ✗ {ticker_clean} failed after {elapsed:.1f}s: {e}")
+
+    return result
+
+
+async def _run_dcf_background(session_id: str, ticker: str):
+    """Wrapper: runs the blocking notebook execution in a thread."""
+    loop = asyncio.get_event_loop()
+
+    # Update state to running
+    async with _DCF_LOCK:
+        _DCF_RUNS[session_id] = {
+            "status": "running",
+            "ticker": ticker,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "elapsed": 0.0,
+            "error": None,
+            "output_path": None,
+        }
+
+    # Execute in thread (papermill is blocking)
+    try:
+        result = await loop.run_in_executor(
+            None,
+            _execute_notebook_blocking,
+            session_id,
+            ticker,
+        )
+    except Exception as e:
+        result = {
+            "status": "failed",
+            "ticker": ticker,
+            "error": f"background executor failed: {e}",
+            "elapsed": 0.0,
+            "output_path": None,
+        }
+
+    # Store final result
+    async with _DCF_LOCK:
+        _DCF_RUNS[session_id] = result
+
+
+@api_router.post("/research/{session_id}/dcf/run")
+@safe_endpoint(lambda: {"status": "error", "error": "failed to kick off DCF run"})
+async def dcf_run(session_id: str, request: Request):
+    """
+    Kick off the DCF notebook for this session's ticker.
+    Returns immediately with status=running. Poll /dcf/status for progress.
+    """
+    # Get ticker from request body OR from session
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    ticker = (body.get("ticker") or "").strip().upper()
+
+    if not ticker:
+        # Look up ticker from Mongo session
+        db = _get_db()
+        if db is not None:
+            try:
+                doc = await db.sessions.find_one({"_id": session_id})
+                if doc:
+                    ticker = (doc.get("ticker") or "").strip().upper()
+            except Exception:
+                pass
+
+    if not ticker:
+        # Try cached session
+        cached, _ = await cache_get(f"session:{session_id}")
+        if cached:
+            ticker = (cached.get("ticker") or "").strip().upper()
+
+    if not ticker:
+        raise HTTPException(status_code=400, detail="could not resolve ticker for session")
+
+    # Check if already running
+    async with _DCF_LOCK:
+        existing = _DCF_RUNS.get(session_id)
+        if existing and existing.get("status") == "running":
+            return {
+                "status": "already_running",
+                "session_id": session_id,
+                "ticker": existing.get("ticker"),
+                "started_at": existing.get("started_at"),
+                "message": "DCF already running for this session",
+            }
+
+    # Kick off background task
+    asyncio.create_task(_run_dcf_background(session_id, ticker))
+
+    return {
+        "status": "running",
+        "session_id": session_id,
+        "ticker": ticker,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "timeout_seconds": DCF_TIMEOUT_SECONDS,
+        "poll_url": f"/api/research/{session_id}/dcf/status",
+    }
+
+
+@api_router.get("/research/{session_id}/dcf/status")
+@safe_endpoint(lambda: {"status": "idle"})
+async def dcf_status(session_id: str):
+    """Poll the status of a running DCF notebook."""
+    async with _DCF_LOCK:
+        state = _DCF_RUNS.get(session_id)
+
+    if not state:
+        return {"status": "idle", "session_id": session_id}
+
+    # Compute elapsed if still running
+    if state.get("status") == "running":
+        try:
+            started = datetime.fromisoformat(state["started_at"])
+            elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+            state = {**state, "elapsed": round(elapsed, 1)}
+        except Exception:
+            pass
+
+    return {
+        "session_id": session_id,
+        **state,
+        # Don't leak local filesystem path to frontend
+        "output_path": None,
+        "download_url": f"/api/research/{session_id}/dcf/output.xlsx" if state.get("status") == "complete" else None,
+    }
+
+
+@api_router.get("/research/{session_id}/dcf/output.xlsx")
+async def dcf_output_download(session_id: str):
+    """Download the DCF notebook's output xlsx for a completed run."""
+    from fastapi.responses import Response
+
+    async with _DCF_LOCK:
+        state = _DCF_RUNS.get(session_id)
+
+    if not state or state.get("status") != "complete":
+        # Try to find output on disk (maybe backend restarted after run)
+        run_dir = _dcf_run_dir(session_id)
+        candidates = sorted(run_dir.glob("DCF_Output_*.xlsx"), key=lambda p: p.stat().st_mtime)
+        if not candidates:
+            raise HTTPException(
+                status_code=404,
+                detail="No completed DCF run for this session. POST to /dcf/run first.",
+            )
+        output_path = candidates[-1]
+        ticker = output_path.stem.replace("DCF_Output_", "").split("_")[0]
+    else:
+        output_path = Path(state["output_path"])
+        ticker = state.get("ticker", "UNKNOWN").replace(".NS", "")
+
+    if not output_path.exists():
+        raise HTTPException(status_code=404, detail=f"Output file missing: {output_path.name}")
+
+    content = output_path.read_bytes()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{output_path.name}"'},
+    )
+
+
+@api_router.delete("/research/{session_id}/dcf/cancel")
+@safe_endpoint(lambda: {"status": "error"})
+async def dcf_cancel(session_id: str):
+    """Clear DCF run state for this session (doesn't kill running notebook)."""
+    async with _DCF_LOCK:
+        _DCF_RUNS.pop(session_id, None)
+    return {"status": "cleared", "session_id": session_id}
+
 
 # Research sub-endpoints — all return safe empty payloads
 @api_router.post("/research/{session_id}/run-scenarios")
