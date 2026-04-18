@@ -783,6 +783,16 @@ export const ResearchSession = ({ onSessionChange }) => {
                       {dcfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                       {dcfLoading ? 'Running...' : 'Run DCF'}
                     </button>
+                    <button
+  onClick={async () => {
+    const sid = researchData?.session_id;
+    if (!sid) return;
+    window.open(`/api/research/${sid}/report/xlsx`, '_blank');
+  }}
+  className="flex items-center gap-1 bg-[#16a34a] hover:bg-[#15803d] text-white text-xs px-3 py-1.5 rounded-lg"
+>
+  📊 Excel
+</button>
                     <button onClick={refreshDCF} className="text-xs bg-[#f1f5f9] text-[#64748b] px-2 py-1.5 rounded-lg">↻</button>
                     <button onClick={downloadReport} disabled={reportLoading} className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
                       {reportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : '📄'}
