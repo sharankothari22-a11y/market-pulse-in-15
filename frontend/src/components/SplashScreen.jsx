@@ -44,11 +44,12 @@ export const SplashScreen = ({ onDone }) => {
       <div className="relative flex flex-row items-center justify-center">
         <div
           style={{
-            width: 120,
-            height: 120,
+            width: 180,
+            height: 180,
             borderRadius: '50%',
             overflow: 'hidden',
             backgroundColor: '#FFFFFF',
+            filter: 'drop-shadow(0 12px 28px rgba(15,37,64,0.18))',
           }}
         >
           <img
@@ -64,11 +65,11 @@ export const SplashScreen = ({ onDone }) => {
         </div>
         <span
           style={{
-            margin: '0 40px',
+            margin: '0 48px',
             fontFamily: 'Georgia, serif',
             fontWeight: 200,
-            fontSize: 32,
-            color: '#64748B',
+            fontSize: 48,
+            color: '#475569',
             lineHeight: 1,
           }}
           aria-hidden="true"
@@ -79,13 +80,13 @@ export const SplashScreen = ({ onDone }) => {
           src={TIPSONS_LOGO_URL}
           alt="Tipsons"
           style={{
-            maxHeight: 100,
+            maxHeight: 160,
             width: 'auto',
             objectFit: 'contain',
           }}
           onError={(e) => {
             e.currentTarget.outerHTML =
-              '<span style="font-family:Georgia,serif;font-weight:400;font-size:48px;color:#0D3B2E;letter-spacing:0.08em;">TIPSONS</span>';
+              '<span style="font-family:Georgia,serif;font-weight:700;font-size:40px;color:#0D3B2E;letter-spacing:0.08em;">TIPSONS</span>';
           }}
         />
       </div>
@@ -95,7 +96,7 @@ export const SplashScreen = ({ onDone }) => {
         className="relative mt-12 overflow-hidden"
         style={{
           width: 'min(420px, 65vw)',
-          height: '1.5px',
+          height: '1px',
           backgroundColor: 'rgba(184, 147, 64, 0.18)',
           borderRadius: '1px',
         }}
