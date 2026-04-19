@@ -396,9 +396,9 @@ const ScorePanel = ({ researchData }) => {
 // ─── Panel 5 — Sensitivity heatmap ─────────────────────────────────────────
 const SensitivityPanel = ({ researchData, currentPrice }) => {
   const sens = researchData?.sensitivity || researchData?.scenarios?.sensitivity || null;
-  const wacc = sens?.wacc_grid;
-  const growth = sens?.growth_grid;
-  const matrix = sens?.matrix;
+  const wacc = sens?.wacc_grid || sens?.wacc_range;
+  const growth = sens?.growth_grid || sens?.terminal_growth_range;
+  const matrix = sens?.matrix || sens?.grid;
   const valid = Array.isArray(wacc) && Array.isArray(growth) && Array.isArray(matrix)
     && matrix.length === growth.length
     && matrix.every((r) => Array.isArray(r) && r.length === wacc.length);

@@ -1314,6 +1314,7 @@ async def _enrich_with_live_price(session: dict) -> dict:
 async def get_session(session_id: str):
     # 1. Try Mongo
     db = _get_db()
+    doc = None
     if db is not None:
         try:
             doc = await db.sessions.find_one({"_id": session_id})
@@ -1321,35 +1322,62 @@ async def get_session(session_id: str):
                 doc["_id"] = str(doc.get("_id", ""))
                 if isinstance(doc.get("created_at"), datetime):
                     doc["created_at"] = doc["created_at"].isoformat()
-                # Enrich with live price
-                doc = await _enrich_with_live_price(doc)
-                try:
-                    if not doc.get("dcf_summary"):
-                        doc["dcf_summary"] = _load_dcf_summary(doc.get("ticker"))
-                except Exception:
-                    pass
-                return doc
         except Exception as e:
             logger.debug(f"get_session mongo: {e}")
-    # 2. Try cache (analyze endpoint caches by session_id) — already has flat fields
+
+    # 2. Merge cached analyze response (has scenarios/reverse_dcf/scoring/sensitivity)
     cached, _ = await cache_get(f"session:{session_id}")
-    if cached:
-        try:
-            if not cached.get("dcf_summary"):
-                cached["dcf_summary"] = _load_dcf_summary(cached.get("ticker"))
-        except Exception:
-            pass
-        return cached
-    # 3. Skeleton session so frontend doesn't crash
-    return {
-        "session_id": session_id,
-        "id": session_id,
-        "ticker": "UNKNOWN",
-        "sector": "general",
-        "status": "not_found",
-        "hypothesis": "Session not found",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
+    if doc is None and cached:
+        doc = dict(cached)
+    elif doc is not None and cached:
+        for k, v in cached.items():
+            if doc.get(k) in (None, "", [], {}) and v not in (None, "", [], {}):
+                doc[k] = v
+
+    if doc is None:
+        return {
+            "session_id": session_id, "id": session_id,
+            "ticker": "UNKNOWN", "sector": "general",
+            "status": "not_found", "hypothesis": "Session not found",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    # 3. Fall back to RP filesystem session for scenarios/sensitivity/reverse_dcf/scoring
+    try:
+        if not (doc.get("scenarios") and doc.get("reverse_dcf")):
+            rp_ses = _find_rp_session(session_id) or (
+                _find_rp_session_by_ticker(doc.get("ticker")) if doc.get("ticker") else None
+            )
+            if rp_ses is not None:
+                try:
+                    rp_scen = rp_ses.get_scenarios() if hasattr(rp_ses, "get_scenarios") else None
+                except Exception:
+                    rp_scen = None
+                if isinstance(rp_scen, dict):
+                    for src_key, dst_key in [
+                        ("scenarios", "scenarios"),
+                        ("sensitivity", "sensitivity"),
+                        ("reverse_dcf", "reverse_dcf"),
+                    ]:
+                        if not doc.get(dst_key) and rp_scen.get(src_key):
+                            doc[dst_key] = rp_scen[src_key]
+                try:
+                    rp_sc = rp_ses.get_scoring() if hasattr(rp_ses, "get_scoring") else None
+                    if rp_sc and not doc.get("scoring"):
+                        doc["scoring"] = rp_sc
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.debug(f"get_session RP enrich: {e}")
+
+    # Enrich with live price
+    doc = await _enrich_with_live_price(doc)
+    try:
+        if not doc.get("dcf_summary"):
+            doc["dcf_summary"] = _load_dcf_summary(doc.get("ticker"))
+    except Exception:
+        pass
+    return doc
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DCF NOTEBOOK EXECUTION — async, papermill-based
