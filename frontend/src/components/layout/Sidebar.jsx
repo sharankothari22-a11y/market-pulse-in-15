@@ -1,13 +1,16 @@
-import { LayoutDashboard, Search, Bell, Globe, Settings } from 'lucide-react';
+import { LayoutDashboard, Search } from 'lucide-react';
 
 const TIPSONS_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/sble7mpu_logo.png';
 
 const navItems = [
   { id: 'market-overview',  label: 'Market overview',  icon: LayoutDashboard, path: '/' },
   { id: 'research-session', label: 'Research session', icon: Search,          path: '/research' },
-  { id: 'signals-alerts',   label: 'Signals & alerts', icon: Bell,            path: '/signals' },
-  { id: 'macro-dashboard',  label: 'Macro dashboard',  icon: Globe,           path: '/macro' },
-  { id: 'settings',         label: 'Settings',         icon: Settings,        path: '/settings' },
+  // HIDDEN FOR DEMO — re-enable when feature is ready
+  // { id: 'signals-alerts',   label: 'Signals & alerts', icon: Bell,            path: '/signals' },
+  // HIDDEN FOR DEMO — re-enable when feature is ready
+  // { id: 'macro-dashboard',  label: 'Macro dashboard',  icon: Globe,           path: '/macro' },
+  // HIDDEN FOR DEMO — re-enable when feature is ready
+  // { id: 'settings',         label: 'Settings',         icon: Settings,        path: '/settings' },
 ];
 
 export const Sidebar = ({ activePage, onNavigate }) => {
