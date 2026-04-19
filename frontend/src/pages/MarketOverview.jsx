@@ -158,13 +158,22 @@ const TickerHero = ({ onAnalyze }) => {
       }}>
         Equity research. On demand.
       </h1>
-      <p style={{
-        marginTop: 12, maxWidth: 560,
-        fontSize: 16, lineHeight: 1.5, color: 'var(--bi-text-secondary)',
-      }}>
-        Type any Indian stock. Get DCF valuation, scoring, SWOT, and Porter's
-        analysis in seconds.
-      </p>
+      <div style={{ marginTop: 12, maxWidth: 560 }}>
+        <span style={{
+          display: 'block',
+          fontSize: 16, lineHeight: 1.5, color: 'var(--bi-text-secondary)',
+        }}>
+          Type any Indian stock.
+        </span>
+        <span style={{
+          display: 'block',
+          marginTop: 6,
+          fontSize: 14, letterSpacing: '0.02em',
+          color: 'var(--bi-text-tertiary)',
+        }}>
+          DCF valuation · Scoring · SWOT · Porter's analysis
+        </span>
+      </div>
 
       <div className="flex items-stretch gap-2" style={{ marginTop: 24 }}>
         <div className="relative" style={{ width: 480 }}>

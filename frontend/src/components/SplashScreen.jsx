@@ -33,22 +33,13 @@ export const SplashScreen = ({ onDone }) => {
       className="fixed inset-0 flex flex-col items-center justify-center"
       style={{
         zIndex: 9999,
-        backgroundColor: '#0A1628',
+        backgroundColor: '#FFFFFF',
         opacity: fadingOut ? 0 : 1,
         transition: `opacity ${FADE_MS}ms ease-out`,
         pointerEvents: fadingOut ? 'none' : 'auto',
       }}
       data-testid="splash-screen"
     >
-      {/* Subtle gold radial glow */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at center, rgba(201, 168, 76, 0.10) 0%, transparent 65%)',
-          pointerEvents: 'none',
-        }}
-      />
-
       {/* Beaver × Tipsons lockup */}
       <div className="relative flex flex-row items-center justify-center">
         <div
@@ -57,8 +48,7 @@ export const SplashScreen = ({ onDone }) => {
             height: 120,
             borderRadius: '50%',
             overflow: 'hidden',
-            backgroundColor: '#0A1628',
-            boxShadow: '0 4px 24px rgba(201, 168, 76, 0.25)',
+            backgroundColor: '#FFFFFF',
           }}
         >
           <img
@@ -68,7 +58,6 @@ export const SplashScreen = ({ onDone }) => {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              mixBlendMode: 'lighten',
             }}
             data-testid="splash-logo"
           />
@@ -79,7 +68,7 @@ export const SplashScreen = ({ onDone }) => {
             fontFamily: 'Georgia, serif',
             fontWeight: 200,
             fontSize: 32,
-            color: '#8593AB',
+            color: '#64748B',
             lineHeight: 1,
           }}
           aria-hidden="true"
@@ -96,18 +85,18 @@ export const SplashScreen = ({ onDone }) => {
           }}
           onError={(e) => {
             e.currentTarget.outerHTML =
-              '<span style="font-family:Georgia,serif;font-weight:400;font-size:48px;color:#B89340;letter-spacing:0.08em;">TIPSONS</span>';
+              '<span style="font-family:Georgia,serif;font-weight:400;font-size:48px;color:#0D3B2E;letter-spacing:0.08em;">TIPSONS</span>';
           }}
         />
       </div>
 
-      {/* Progress bar */}
+      {/* Gold hairline divider / progress */}
       <div
         className="relative mt-12 overflow-hidden"
         style={{
           width: 'min(420px, 65vw)',
-          height: '2px',
-          backgroundColor: 'rgba(201, 168, 76, 0.15)',
+          height: '1.5px',
+          backgroundColor: 'rgba(184, 147, 64, 0.18)',
           borderRadius: '1px',
         }}
         data-testid="splash-progress-track"
@@ -116,8 +105,7 @@ export const SplashScreen = ({ onDone }) => {
           className="h-full"
           style={{
             width: `${progress}%`,
-            backgroundColor: '#C9A84C',
-            boxShadow: '0 0 8px rgba(201, 168, 76, 0.6)',
+            backgroundColor: '#B89340',
             transition: 'width 0.1s linear',
           }}
           data-testid="splash-progress-fill"
@@ -126,14 +114,15 @@ export const SplashScreen = ({ onDone }) => {
 
       {/* Tagline */}
       <p
-        className="mt-6 font-medium"
+        className="mt-6"
         style={{
-          color: 'rgba(245, 240, 232, 0.6)',
+          color: '#475569',
           fontSize: '11px',
-          letterSpacing: '0.4em',
+          letterSpacing: '0.15em',
+          fontFamily: 'Georgia, serif',
         }}
       >
-        EQUITY RESEARCH <span style={{ color: '#C9A84C' }}>·</span> DECISION INTELLIGENCE
+        EQUITY RESEARCH <span style={{ color: '#B89340' }}>·</span> DECISION INTELLIGENCE
       </p>
 
     </div>
