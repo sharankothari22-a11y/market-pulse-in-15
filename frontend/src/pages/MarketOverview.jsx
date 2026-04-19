@@ -1,63 +1,12 @@
 import { useState, useEffect } from 'react';
-import { MetricCard } from '@/components/ui/MetricCard';
-import { DataTable } from '@/components/ui/DataTable';
-import { SignalFeedItem } from '@/components/ui/SignalFeedItem';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
-import { Loader2, TrendingUp, TrendingDown } from 'lucide-react';
+import { Loader2, Search, BarChart2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, ReferenceLine,
 } from 'recharts';
-import { cn } from '@/lib/utils';
 
-// ─── column definitions ──────────────────────────────────────────────────────
-const topMoversColumns = [
-  { header: 'Symbol', accessor: 'symbol',
-    render: (row) => (
-      <span style={{ color: '#0A1628', fontWeight: 700, letterSpacing: '0.02em' }}>{row.symbol}</span>
-    ) },
-  { header: 'LTP', accessor: 'ltp',
-    render: (row) => (
-      <span className="tabular-nums" style={{ color: '#0A1628', fontWeight: 500 }}>
-        {typeof row.ltp === 'number' ? row.ltp.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : row.ltp}
-      </span>
-    ) },
-  {
-    header: 'Change',
-    accessor: 'change',
-    render: (row) => {
-      const changeValue = row.change_percent ?? row.change;
-      const num = parseFloat(changeValue);
-      const isPositive = num >= 0;
-      const color = isPositive ? '#2D6A4F' : '#E05252';
-      const arrow = isPositive ? '▲' : '▼';
-      if (isNaN(num)) {
-        return <span style={{ color: 'rgba(10, 22, 40, 0.5)' }}>{changeValue ?? '—'}</span>;
-      }
-      return (
-        <span className="tabular-nums" style={{ color, fontWeight: 700 }}>
-          {arrow} {isPositive ? '+' : ''}{num.toFixed(2)}%
-        </span>
-      );
-    }
-  },
-  { header: 'Volume', accessor: 'volume',
-    render: (row) => (
-      <span className="tabular-nums" style={{ color: 'rgba(10, 22, 40, 0.6)' }}>{row.volume}</span>
-    ) },
-];
-
-// ─── data helpers ────────────────────────────────────────────────────────────
-const formatCurrency = (value, currency = 'USD') => {
-  if (value == null) return 'N/A';
-  const num = parseFloat(value);
-  if (isNaN(num)) return value;
-  if (currency === 'INR') {
-    return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
-
+// ─── helpers ────────────────────────────────────────────────────────────────
 const formatPercent = (value) => {
   if (value == null) return null;
   const num = parseFloat(value);
@@ -65,37 +14,45 @@ const formatPercent = (value) => {
   return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
 };
 
+const COMMODITY_LABELS = {
+  'GC=F': { name: 'Gold',              venue: 'COMEX' },
+  'SI=F': { name: 'Silver',            venue: 'COMEX' },
+  'CL=F': { name: 'Crude oil · WTI',   venue: 'NYMEX' },
+  'BZ=F': { name: 'Crude oil · Brent', venue: 'ICE'   },
+};
+
 const transformCommodities = (commodities = []) =>
-  commodities.map((item, idx) => ({
-    id: item.symbol || item.id || idx,
-    title: item.symbol || item.name || 'Unknown',
-    value: formatCurrency(item.price || item.current_price, item.currency === 'INR' ? 'INR' : 'USD'),
-    change: formatPercent(item.change_24h ?? item.change_pct ?? item.change_percent) || '—',
-    changeType: parseFloat(item.change_24h ?? item.change_pct ?? item.change_percent ?? 0) >= 0 ? 'positive' : 'negative',
-    subtitle: item.unit || item.market_cap_cr ? `MCap ₹${item.market_cap_cr}Cr` : '',
-  }));
+  commodities.map((item, idx) => {
+    const symbol = item.symbol || item.name || 'UNKNOWN';
+    const known = COMMODITY_LABELS[symbol];
+    const currency = item.currency === 'INR' ? '₹' : '$';
+    const price = parseFloat(item.price ?? item.current_price);
+    const pct = parseFloat(item.change_24h ?? item.change_pct ?? item.change_percent);
+    return {
+      id: symbol || idx,
+      name: known?.name || symbol,
+      venue: known?.venue || '',
+      symbol,
+      value: isNaN(price) ? 'N/A'
+        : `${currency}${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: isNaN(pct) ? null : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
+      positive: !isNaN(pct) && pct >= 0,
+    };
+  });
 
 const transformFxRates = (fx = {}) => {
   const rates = [];
   Object.entries(fx).forEach(([pair, data]) => {
     if (data && typeof data === 'object') {
+      const pct = parseFloat(data.change_percent ?? data.change);
       rates.push({
         id: pair,
-        title: pair.toUpperCase(),
-        value: typeof data.rate === 'number' ? data.rate.toFixed(4) : data.rate || 'N/A',
-        change: formatPercent(data.change_percent || data.change) || '—',
-        changeType: parseFloat(data.change_percent || data.change || 0) >= 0 ? 'positive' : 'negative',
-        subtitle: data.source || '',
+        label: pair.toUpperCase(),
+        value: typeof data.rate === 'number' ? data.rate.toFixed(4) : (data.rate || 'N/A'),
+        changeNum: isNaN(pct) ? null : pct,
       });
     } else if (typeof data === 'number') {
-      rates.push({
-        id: pair,
-        title: pair.toUpperCase(),
-        value: data.toFixed(4),
-        change: '—',
-        changeType: 'neutral',
-        subtitle: '',
-      });
+      rates.push({ id: pair, label: pair.toUpperCase(), value: data.toFixed(4), changeNum: null });
     }
   });
   return rates;
@@ -104,16 +61,15 @@ const transformFxRates = (fx = {}) => {
 const transformFiiDii = (fiiDii = []) => {
   if (Array.isArray(fiiDii) && fiiDii.length > 0) {
     const latest = fiiDii[0];
-    const fiiNet = latest.fii_net || latest.fii || latest.FII || 0;
-    const diiNet = latest.dii_net || latest.dii || latest.DII || 0;
+    const fiiRaw = latest.fii_net ?? latest.fii ?? latest.FII;
+    const diiRaw = latest.dii_net ?? latest.dii ?? latest.DII;
     return {
-      fii:  typeof fiiNet === 'number' ? `₹${(fiiNet / 100).toFixed(0)} Cr` : fiiNet,
-      dii:  typeof diiNet === 'number' ? `₹${(diiNet / 100).toFixed(0)} Cr` : diiNet,
+      fiiCr: typeof fiiRaw === 'number' ? fiiRaw / 100 : null,
+      diiCr: typeof diiRaw === 'number' ? diiRaw / 100 : null,
       date: latest.date || latest.trade_date || '',
-      data: fiiDii,
     };
   }
-  return { fii: '-', dii: '-', data: [] };
+  return { fiiCr: null, diiCr: null, date: '' };
 };
 
 const transformFiiDiiChart = (fiiDii = []) => {
@@ -122,7 +78,6 @@ const transformFiiDiiChart = (fiiDii = []) => {
     const fii = row.fii_net ?? row.fii ?? row.FII ?? 0;
     const dii = row.dii_net ?? row.dii ?? row.DII ?? 0;
     const date = row.date || row.trade_date || '';
-    // shorten date like "2026-04-15" → "Apr 15"
     let short = date;
     try {
       const d = new Date(date);
@@ -130,142 +85,266 @@ const transformFiiDiiChart = (fiiDii = []) => {
     } catch (_) {}
     return {
       date: short,
-      FII: typeof fii === 'number' ? +(fii / 100).toFixed(0) : 0,  // to Crores
+      FII: typeof fii === 'number' ? +(fii / 100).toFixed(0) : 0,
       DII: typeof dii === 'number' ? +(dii / 100).toFixed(0) : 0,
     };
   });
 };
 
-const transformNews = (news = []) =>
-  news.map((item, idx) => ({
-    id: item.id || idx,
-    title: item.title || item.headline || 'No title',
-    timestamp: item.published_at || item.timestamp || item.date || 'Recent',
-    severity: item.sentiment === 'positive' ? 'positive'
-            : item.sentiment === 'negative' ? 'danger'
-            : 'info',
-    sector: item.category || item.sector || item.source || 'General',
-    signalType: item.type || 'News',
-  }));
-
 const transformTopMovers = (movers = []) =>
-  movers.map((item, idx) => ({
-    id: item.symbol || idx,
-    symbol: item.symbol || item.ticker || 'N/A',
-    ltp: item.ltp || item.price || item.last_price || 'N/A',
-    change: item.change_percent || item.change || item.pct_change || 0,
-    change_percent: item.change_percent || item.pct_change,
-    changeType: parseFloat(item.change_percent || item.change || 0) >= 0 ? 'positive' : 'negative',
-    volume: item.volume ? `${(item.volume / 1e6).toFixed(1)}M` : 'N/A',
-  }));
+  movers.map((item, idx) => {
+    const pct = parseFloat(item.change_percent ?? item.change ?? item.pct_change ?? 0);
+    const ltp = parseFloat(item.ltp ?? item.price ?? item.last_price);
+    return {
+      id: item.symbol || idx,
+      symbol: item.symbol || item.ticker || 'N/A',
+      ltp: isNaN(ltp) ? (item.ltp ?? 'N/A')
+           : ltp.toLocaleString('en-IN', { maximumFractionDigits: 2 }),
+      pct: isNaN(pct) ? null : pct,
+      volume: item.volume ? `${(item.volume / 1e6).toFixed(1)}M` : '—',
+    };
+  });
 
-// ─── Hero strip ──────────────────────────────────────────────────────────────
-const HeroStrip = ({ macroIndicators = [], fx = {} }) => {
-  const find = (id) => macroIndicators.find((i) => i.id === id);
-  const nifty  = find('^NSEI');
-  const sensex = find('^BSESN');
-  const usdInr = fx?.USD;
+// ─── section heading ────────────────────────────────────────────────────────
+const SectionHeading = ({ children, right }) => (
+  <div className="flex items-end justify-between mb-3">
+    <h2 style={{
+      color: 'var(--bi-text-secondary)',
+      fontSize: 14, fontWeight: 500,
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+    }}>
+      {children}
+    </h2>
+    {right}
+  </div>
+);
 
-  const Stat = ({ label, value, change, positive }) => (
-    <div className="flex items-center gap-2">
-      <span style={{ color: 'rgba(245, 240, 232, 0.85)', fontSize: 10.5, letterSpacing: '0.22em', fontWeight: 600 }}>
-        {label}
-      </span>
-      <span className="tabular-nums" style={{ color: '#C9A84C', fontSize: 13, fontWeight: 700 }}>
-        {value}
-      </span>
-      {change != null && (
-        <span
-          className="tabular-nums"
+// ─── Hero: ticker input ─────────────────────────────────────────────────────
+const TickerHero = ({ onAnalyze }) => {
+  const [value, setValue] = useState('');
+  const suggestions = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'BHARTIARTL'];
+
+  const submit = (t) => {
+    const cleaned = (t ?? value).trim().toUpperCase();
+    if (!cleaned) return;
+    onAnalyze?.(cleaned);
+  };
+
+  return (
+    <section
+      className="w-full flex flex-col items-center text-center"
+      style={{ padding: '48px 24px' }}
+      data-testid="home-ticker-hero"
+    >
+      <h1 className="font-serif-display" style={{
+        fontSize: 32, fontWeight: 500, color: 'var(--bi-text-primary)',
+        lineHeight: 1.2, margin: 0,
+      }}>
+        Equity research. On demand.
+      </h1>
+      <p style={{
+        marginTop: 12, maxWidth: 560,
+        fontSize: 16, lineHeight: 1.5, color: 'var(--bi-text-secondary)',
+      }}>
+        Type any Indian stock. Get DCF valuation, scoring, SWOT, and Porter's
+        analysis in seconds.
+      </p>
+
+      <div className="flex items-stretch gap-2" style={{ marginTop: 24 }}>
+        <div className="relative" style={{ width: 480 }}>
+          <Search
+            size={18}
+            style={{
+              position: 'absolute', left: 14, top: '50%',
+              transform: 'translateY(-50%)', color: 'var(--bi-text-tertiary)',
+            }}
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+            placeholder="Enter a ticker (RELIANCE, TCS, HDFCBANK...)"
+            style={{
+              width: '100%', height: 56,
+              paddingLeft: 42, paddingRight: 16,
+              borderRadius: 8,
+              border: '1px solid var(--bi-border-subtle)',
+              backgroundColor: 'var(--bi-bg-card)',
+              color: 'var(--bi-text-primary)',
+              fontSize: 15,
+            }}
+            data-testid="home-ticker-input"
+          />
+        </div>
+        <button
+          onClick={() => submit()}
+          disabled={!value.trim()}
           style={{
-            color: positive ? '#5EBE92' : '#FF7676',
-            fontSize: 11,
-            fontWeight: 700,
+            height: 56, padding: '0 24px',
+            borderRadius: 8,
+            backgroundColor: 'var(--bi-navy-700)',
+            color: 'var(--bi-text-inverse)',
+            fontSize: 16, fontWeight: 600,
+            opacity: value.trim() ? 1 : 0.5,
           }}
+          data-testid="home-analyze-btn"
         >
-          {positive ? '▲' : '▼'} {change}
+          Analyze
+        </button>
+      </div>
+
+      <div className="flex items-center justify-center flex-wrap gap-2" style={{ marginTop: 16 }}>
+        <span style={{ color: 'var(--bi-text-tertiary)', fontSize: 13 }}>Try:</span>
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            onClick={() => submit(s)}
+            style={{
+              padding: '4px 12px', borderRadius: 6,
+              backgroundColor: 'var(--bi-bg-subtle)',
+              color: 'var(--bi-text-primary)',
+              fontSize: 13, fontWeight: 500,
+              border: '1px solid var(--bi-border-subtle)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-navy-100)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-bg-subtle)'; }}
+            data-testid={`home-suggest-${s}`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+// ─── Status strip ───────────────────────────────────────────────────────────
+const StatusStrip = ({ lastRefresh }) => {
+  const time = lastRefresh?.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+  return (
+    <div
+      className="flex items-center justify-between"
+      style={{
+        height: 32,
+        padding: '0 16px',
+        backgroundColor: 'var(--bi-bg-subtle)',
+        borderRadius: 8,
+      }}
+      data-testid="status-strip"
+    >
+      <div className="flex items-center gap-2">
+        <span className="bi-pulse-dot"
+              style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--bi-success-fg)' }} />
+        <span style={{ fontSize: 12, color: 'var(--bi-text-secondary)' }}>
+          NSE open <span style={{ color: 'var(--bi-text-tertiary)' }}>·</span> 09:15 – 15:30 IST
+        </span>
+      </div>
+      {time && (
+        <span style={{ fontSize: 12, color: 'var(--bi-text-tertiary)' }} className="tabular-nums">
+          Last refresh {time}
         </span>
       )}
     </div>
   );
+};
 
-  const Divider = () => (
-    <span style={{ color: 'rgba(201, 168, 76, 0.5)', fontSize: 14, margin: '0 6px' }}>·</span>
-  );
-
+// ─── FX card (compact) ──────────────────────────────────────────────────────
+const FxCard = ({ label, value, changeNum }) => {
+  const hasChange = changeNum != null && changeNum !== 0;
+  const pos = (changeNum ?? 0) >= 0;
   return (
-    <div
-      className="w-full px-6 py-3 flex items-center gap-4 flex-wrap"
-      style={{
-        backgroundColor: '#1E3A5F',
-        borderBottom: '1px solid rgba(201, 168, 76, 0.3)',
-      }}
-      data-testid="market-hero-strip"
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className="gold-pulse-dot"
-          style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#C9A84C' }}
-        />
-        <span style={{ color: '#C9A84C', fontSize: 10.5, letterSpacing: '0.28em', fontWeight: 700 }}>
-          NSE
-        </span>
-        <span style={{ color: 'rgba(245, 240, 232, 0.95)', fontSize: 10.5, letterSpacing: '0.2em', fontWeight: 600 }}>
-          OPEN
-        </span>
-      </div>
-
-      <Divider />
-
-      {nifty && (
-        <Stat
-          label="NIFTY 50"
-          value={typeof nifty.raw_value === 'number' ? nifty.raw_value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : nifty.value}
-          change={nifty.change}
-          positive={nifty.changeType === 'positive'}
-        />
-      )}
-
-      {nifty && sensex && <Divider />}
-
-      {sensex && (
-        <Stat
-          label="SENSEX"
-          value={typeof sensex.raw_value === 'number' ? sensex.raw_value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : sensex.value}
-          change={sensex.change}
-          positive={sensex.changeType === 'positive'}
-        />
-      )}
-
-      {(nifty || sensex) && usdInr && <Divider />}
-
-      {usdInr && (
-        <Stat
-          label="USD / INR"
-          value={typeof usdInr.rate === 'number' ? (1 / usdInr.rate).toFixed(2) : usdInr.rate}
-          change={usdInr.change_percent != null ? formatPercent(usdInr.change_percent) : null}
-          positive={parseFloat(usdInr.change_percent || 0) >= 0}
-        />
-      )}
-
-      <div className="ml-auto hidden md:flex items-center gap-2">
-        <span style={{ color: 'rgba(245, 240, 232, 0.5)', fontSize: 10, letterSpacing: '0.15em' }}>
-          SESSION
-        </span>
-        <span style={{ color: 'rgba(245, 240, 232, 0.85)', fontSize: 10.5, letterSpacing: '0.08em' }}>
-          09:15 IST — 15:30 IST
-        </span>
+    <div style={{
+      backgroundColor: 'var(--bi-bg-card)',
+      border: '1px solid var(--bi-border-subtle)',
+      borderRadius: 12,
+      padding: '16px 18px',
+      boxShadow: 'var(--bi-shadow-card)',
+    }}>
+      <p style={{
+        color: 'var(--bi-text-tertiary)',
+        fontSize: 11, fontWeight: 500, textTransform: 'uppercase',
+        letterSpacing: '0.06em', margin: 0, marginBottom: 6,
+      }}>
+        {label}
+      </p>
+      <p className="tabular-nums" style={{
+        color: 'var(--bi-text-primary)', fontSize: 20, fontWeight: 600,
+        margin: 0, lineHeight: 1.1,
+      }}>
+        {value}
+      </p>
+      <div style={{ marginTop: 6, fontSize: 12 }}>
+        {hasChange ? (
+          <span className="tabular-nums" style={{
+            color: pos ? 'var(--bi-success-fg)' : 'var(--bi-danger-fg)', fontWeight: 600,
+          }}>
+            {pos ? '▲' : '▼'} {`${pos ? '+' : ''}${changeNum.toFixed(2)}%`}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--bi-text-tertiary)' }}>—</span>
+        )}
       </div>
     </div>
   );
 };
 
-// ─── FII / DII Bar Chart ─────────────────────────────────────────────────────
+// ─── Commodity card ─────────────────────────────────────────────────────────
+const CommodityCard = ({ name, venue, symbol, value, change, positive }) => (
+  <div style={{
+    backgroundColor: 'var(--bi-bg-card)',
+    border: '1px solid var(--bi-border-subtle)',
+    borderRadius: 12,
+    padding: '16px 18px',
+    boxShadow: 'var(--bi-shadow-card)',
+  }}>
+    <p style={{ color: 'var(--bi-text-primary)', fontSize: 16, fontWeight: 500, margin: 0 }}>
+      {name}
+    </p>
+    <p style={{
+      color: 'var(--bi-text-tertiary)',
+      fontSize: 11, fontWeight: 500, textTransform: 'uppercase',
+      letterSpacing: '0.04em', margin: '2px 0 10px',
+    }}>
+      {venue}{venue && ' · '}{symbol}
+    </p>
+    <p className="tabular-nums" style={{
+      color: 'var(--bi-text-primary)', fontSize: 20, fontWeight: 600,
+      margin: 0, lineHeight: 1.1,
+    }}>
+      {value}
+    </p>
+    <div style={{ marginTop: 6, fontSize: 12 }}>
+      {change ? (
+        <span className="tabular-nums" style={{
+          color: positive ? 'var(--bi-success-fg)' : 'var(--bi-danger-fg)', fontWeight: 600,
+        }}>
+          {positive ? '▲' : '▼'} {change}
+        </span>
+      ) : (
+        <span style={{ color: 'var(--bi-text-tertiary)' }}>—</span>
+      )}
+    </div>
+  </div>
+);
+
+// ─── FII/DII chart ──────────────────────────────────────────────────────────
 const FiiDiiBarChart = ({ data }) => {
-  if (!data || data.length === 0) {
+  const hasRealData = data && data.length > 0 && data.some((d) => d.FII !== 0 || d.DII !== 0);
+  if (!hasRealData) {
     return (
-      <div className="flex items-center justify-center h-40" style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}>
-        No FII / DII data available
+      <div className="flex flex-col items-center justify-center text-center"
+           style={{ height: 200, padding: 16, gap: 8 }}>
+        <BarChart2 size={36} style={{ color: 'var(--bi-text-tertiary)' }} />
+        <p style={{ color: 'var(--bi-text-secondary)', fontSize: 14, margin: 0 }}>
+          No flow data today
+        </p>
+        <p style={{ color: 'var(--bi-text-tertiary)', fontSize: 12, margin: 0 }}>
+          Institutional flows update after market close
+        </p>
       </div>
     );
   }
@@ -274,18 +353,17 @@ const FiiDiiBarChart = ({ data }) => {
     if (!active || !payload?.length) return null;
     return (
       <div style={{
-        backgroundColor: '#FFFFFF',
-        border: '1px solid rgba(201, 168, 76, 0.45)',
-        boxShadow: '0 4px 12px rgba(10, 22, 40, 0.12)',
-        padding: '8px 10px',
-        fontSize: 11.5,
+        backgroundColor: 'var(--bi-bg-card)',
+        border: '1px solid var(--bi-border-subtle)',
+        boxShadow: 'var(--bi-shadow-card)',
+        padding: '8px 10px', fontSize: 12, borderRadius: 6,
       }}>
-        <div style={{ color: '#0A1628', letterSpacing: '0.18em', marginBottom: 4, fontWeight: 700 }}>{label}</div>
+        <div style={{ color: 'var(--bi-text-primary)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
         {payload.map((p) => (
-          <div key={p.dataKey} className="tabular-nums" style={{ color: '#0A1628' }}>
+          <div key={p.dataKey} className="tabular-nums" style={{ color: 'var(--bi-text-primary)' }}>
             <span style={{
               display: 'inline-block', width: 8, height: 8, marginRight: 6,
-              backgroundColor: p.color, borderRadius: 1,
+              backgroundColor: p.color, borderRadius: 2,
             }} />
             {p.dataKey}: ₹{p.value.toLocaleString('en-IN')} Cr
           </div>
@@ -295,65 +373,154 @@ const FiiDiiBarChart = ({ data }) => {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={200}>
       <BarChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 4 }}>
-        <CartesianGrid stroke="rgba(10, 22, 40, 0.06)" vertical={false} />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'rgba(10, 22, 40, 0.65)', fontSize: 10, letterSpacing: '0.06em' }}
-          axisLine={{ stroke: 'rgba(10, 22, 40, 0.2)' }}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fill: 'rgba(10, 22, 40, 0.5)', fontSize: 10 }}
-          axisLine={false}
-          tickLine={false}
-          width={38}
-        />
-        <ReferenceLine y={0} stroke="rgba(10, 22, 40, 0.25)" />
-        <Tooltip content={<TooltipBox />} cursor={{ fill: 'rgba(201, 168, 76, 0.08)' }} />
-        <Legend
-          wrapperStyle={{ fontSize: 10, letterSpacing: '0.18em', color: '#0A1628', paddingTop: 4, fontWeight: 700 }}
-          iconType="square"
-          iconSize={8}
-        />
-        <Bar dataKey="FII" fill="#0A1628" maxBarSize={22} radius={[1, 1, 0, 0]} />
-        <Bar dataKey="DII" fill="#C9A84C" maxBarSize={22} radius={[1, 1, 0, 0]} />
+        <CartesianGrid stroke="var(--bi-border-subtle)" vertical={false} />
+        <XAxis dataKey="date"
+               tick={{ fill: 'var(--bi-text-tertiary)', fontSize: 11 }}
+               axisLine={{ stroke: 'var(--bi-border-subtle)' }} tickLine={false} />
+        <YAxis tick={{ fill: 'var(--bi-text-tertiary)', fontSize: 11 }}
+               axisLine={false} tickLine={false} width={40} />
+        <ReferenceLine y={0} stroke="var(--bi-border-strong)" />
+        <Tooltip content={<TooltipBox />} cursor={{ fill: 'rgba(27,58,107,0.05)' }} />
+        <Legend wrapperStyle={{ fontSize: 11, color: 'var(--bi-text-secondary)', paddingTop: 4 }}
+                iconType="square" iconSize={8} />
+        <Bar dataKey="FII" fill="var(--bi-navy-700)" maxBarSize={22} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="DII" fill="var(--bi-tile-ochre-fg)" maxBarSize={22} radius={[2, 2, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
 };
 
-// ─── Section heading ─────────────────────────────────────────────────────────
-const SectionHeading = ({ children, right }) => (
-  <div className="flex items-end justify-between mb-3">
-    <h2
-      className="label-spaced"
-      style={{ color: '#0A1628' }}
-    >
-      {children}
-    </h2>
-    {right}
-  </div>
-);
+// ─── FII/DII net tile ───────────────────────────────────────────────────────
+const FiiDiiNetTile = ({ label, valueCr }) => {
+  const isZeroOrMissing = valueCr == null || valueCr === 0;
+  if (isZeroOrMissing) {
+    return (
+      <div style={{ padding: '10px 12px', borderRadius: 8, backgroundColor: 'var(--bi-bg-subtle)' }}>
+        <p style={{
+          color: 'var(--bi-text-tertiary)', fontSize: 11, fontWeight: 500,
+          textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0,
+        }}>{label}</p>
+        <p style={{ color: 'var(--bi-text-tertiary)', fontSize: 14, margin: '4px 0 0' }}>
+          Not yet reported
+        </p>
+      </div>
+    );
+  }
+  const pos = valueCr >= 0;
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 8, backgroundColor: 'var(--bi-bg-subtle)' }}>
+      <p style={{
+        color: 'var(--bi-text-tertiary)', fontSize: 11, fontWeight: 500,
+        textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0,
+      }}>{label}</p>
+      <p className="tabular-nums" style={{
+        color: pos ? 'var(--bi-success-fg)' : 'var(--bi-danger-fg)',
+        fontSize: 16, fontWeight: 600, margin: '4px 0 0',
+      }}>
+        ₹{Math.round(valueCr).toLocaleString('en-IN')} Cr
+      </p>
+    </div>
+  );
+};
 
-// ─── Main component ─────────────────────────────────────────────────────────
-export const MarketOverview = () => {
+// ─── Top Movers table ───────────────────────────────────────────────────────
+const TopMoversTable = ({ rows }) => {
+  if (!rows.length) {
+    return (
+      <div className="text-center" style={{ padding: 24, color: 'var(--bi-text-tertiary)', fontSize: 13 }}>
+        No stock data available yet
+      </div>
+    );
+  }
+  return (
+    <div style={{ overflow: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            {['Symbol', 'LTP', 'Change', 'Volume'].map((h, i) => (
+              <th key={h}
+                  style={{
+                    textAlign: i === 0 ? 'left' : 'right',
+                    padding: '8px 12px',
+                    fontSize: 11, fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'var(--bi-text-secondary)',
+                    borderBottom: '1px solid var(--bi-border-subtle)',
+                  }}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, idx) => {
+            const pos = (r.pct ?? 0) >= 0;
+            const rowBg = idx % 2 === 0 ? 'var(--bi-bg-card)' : 'var(--bi-bg-subtle)';
+            return (
+              <tr key={r.id}
+                  style={{ backgroundColor: rowBg, height: 44, transition: 'background-color 0.15s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-navy-100)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = rowBg; }}
+              >
+                <td style={{
+                  padding: '0 12px',
+                  fontSize: 13, fontWeight: 600,
+                  color: 'var(--bi-navy-900)',
+                }}>
+                  {r.symbol}
+                </td>
+                <td className="tabular-nums"
+                    style={{ padding: '0 12px', textAlign: 'right',
+                             fontSize: 13, color: 'var(--bi-text-primary)' }}>
+                  {r.ltp}
+                </td>
+                <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                  {r.pct == null ? (
+                    <span style={{ color: 'var(--bi-text-tertiary)' }}>—</span>
+                  ) : (
+                    <span className="tabular-nums"
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 8px', borderRadius: 4,
+                            backgroundColor: pos ? 'rgba(15,122,62,0.08)' : 'rgba(199,55,47,0.08)',
+                            color: pos ? 'var(--bi-success-fg)' : 'var(--bi-danger-fg)',
+                            fontSize: 12, fontWeight: 600,
+                          }}>
+                      {pos ? '▲' : '▼'} {pos ? '+' : ''}{r.pct.toFixed(2)}%
+                    </span>
+                  )}
+                </td>
+                <td className="tabular-nums"
+                    style={{ padding: '0 12px', textAlign: 'right',
+                             fontSize: 13, color: 'var(--bi-text-secondary)' }}>
+                  {r.volume}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ─── main ───────────────────────────────────────────────────────────────────
+export const MarketOverview = ({ onAnalyzeTicker }) => {
   const [marketData, setMarketData] = useState(null);
-  const [macroData, setMacroData]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
         setLoading(true);
-        const [market, macro] = await Promise.all([
-          apiGet(API_ENDPOINTS.marketOverview),
-          apiGet(API_ENDPOINTS.macro).catch(() => null),
-        ]);
+        const market = await apiGet(API_ENDPOINTS.marketOverview);
         setMarketData(market);
-        setMacroData(macro);
+        setLastRefresh(new Date());
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -369,10 +536,11 @@ export const MarketOverview = () => {
 
   if (loading && !marketData) {
     return (
-      <div className="page-content flex items-center justify-center" data-testid="market-overview-loading">
-        <div className="flex items-center gap-3" style={{ color: 'rgba(10, 22, 40, 0.6)' }}>
-          <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#C9A84C' }} />
-          <span style={{ letterSpacing: '0.18em', fontSize: 11, fontWeight: 600 }}>LOADING MARKET DATA…</span>
+      <div className="flex items-center justify-center" style={{ minHeight: 400 }}
+           data-testid="market-overview-loading">
+        <div className="flex items-center gap-3" style={{ color: 'var(--bi-text-secondary)' }}>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span style={{ fontSize: 13 }}>Loading market data…</span>
         </div>
       </div>
     );
@@ -380,159 +548,110 @@ export const MarketOverview = () => {
 
   if (error && !marketData) {
     return (
-      <div className="page-content flex items-center justify-center" data-testid="market-overview-error">
-        <div className="text-center">
-          <p style={{ color: '#E05252', marginBottom: 8, letterSpacing: '0.18em', fontSize: 12, fontWeight: 700 }}>
-            FAILED TO LOAD MARKET DATA
-          </p>
-          <p style={{ color: 'rgba(10, 22, 40, 0.6)', fontSize: 12 }}>{error}</p>
-        </div>
+      <div className="text-center" style={{ padding: 48 }} data-testid="market-overview-error">
+        <p style={{ color: 'var(--bi-danger-fg)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+          Failed to load market data
+        </p>
+        <p style={{ color: 'var(--bi-text-secondary)', fontSize: 13 }}>{error}</p>
       </div>
     );
   }
 
   const commodities = transformCommodities([
     ...(marketData?.commodities || []),
-    ...(marketData?.crypto || []).slice(0, 4),
-  ]);
-  const fxRates     = transformFxRates(marketData?.fx || {});
+  ]).slice(0, 4);
+  const fxRates     = transformFxRates(marketData?.fx || {}).slice(0, 5);
   const fiiDii      = transformFiiDii(marketData?.fii_dii || []);
   const fiiDiiChart = transformFiiDiiChart(marketData?.fii_dii || []);
-  const news        = transformNews(marketData?.news || []);
-  const topMovers   = transformTopMovers(marketData?.top_movers || []);
-
-  // First 5 FX rates as hero ticker plus cards
-  const fxCards = fxRates.slice(0, 5);
+  const topMovers   = transformTopMovers(marketData?.top_movers || []).slice(0, 10);
 
   return (
-    <div
-      className="page-content overflow-y-auto"
-      style={{ height: 'calc(100vh - 48px)', backgroundColor: 'var(--bg-primary)' }}
-      data-testid="market-overview-page"
-    >
-      {/* Hero strip */}
-      <HeroStrip
-        macroIndicators={macroData?.indicators || []}
-        fx={marketData?.fx || {}}
-      />
+    <div data-testid="market-overview-page">
+      <TickerHero onAnalyze={onAnalyzeTicker} />
 
-      <div className="p-6 space-y-6">
+      <div style={{ paddingTop: 16 }} className="flex flex-col" >
+        <StatusStrip lastRefresh={lastRefresh} />
 
-        {/* Row 1: FX Rates */}
+        <div style={{ height: 24 }} />
+
+        {/* FX rates */}
         <section data-testid="fx-rates-section">
-          <SectionHeading>FX RATES · SPOT</SectionHeading>
+          <SectionHeading>FX rates</SectionHeading>
           <div className="grid grid-cols-5 gap-3">
-            {fxCards.length > 0 ? (
-              fxCards.map((item) => <MetricCard key={item.id} {...item} />)
+            {fxRates.length > 0 ? (
+              fxRates.map((r) => <FxCard key={r.id} {...r} />)
             ) : (
-              <p
-                className="col-span-5 text-center py-4"
-                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
-              >
+              <p className="col-span-5 text-center"
+                 style={{ color: 'var(--bi-text-tertiary)', fontSize: 13, padding: 12 }}>
                 No FX data available
               </p>
             )}
           </div>
         </section>
 
-        {/* Row 2: Top Movers + FII/DII */}
+        <div style={{ height: 24 }} />
+
+        {/* Top Movers + FII/DII */}
         <section className="grid grid-cols-3 gap-5" data-testid="movers-fii-section">
-          {/* Top Movers */}
-          <div
-            className="col-span-2 dashboard-card"
-          >
+          <div className="col-span-2" style={{
+            backgroundColor: 'var(--bi-bg-card)',
+            border: '1px solid var(--bi-border-subtle)',
+            borderRadius: 12,
+            boxShadow: 'var(--bi-shadow-card)',
+            padding: 24,
+          }}>
             <SectionHeading
               right={
-                <span style={{ color: 'rgba(10, 22, 40, 0.45)', fontSize: 10, letterSpacing: '0.18em' }}>
-                  NSE · TOP {topMovers.length}
+                <span style={{
+                  padding: '3px 10px', borderRadius: 999,
+                  backgroundColor: 'var(--bi-bg-subtle)',
+                  color: 'var(--bi-text-secondary)',
+                  fontSize: 11, fontWeight: 500,
+                }}>
+                  NSE · Top {topMovers.length}
                 </span>
               }
             >
-              TOP MOVERS
+              Top movers
             </SectionHeading>
-            {topMovers.length > 0 ? (
-              <DataTable columns={topMoversColumns} rows={topMovers} maxHeight={320} />
-            ) : (
-              <div
-                className="flex items-center justify-center h-40"
-                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
-              >
-                No stock data available yet
-              </div>
-            )}
+            <TopMoversTable rows={topMovers} />
           </div>
 
-          {/* FII/DII Panel */}
-          <div className="dashboard-card">
-            <SectionHeading>FII / DII FLOW</SectionHeading>
+          <div style={{
+            backgroundColor: 'var(--bi-bg-card)',
+            border: '1px solid var(--bi-border-subtle)',
+            borderRadius: 12,
+            boxShadow: 'var(--bi-shadow-card)',
+            padding: 20,
+          }}>
+            <SectionHeading>FII / DII flow</SectionHeading>
             <FiiDiiBarChart data={fiiDiiChart} />
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="mini-card">
-                <p style={{ color: 'rgba(10, 22, 40, 0.55)', fontSize: 9.5, letterSpacing: '0.22em', fontWeight: 700 }}>
-                  FII NET
-                </p>
-                <p
-                  className="tabular-nums mt-1"
-                  style={{
-                    color: fiiDii.fii?.includes('-') ? '#E05252' : '#0A1628',
-                    fontSize: 16, fontWeight: 700,
-                  }}
-                >
-                  {fiiDii.fii || '—'}
-                </p>
-              </div>
-              <div className="mini-card">
-                <p style={{ color: 'rgba(10, 22, 40, 0.55)', fontSize: 9.5, letterSpacing: '0.22em', fontWeight: 700 }}>
-                  DII NET
-                </p>
-                <p
-                  className="tabular-nums mt-1"
-                  style={{
-                    color: fiiDii.dii?.includes('-') ? '#E05252' : '#2D6A4F',
-                    fontSize: 16, fontWeight: 700,
-                  }}
-                >
-                  {fiiDii.dii || '—'}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-3" style={{ marginTop: 12 }}>
+              <FiiDiiNetTile label="FII net" valueCr={fiiDii.fiiCr} />
+              <FiiDiiNetTile label="DII net" valueCr={fiiDii.diiCr} />
             </div>
             {fiiDii.date && (
-              <p className="text-center mt-3" style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 10, letterSpacing: '0.1em' }}>
+              <p className="text-center" style={{
+                color: 'var(--bi-text-tertiary)', fontSize: 11, margin: '12px 0 0',
+              }}>
                 As of {fiiDii.date}
               </p>
             )}
           </div>
         </section>
 
-        {/* Row 3: Commodities & Crypto */}
+        <div style={{ height: 24 }} />
+
+        {/* Commodities */}
         <section data-testid="commodities-section">
-          <SectionHeading>COMMODITIES & CRYPTO</SectionHeading>
+          <SectionHeading>Commodities</SectionHeading>
           <div className="grid grid-cols-4 gap-3">
             {commodities.length > 0 ? (
-              commodities.slice(0, 8).map((c) => <MetricCard key={c.id} {...c} />)
+              commodities.map((c) => <CommodityCard key={c.id} {...c} />)
             ) : (
-              <p
-                className="col-span-4 text-center py-4"
-                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
-              >
+              <p className="col-span-4 text-center"
+                 style={{ color: 'var(--bi-text-tertiary)', fontSize: 13, padding: 12 }}>
                 No commodity data available
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* Row 4: News Feed */}
-        <section className="dashboard-card" data-testid="news-feed-section">
-          <SectionHeading>MARKET NEWS & UPDATES</SectionHeading>
-          <div className="space-y-1 max-h-72 overflow-y-auto data-table-wrapper">
-            {news.length > 0 ? (
-              news.map((item) => <SignalFeedItem key={item.id} {...item} />)
-            ) : (
-              <p
-                className="text-center py-4"
-                style={{ color: 'rgba(10, 22, 40, 0.5)', fontSize: 12 }}
-              >
-                No news available
               </p>
             )}
           </div>

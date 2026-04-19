@@ -15,13 +15,21 @@ function App() {
   const [currentPage, setCurrentPage] = useState('/');
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [splashDone, setSplashDone] = useState(false);
+  const [pendingTicker, setPendingTicker] = useState(null);
+
+  const handleAnalyzeTicker = (t) => {
+    const cleaned = String(t || '').trim().toUpperCase();
+    if (!cleaned) return;
+    setPendingTicker({ ticker: cleaned, nonce: Date.now() });
+    setCurrentPage('/research');
+  };
 
   const renderPage = () => {
     switch (currentPage) {
       case '/':
-        return <MarketOverview />;
+        return <MarketOverview onAnalyzeTicker={handleAnalyzeTicker} />;
       case '/research':
-        return <ResearchSession onSessionChange={setCurrentSessionId} />;
+        return <ResearchSession onSessionChange={setCurrentSessionId} pendingTicker={pendingTicker} />;
       case '/signals':
         return <SignalsAlerts />;
       case '/macro':

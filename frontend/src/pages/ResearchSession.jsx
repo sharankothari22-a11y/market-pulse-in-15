@@ -112,7 +112,7 @@ const PriceChart = ({ ticker, livePrice }) => {
   );
 };
 
-export const ResearchSession = ({ onSessionChange }) => {
+export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [ticker, setTicker] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [researchData, setResearchData] = useState(null);
@@ -125,6 +125,14 @@ export const ResearchSession = ({ onSessionChange }) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [runningScenarios, setRunningScenarios] = useState(false);
   const [error, setError] = useState(null);
+
+  // Auto-trigger analyze when a ticker is routed in from another page
+  useEffect(() => {
+    if (pendingTicker?.ticker) {
+      handleAnalyze(pendingTicker.ticker);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTicker?.nonce]);
 
   // Modal state (optional — Analyze button now works without opening modal)
   const [showNewModal, setShowNewModal] = useState(false);
@@ -211,9 +219,10 @@ export const ResearchSession = ({ onSessionChange }) => {
   };
 
   // Primary Analyze action — one click, no modal, calls /api/research/analyze directly
-  const handleAnalyze = async () => {
-    const t = ticker.trim().toUpperCase();
+  const handleAnalyze = async (overrideTicker) => {
+    const t = (overrideTicker ?? ticker).trim().toUpperCase();
     if (!t) return;
+    if (overrideTicker) setTicker(t);
     try {
       setAnalyzing(true);
       setError(null);
