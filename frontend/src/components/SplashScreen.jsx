@@ -44,8 +44,8 @@ export const SplashScreen = ({ onDone }) => {
       <div className="relative flex flex-row items-center justify-center">
         <div
           style={{
-            width: 180,
-            height: 180,
+            width: 240,
+            height: 240,
             borderRadius: '50%',
             overflow: 'hidden',
             backgroundColor: '#FFFFFF',
@@ -65,10 +65,10 @@ export const SplashScreen = ({ onDone }) => {
         </div>
         <span
           style={{
-            margin: '0 48px',
+            margin: '0 56px',
             fontFamily: 'Georgia, serif',
             fontWeight: 200,
-            fontSize: 48,
+            fontSize: 64,
             color: '#475569',
             lineHeight: 1,
           }}
@@ -80,13 +80,13 @@ export const SplashScreen = ({ onDone }) => {
           src={TIPSONS_LOGO_URL}
           alt="Tipsons"
           style={{
-            maxHeight: 160,
+            maxHeight: 220,
             width: 'auto',
             objectFit: 'contain',
           }}
           onError={(e) => {
             e.currentTarget.outerHTML =
-              '<span style="font-family:Georgia,serif;font-weight:700;font-size:40px;color:#0D3B2E;letter-spacing:0.08em;">TIPSONS</span>';
+              '<span style="font-family:Georgia,serif;font-weight:700;font-size:56px;color:#0D3B2E;letter-spacing:0.08em;">TIPSONS</span>';
           }}
         />
       </div>
@@ -115,10 +115,10 @@ export const SplashScreen = ({ onDone }) => {
 
       {/* Tagline */}
       <p
-        className="mt-6"
+        className="mt-8"
         style={{
           color: '#475569',
-          fontSize: '11px',
+          fontSize: '13px',
           letterSpacing: '0.15em',
           fontFamily: 'Georgia, serif',
         }}
