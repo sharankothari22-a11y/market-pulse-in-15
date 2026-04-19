@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Beaver Intelligence — Equity Research</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 10pt;
+    line-height: 1.55;
+    color: #1A1A1A;
+    background: #FFFFFF;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    padding: 14mm 16mm 8mm 16mm;
+    page-break-after: always;
+    background: #FFFFFF;
+    position: relative;
+  }
+  .page:last-child { page-break-after: auto; }
+  @media print { body { background: #FFFFFF; } }
+
+  /* ── MASTHEAD — quiet serif wordmark + gold hairline ── */
+  table.masthead {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 4px;
+  }
+  table.masthead td {
+    padding: 0 0 12px 0;
+    vertical-align: bottom;
+  }
+  .brand-wordmark {
+    font-family: 'Georgia', serif;
+    font-size: 16pt;
+    font-weight: 400;
+    color: #0D3B2E;
+    letter-spacing: 3px;
+  }
+  .brand-wordmark .accent {
+    color: #B89340;
+    letter-spacing: 4px;
+  }
+  .brand-sub {
+    font-family: 'Georgia', serif;
+    font-size: 8pt;
+    font-style: italic;
+    color: #6B6B6B;
+    margin-top: 2px;
+    letter-spacing: 1.5px;
+  }
+  .report-meta {
+    text-align: right;
+    font-family: 'Georgia', serif;
+    font-size: 9pt;
+    color: #3A3A3A;
+  }
+  .report-meta .report-type {
+    font-size: 9pt;
+    font-style: italic;
+    color: #0D3B2E;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .report-meta .analyst {
+    font-size: 8.5pt;
+    color: #6B6B6B;
+    margin-top: 3px;
+  }
+  .masthead-rule {
+    border: 0;
+    border-top: 1.5pt solid #B89340;
+    margin: 0 0 18px 0;
+  }
+
+  /* ── COMPANY STRIP ── */
+  .company-name {
+    font-family: 'Georgia', serif;
+    font-size: 26pt;
+    font-weight: 700;
+    color: #0D3B2E;
+    letter-spacing: -0.5px;
+    line-height: 1.05;
+    margin-bottom: 4px;
+  }
+  .company-meta {
+    font-family: 'Georgia', serif;
+    font-size: 10pt;
+    color: #6B6B6B;
+    font-style: italic;
+    margin-bottom: 16px;
+  }
+  .company-meta .sep { color: #CCCCCC; margin: 0 8px; }
+  .company-meta .ticker { color: #0D3B2E; font-style: normal; font-weight: 600; letter-spacing: 0.5px; }
+
+  /* ── THESIS HEADLINE ── */
+  .thesis {
+    font-family: 'Georgia', serif;
+    font-size: 14pt;
+    font-style: italic;
+    color: #1A1A1A;
+    line-height: 1.4;
+    margin: 14px 0 14px 0;
+    padding: 0 20px 0 20px;
+    border-left: 2pt solid #B89340;
+    font-weight: 400;
+  }
+
+  /* ── RATING LINE — bold serif, no box ── */
+  table.rating-line {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 0.75pt solid #CCCCCC;
+    border-bottom: 0.75pt solid #CCCCCC;
+    margin-bottom: 22px;
+  }
+  table.rating-line td {
+    padding: 12px 0;
+    vertical-align: middle;
+    font-family: 'Georgia', serif;
+  }
+  .rating-label {
+    font-size: 8pt;
+    color: #6B6B6B;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .rating-value {
+    font-size: 18pt;
+    font-weight: 700;
+    color: #0D3B2E;
+    letter-spacing: 2px;
+  }
+  .rating-tp {
+    font-size: 18pt;
+    font-weight: 700;
+    color: #1A1A1A;
+  }
+  .rating-upside {
+    font-size: 13pt;
+    font-weight: 600;
+    color: #0D3B2E;
+  }
+  .rating-upside.negative { color: #7A2028; }
+  .rating-meta {
+    font-size: 9pt;
+    color: #6B6B6B;
+    font-style: italic;
+  }
+
+  /* ── SECTION HEADING ── */
+  .section-heading {
+    font-family: 'Georgia', serif;
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0D3B2E;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin: 16px 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 0.75pt solid #CCCCCC;
+  }
+  .section-heading.first { margin-top: 0; }
+
+  /* ── TWO COL ── */
+  table.two-col {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  table.two-col > tbody > tr > td {
+    vertical-align: top;
+    padding: 0;
+  }
+  table.two-col > tbody > tr > td.col { width: 50%; }
+  table.two-col > tbody > tr > td.col:first-child { padding-right: 16px; }
+  table.two-col > tbody > tr > td.col:last-child { padding-left: 16px; }
+  table.two-col.asymmetric > tbody > tr > td.main { width: 62%; padding-right: 20px; }
+  table.two-col.asymmetric > tbody > tr > td.side { width: 38%; padding-left: 20px; }
+
+  /* ── EXECUTIVE SUMMARY PROSE ── */
+  .exec-prose {
+    font-family: 'Georgia', serif;
+    font-size: 10pt;
+    line-height: 1.6;
+    color: #1A1A1A;
+    text-align: justify;
+  }
+  .exec-prose + .exec-prose { margin-top: 8px; }
+
+  /* ── RATIONALE LIST (numbered, no badges) ── */
+  .rationale {
+    font-family: 'Georgia', serif;
+    font-size: 9.5pt;
+    line-height: 1.5;
+  }
+  .rationale-item {
+    padding: 7px 0 7px 28px;
+    position: relative;
+    border-bottom: 0.5pt solid #E8E8E8;
+  }
+  .rationale-item:last-child { border-bottom: none; }
+  .rationale-item .num {
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 22px;
+    font-family: 'Georgia', serif;
+    font-size: 10pt;
+    font-style: italic;
+    color: #B89340;
+    font-weight: 400;
+  }
+  .rationale-item .label {
+    font-weight: 700;
+    color: #0D3B2E;
+    margin-right: 6px;
+  }
+
+  /* ── KEY STATS (restrained, no boxes) ── */
+  table.stats {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Georgia', serif;
+    font-size: 9.5pt;
+  }
+  table.stats td {
+    padding: 5px 0;
+    border-bottom: 0.5pt solid #E8E8E8;
+  }
+  table.stats td.label {
+    color: #6B6B6B;
+    font-style: italic;
+    padding-right: 10px;
+  }
+  table.stats td.value {
+    text-align: right;
+    color: #1A1A1A;
+    font-weight: 600;
+  }
+
+  /* ── DATA TABLE — minimal rules ── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-family: 'Georgia', serif;
+    font-size: 9pt;
+    margin-top: 4px;
+  }
+  .data-table th {
+    text-align: left;
+    font-weight: 700;
+    font-size: 8pt;
+    color: #0D3B2E;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 6px 8px 6px 0;
+    border-bottom: 1pt solid #0D3B2E;
+    font-family: 'Georgia', serif;
+  }
+  .data-table th.num { text-align: right; padding-right: 0; padding-left: 8px; }
+  .data-table td {
+    padding: 5px 8px 5px 0;
+    border-bottom: 0.5pt solid #E8E8E8;
+    color: #1A1A1A;
+    vertical-align: top;
+  }
+  .data-table td.num {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .data-table td.label-cell {
+    color: #3A3A3A;
+  }
+  .data-table tr.total td {
+    border-top: 0.75pt solid #0D3B2E;
+    border-bottom: 1.5pt double #0D3B2E;
+    font-weight: 700;
+    color: #0D3B2E;
+    padding-top: 7px;
+  }
+  .data-table tr.highlight td {
+    background: #FAFAF8;
+    font-weight: 600;
+  }
+  .data-table td.positive { color: #1F5F2F; }
+  .data-table td.negative { color: #7A2028; }
+  .data-table caption {
+    font-family: 'Georgia', serif;
+    font-size: 8pt;
+    color: #6B6B6B;
+    font-style: italic;
+    text-align: left;
+    padding-top: 6px;
+    caption-side: bottom;
+  }
+
+  /* ── QUADRANTS — quiet, no fills ── */
+  table.quadrants {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  table.quadrants > tbody > tr > td {
+    width: 50%;
+    vertical-align: top;
+    padding: 10px 0;
+  }
+  table.quadrants > tbody > tr > td:first-child { padding-right: 20px; }
+  table.quadrants > tbody > tr > td:last-child { padding-left: 20px; }
+  .q-block { }
+  .q-block .q-head {
+    font-family: 'Georgia', serif;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding-bottom: 4px;
+    border-bottom: 1pt solid #0D3B2E;
+    margin-bottom: 2px;
+  }
+  .q-block.contra .q-head { border-bottom-color: #7A2028; }
+  .q-block .q-sub {
+    font-family: 'Georgia', serif;
+    font-size: 8.5pt;
+    font-style: italic;
+    color: #6B6B6B;
+    margin-bottom: 10px;
+    padding-top: 2px;
+  }
+  .q-block .q-driver {
+    font-family: 'Georgia', serif;
+    font-size: 9pt;
+    line-height: 1.5;
+    padding: 8px 0 8px 22px;
+    position: relative;
+    border-bottom: 0.5pt solid #E8E8E8;
+  }
+  .q-block .q-driver:last-child { border-bottom: none; }
+  .q-block .q-driver .num {
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 18px;
+    font-size: 9pt;
+    font-style: italic;
+    color: #B89340;
+  }
+  .q-block .q-driver .dname {
+    font-weight: 700;
+    color: #0D3B2E;
+    display: inline;
+  }
+  .q-block.contra .q-driver .dname { color: #7A2028; }
+  .q-block .q-driver .ddesc {
+    color: #3A3A3A;
+  }
+
+  /* ── KILL-SWITCH — quiet rule, no fill ── */
+  .killswitch {
+    font-family: 'Georgia', serif;
+    font-size: 9pt;
+    color: #1A1A1A;
+    line-height: 1.5;
+    margin-top: 12px;
+    padding: 10px 0 10px 16px;
+    border-left: 2pt solid #7A2028;
+  }
+  .killswitch .ks-label {
+    font-family: 'Georgia', serif;
+    font-size: 8pt;
+    font-weight: 700;
+    color: #7A2028;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  /* ── AT A GLANCE — single row, thin rules ── */
+  table.glance {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Georgia', serif;
+    margin-top: 6px;
+    border-top: 0.75pt solid #CCCCCC;
+    border-bottom: 0.75pt solid #CCCCCC;
+  }
+  table.glance td {
+    width: 25%;
+    padding: 8px 12px 8px 12px;
+    vertical-align: top;
+    border-right: 0.5pt solid #E8E8E8;
+  }
+  table.glance td:last-child { border-right: none; }
+  .glance-label {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #0D3B2E;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 3px;
+  }
+  .glance-label.contra { color: #7A2028; }
+  .glance-value {
+    font-size: 8pt;
+    color: #6B6B6B;
+    font-style: italic;
+    line-height: 1.4;
+    display: block;
+  }
+
+  /* ── FOOTER + DISCLAIMER ── */
+  .disclaimer {
+    font-family: 'Georgia', serif;
+    font-size: 7pt;
+    color: #6B6B6B;
+    line-height: 1.5;
+    margin-top: 14px;
+    padding-top: 8px;
+    border-top: 0.5pt solid #E8E8E8;
+    text-align: justify;
+  }
+  .disclaimer strong { color: #3A3A3A; font-weight: 700; }
+
+  table.footer-line {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 1.5pt solid #B89340;
+    margin-top: 8px;
+    padding-top: 4px;
+    font-family: 'Georgia', serif;
+    font-size: 8pt;
+    color: #6B6B6B;
+  }
+  table.footer-line td { padding: 4px 0 0 0; }
+  table.footer-line td.fl { text-align: left; }
+  table.footer-line td.fc { text-align: center; font-style: italic; }
+  table.footer-line td.fr { text-align: right; }
+  .foot-brand {
+    font-family: 'Georgia', serif;
+    font-size: 9pt;
+    color: #0D3B2E;
+    letter-spacing: 2px;
+  }
+  .foot-brand .accent { color: #B89340; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ PAGE 1 ═══════════════════════════════ -->
+<div class="page">
+
+  <!-- Masthead -->
+  <table class="masthead">
+    <tr>
+      <td>
+        <div class="brand-wordmark">BEAVER <span class="accent">INTELLIGENCE</span></div>
+        <div class="brand-sub">EQUITY RESEARCH  ·  BOSTON  ·  AHMEDABAD</div>
+      </td>
+      <td class="report-meta">
+        <div class="report-type">[Report Type]</div>
+        <div>[Report Date]</div>
+        <div class="analyst">[Analyst Name], [Credential]  ·  [email]</div>
+      </td>
+    </tr>
+  </table>
+  <hr class="masthead-rule"/>
+
+  <!-- Company name & ticker -->
+  <div class="company-name">[Company Name]</div>
+  <div class="company-meta">
+    <span class="ticker">[BLOOMBERG TICKER]</span>
+    <span class="sep">|</span>
+    <span class="ticker">[NSE: TICKER]</span>
+    <span class="sep">|</span>
+    [Sector] · [Sub-sector]
+  </div>
+
+  <!-- Thesis -->
+  <div class="thesis">
+    [The thesis in one sentence — 10 to 15 words that a PM can remember. What is the view, and what makes it differentiated from consensus?]
+  </div>
+
+  <!-- Rating line -->
+  <table class="rating-line">
+    <tr>
+      <td style="width: 22%;">
+        <span class="rating-label">Rating</span>
+        <span class="rating-value">[BUY]</span>
+      </td>
+      <td style="width: 26%;">
+        <span class="rating-label">Target Price (12M)</span>
+        <span class="rating-tp">₹ [X,XXX]</span>
+      </td>
+      <td style="width: 22%;">
+        <span class="rating-label">Upside</span>
+        <span class="rating-upside">[+XX%]</span>
+      </td>
+      <td style="width: 30%; text-align: right;">
+        <span class="rating-meta">CMP ₹ [X,XXX] as of [Date]</span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Two-col: Executive Summary + Key Stats -->
+  <table class="two-col asymmetric">
+    <tr>
+      <td class="main">
+        <div class="section-heading first">Executive Summary</div>
+        <p class="exec-prose">
+          [Three to four sentences. Open with the rating, target price, and upside. State the central thesis — what is happening in the business or industry that creates the opportunity. Describe your differentiated view versus consensus, and name the specific catalyst that will cause the market to converge on your valuation.]
+        </p>
+        <p class="exec-prose">
+          [Optional second paragraph: brief comment on risk asymmetry, or on what would cause you to change your mind.]
+        </p>
+      </td>
+      <td class="side">
+        <div class="section-heading first">Key Statistics</div>
+        <table class="stats">
+          <tr><td class="label">Market Cap</td><td class="value">₹ [X,XX,XXX] cr</td></tr>
+          <tr><td class="label">52-Week Range</td><td class="value">[X] — [Y]</td></tr>
+          <tr><td class="label">Avg Daily Volume</td><td class="value">₹ [XX] cr</td></tr>
+          <tr><td class="label">Free Float</td><td class="value">[XX]%</td></tr>
+          <tr><td class="label">Promoter Holding</td><td class="value">[XX]%</td></tr>
+          <tr><td class="label">Beta (2Y)</td><td class="value">[X.XX]</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Two-col: Recommendation Rationale + Key Financials -->
+  <table class="two-col">
+    <tr>
+      <td class="col">
+        <div class="section-heading">Recommendation Rationale</div>
+        <div class="rationale">
+          <div class="rationale-item">
+            <span class="num">i.</span>
+            <span class="label">The market believes —</span>
+            [One-line summary of consensus view that you are disagreeing with.]
+          </div>
+          <div class="rationale-item">
+            <span class="num">ii.</span>
+            <span class="label">Our differentiated view —</span>
+            [Where you disagree and why, backed by specific evidence. Not "we are more optimistic."]
+          </div>
+          <div class="rationale-item">
+            <span class="num">iii.</span>
+            <span class="label">What gets us paid —</span>
+            [The specific catalyst that closes the gap between consensus and your view, with rough timing.]
+          </div>
+          <div class="rationale-item">
+            <span class="num">iv.</span>
+            <span class="label">Valuation anchor —</span>
+            [How the ₹[X,XXX] target price was derived — weighted blend, target multiple, core assumption.]
+          </div>
+        </div>
+      </td>
+      <td class="col">
+        <div class="section-heading">Key Financials</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>₹ crore</th>
+              <th class="num">FY23</th>
+              <th class="num">FY24</th>
+              <th class="num">FY25E</th>
+              <th class="num">FY26E</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="label-cell">Revenue</td><td class="num">[X,XXX]</td><td class="num">[X,XXX]</td><td class="num">[X,XXX]</td><td class="num">[X,XXX]</td></tr>
+            <tr><td class="label-cell">EBITDA</td><td class="num">[XXX]</td><td class="num">[XXX]</td><td class="num">[XXX]</td><td class="num">[XXX]</td></tr>
+            <tr><td class="label-cell">EBITDA margin</td><td class="num">[XX.X]%</td><td class="num">[XX.X]%</td><td class="num">[XX.X]%</td><td class="num">[XX.X]%</td></tr>
+            <tr><td class="label-cell">Net profit</td><td class="num">[XXX]</td><td class="num">[XXX]</td><td class="num">[XXX]</td><td class="num">[XXX]</td></tr>
+            <tr><td class="label-cell">EPS (₹)</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td></tr>
+            <tr><td class="label-cell">P/E (x)</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td></tr>
+            <tr><td class="label-cell">ROCE</td><td class="num">[XX.X]%</td><td class="num">[XX.X]%</td><td class="num">[XX.X]%</td><td class="num">[XX.X]%</td></tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Footer -->
+  <table class="footer-line">
+    <tr>
+      <td class="fl"><span class="foot-brand">BEAVER <span class="accent">INTELLIGENCE</span></span></td>
+      <td class="fc">[Company Name] ([Ticker]) · Equity Research</td>
+      <td class="fr">Page 1 of 2</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════ PAGE 2 ═══════════════════════════════ -->
+<div class="page">
+
+  <!-- Framework -->
+  <div class="section-heading first">Investment Framework</div>
+  <p class="exec-prose" style="font-style: italic; color: #3A3A3A;">
+    The first two columns describe structural factors that are already priced into our base-case target. The second two describe scenarios not in our base case — if they materialise, they take the target higher (opportunities) or break the thesis (risks).
+  </p>
+
+  <table class="quadrants">
+    <tr>
+      <td>
+        <div class="q-block">
+          <div class="q-head">Reasons to Invest</div>
+          <div class="q-sub">Structural positives — already in our base-case numbers</div>
+          <div class="q-driver">
+            <span class="num">i.</span>
+            <span class="dname">[Driver 1]</span> — <span class="ddesc">[One sentence. Specific, evidence-led, quantified where possible. E.g., "Studded share has risen 200 bps annually for four years; each 100 bps lifts jewellery EBIT margin by 40 bps."]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">ii.</span>
+            <span class="dname">[Driver 2]</span> — <span class="ddesc">[One sentence. Specific, evidence-led, quantified.]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">iii.</span>
+            <span class="dname">[Driver 3]</span> — <span class="ddesc">[One sentence. Specific, evidence-led, quantified.]</span>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="q-block contra">
+          <div class="q-head">Reasons Not to Invest</div>
+          <div class="q-sub">Structural negatives — already in our base-case numbers</div>
+          <div class="q-driver">
+            <span class="num">i.</span>
+            <span class="dname">[Headwind 1]</span> — <span class="ddesc">[One sentence. The drag, quantified.]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">ii.</span>
+            <span class="dname">[Headwind 2]</span> — <span class="ddesc">[One sentence. The drag, quantified.]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">iii.</span>
+            <span class="dname">Net view</span> — <span class="ddesc">[One sentence explaining why the positives still outweigh — this is what the rating depends on.]</span>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="q-block">
+          <div class="q-head">Opportunities</div>
+          <div class="q-sub">Upside optionality — NOT in base case; if realised, the target price rises</div>
+          <div class="q-driver">
+            <span class="num">i.</span>
+            <span class="dname">[Opportunity 1]</span> — <span class="ddesc">[Scenario · probability · TP impact. E.g., "If US expansion reaches 50 stores by FY30 vs. our 25, adds ₹300 to TP."]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">ii.</span>
+            <span class="dname">[Opportunity 2]</span> — <span class="ddesc">[Scenario · probability · TP impact.]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">iii.</span>
+            <span class="dname">Bull-case target</span> — <span class="ddesc"><strong style="color: #0D3B2E;">₹ [X,XXX]</strong> if the upside optionality plays out in combination.</span>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="q-block contra">
+          <div class="q-head">Risks</div>
+          <div class="q-sub">Downside to thesis — NOT in base case; if realised, the thesis breaks</div>
+          <div class="q-driver">
+            <span class="num">i.</span>
+            <span class="dname">[Risk 1]</span> — <span class="ddesc">[Scenario · probability · TP impact.]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">ii.</span>
+            <span class="dname">[Risk 2]</span> — <span class="ddesc">[Scenario · probability · TP impact.]</span>
+          </div>
+          <div class="q-driver">
+            <span class="num">iii.</span>
+            <span class="dname">Bear-case target</span> — <span class="ddesc"><strong style="color: #7A2028;">₹ [X,XXX]</strong> if the primary risks crystallise.</span>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Kill-switch -->
+  <div class="killswitch">
+    <span class="ks-label">Thesis Kill-Switch</span>
+    [A single, observable data point that — if it materialises — would force us to downgrade the rating. Written in advance so the test is not adjusted after the fact. Example: "Two consecutive quarters of EBITDA margin below [X]%, or same-store growth below [Y]%."]
+  </div>
+
+  <!-- Two col: Valuation + Peers -->
+  <table class="two-col" style="margin-top: 10px;">
+    <tr>
+      <td class="col">
+        <div class="section-heading first">Valuation</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th class="num">Weight</th>
+              <th class="num">Implied (₹)</th>
+              <th class="num">Contribution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="label-cell">DCF (10Y explicit)</td><td class="num">50%</td><td class="num">[X,XXX]</td><td class="num">[X,XXX]</td></tr>
+            <tr><td class="label-cell">Target P/E on FY[YY]E EPS</td><td class="num">35%</td><td class="num">[X,XXX]</td><td class="num">[X,XXX]</td></tr>
+            <tr><td class="label-cell">Sum-of-the-Parts</td><td class="num">15%</td><td class="num">[X,XXX]</td><td class="num">[X,XXX]</td></tr>
+            <tr class="total"><td class="label-cell">Blended target price</td><td class="num">100%</td><td class="num">—</td><td class="num">[X,XXX]</td></tr>
+          </tbody>
+          <caption>DCF: WACC [XX]%, terminal growth [X.X]%. Target P/E: [XXx] on FY[YY]E EPS of ₹[XX].</caption>
+        </table>
+      </td>
+      <td class="col">
+        <div class="section-heading first">Peer Comparison</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th class="num">P/E FY[YY]E</th>
+              <th class="num">EV/EBITDA</th>
+              <th class="num">ROE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight"><td class="label-cell">[Subject]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]%</td></tr>
+            <tr><td class="label-cell">[Peer 1]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]%</td></tr>
+            <tr><td class="label-cell">[Peer 2]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]%</td></tr>
+            <tr><td class="label-cell">[Peer 3]</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]%</td></tr>
+            <tr><td class="label-cell" style="font-style: italic;">Peer average</td><td class="num">[XX.X]</td><td class="num">[XX.X]</td><td class="num">[XX.X]%</td></tr>
+            <tr><td class="label-cell" style="color: #B89340; font-style: italic;">Premium / (discount)</td><td class="num" style="color: #B89340;">[+XX]%</td><td class="num" style="color: #B89340;">[+XX]%</td><td class="num positive">[+XX] bps</td></tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- At a glance -->
+  <div class="section-heading">At a Glance</div>
+  <table class="glance">
+    <tr>
+      <td>
+        <span class="glance-label">Reasons to Invest</span>
+        <span class="glance-value">Already in numbers — drives the base-case target.</span>
+      </td>
+      <td>
+        <span class="glance-label contra">Reasons Not to Invest</span>
+        <span class="glance-value">Already in numbers — the drag we accept.</span>
+      </td>
+      <td>
+        <span class="glance-label">Opportunities</span>
+        <span class="glance-value">Not in numbers — bull-case target.</span>
+      </td>
+      <td>
+        <span class="glance-label contra">Risks</span>
+        <span class="glance-value">Not in numbers — bear-case + kill-switch.</span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <strong>Analyst certification.</strong> [Name, Credential] certifies that views expressed accurately reflect the analyst's personal views; no part of compensation is related to the specific recommendation. <strong>Conflicts.</strong> [Disclose IB / holdings / related-party relationships in past 12 months.] <strong>Regulatory.</strong> Beaver Intelligence is a SEBI-registered Research Analyst (Reg. No. [INH000000000]). For informational purposes only; not an offer to buy or sell securities. Market risks apply. <strong>Rating scale.</strong> BUY (&gt;15%), HOLD (±15%), SELL (&lt;−15%), 12-month horizon. © [Year] Beaver Intelligence.
+  </div>
+
+  <!-- Footer -->
+  <table class="footer-line">
+    <tr>
+      <td class="fl"><span class="foot-brand">BEAVER <span class="accent">INTELLIGENCE</span></span></td>
+      <td class="fc">[Company Name] ([Ticker]) · Equity Research</td>
+      <td class="fr">Page 2 of 2</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>
