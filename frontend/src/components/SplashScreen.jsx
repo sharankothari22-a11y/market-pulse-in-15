@@ -49,12 +49,12 @@ export const SplashScreen = ({ onDone }) => {
         }}
       />
 
-      {/* Beaver logo (centered, 180px) */}
-      <div className="relative flex flex-col items-center">
+      {/* Beaver × Tipsons lockup */}
+      <div className="relative flex flex-row items-center justify-center">
         <div
           style={{
-            width: 200,
-            height: 200,
+            width: 120,
+            height: 120,
             borderRadius: '50%',
             overflow: 'hidden',
             backgroundColor: '#0A1628',
@@ -73,6 +73,32 @@ export const SplashScreen = ({ onDone }) => {
             data-testid="splash-logo"
           />
         </div>
+        <span
+          style={{
+            margin: '0 40px',
+            fontFamily: 'Georgia, serif',
+            fontWeight: 200,
+            fontSize: 32,
+            color: '#8593AB',
+            lineHeight: 1,
+          }}
+          aria-hidden="true"
+        >
+          ×
+        </span>
+        <img
+          src={TIPSONS_LOGO_URL}
+          alt="Tipsons"
+          style={{
+            maxHeight: 100,
+            width: 'auto',
+            objectFit: 'contain',
+          }}
+          onError={(e) => {
+            e.currentTarget.outerHTML =
+              '<span style="font-family:Georgia,serif;font-weight:400;font-size:48px;color:#B89340;letter-spacing:0.08em;">TIPSONS</span>';
+          }}
+        />
       </div>
 
       {/* Progress bar */}
@@ -110,33 +136,6 @@ export const SplashScreen = ({ onDone }) => {
         EQUITY RESEARCH <span style={{ color: '#C9A84C' }}>·</span> DECISION INTELLIGENCE
       </p>
 
-      {/* In partnership with Tipsons */}
-      <div
-        className="absolute bottom-10 flex flex-col items-center"
-        style={{ opacity: 0.85 }}
-      >
-        <p
-          className="font-medium mb-2"
-          style={{
-            color: 'rgba(245, 240, 232, 0.4)',
-            fontSize: '9px',
-            letterSpacing: '0.32em',
-          }}
-        >
-          IN PARTNERSHIP WITH
-        </p>
-        <img
-          src={TIPSONS_LOGO_URL}
-          alt="Tipsons"
-          style={{
-            width: 60,
-            height: 60,
-            objectFit: 'contain',
-            opacity: 0.75,
-            filter: 'brightness(1.1)',
-          }}
-        />
-      </div>
     </div>
   );
 };
