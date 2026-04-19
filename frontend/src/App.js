@@ -37,7 +37,7 @@ function App() {
 
       <div
         className="app-container flex h-screen overflow-hidden"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
+        style={{ backgroundColor: 'var(--bi-bg-page)' }}
         data-testid="app-root"
       >
         {/* Left Sidebar */}
@@ -45,10 +45,10 @@ function App() {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <TopBar currentPage={currentPage} />
+          <TopBar />
           <main
-            className="flex-1 overflow-hidden"
-            style={{ backgroundColor: 'var(--bg-primary)' }}
+            className="flex-1 overflow-auto"
+            style={{ backgroundColor: 'var(--bi-bg-page)', padding: 24 }}
           >
             {renderPage()}
           </main>

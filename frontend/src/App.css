@@ -11,9 +11,8 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Playfair Display', 'Times New Roman', serif;
-  letter-spacing: 0.005em;
-  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  color: var(--bi-text-primary);
 }
 
 .app-container {

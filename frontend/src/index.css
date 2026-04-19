@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:wght@400;500&display=swap');
 
 /* ── DESIGN TOKENS — Cream / Navy / Gold (Beaver Intelligence × Tipsons) ── */
 :root {
@@ -41,6 +41,47 @@
   --radius: 6px;
 }
 
+/* ── NEW DESIGN TOKENS — Beaver Intelligence navy+white (bi-* prefix) ─── */
+:root {
+  /* Neutrals */
+  --bi-bg-page:       #F5F7FA;
+  --bi-bg-card:       #FFFFFF;
+  --bi-bg-subtle:     #EEF1F6;
+  --bi-border-subtle: #E1E6EE;
+  --bi-border-strong: #C9D1DE;
+
+  /* Navy */
+  --bi-navy-900: #0F2540;
+  --bi-navy-700: #1B3A6B;
+  --bi-navy-500: #3760A5;
+  --bi-navy-100: #D9E2F3;
+
+  /* Text */
+  --bi-text-primary:   #0F2540;
+  --bi-text-secondary: #4B5A75;
+  --bi-text-tertiary:  #8593AB;
+  --bi-text-inverse:   #FFFFFF;
+
+  /* Muted icon tiles */
+  --bi-tile-navy-bg:  #D9E2F3; --bi-tile-navy-fg:  #1B3A6B;
+  --bi-tile-sage-bg:  #DCE8DC; --bi-tile-sage-fg:  #2F5D3A;
+  --bi-tile-ochre-bg: #EDE3CF; --bi-tile-ochre-fg: #7A5A1E;
+  --bi-tile-slate-bg: #DDE2E9; --bi-tile-slate-fg: #3B4A63;
+
+  /* Semantic */
+  --bi-success-fg: #0F7A3E; --bi-success-bg: #E3F1E7;
+  --bi-danger-fg:  #C7372F; --bi-danger-bg:  #FBE5E3;
+  --bi-warning-fg: #B87A1E; --bi-warning-bg: #F5EADB;
+
+  /* Shadows */
+  --bi-shadow-card:  0 1px 2px rgba(15, 37, 64, 0.04),
+                     0 2px 8px rgba(15, 37, 64, 0.04);
+  --bi-shadow-hover: 0 2px 4px rgba(15, 37, 64, 0.06),
+                     0 8px 16px rgba(15, 37, 64, 0.08);
+}
+
+.font-serif-display { font-family: 'Source Serif 4', Georgia, serif; }
+
 /* Base */
 body {
   margin: 0;
@@ -53,8 +94,6 @@ body {
 
 code { font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace; }
 
-.font-serif-display { font-family: 'Playfair Display', 'Times New Roman', serif; }
-.font-outfit { font-family: 'Outfit', sans-serif; }
 .font-mono-tight { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: 'tnum' 1; }
 
 /* shadcn HSL variables — light cream with navy/gold accents */
@@ -97,54 +136,63 @@ code { font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', mon
 }
 .gold-pulse-dot { animation: goldPulseDot 2.2s ease-in-out infinite; }
 
+@keyframes biPulseDot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(111, 209, 155, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(111, 209, 155, 0); }
+}
+.bi-pulse-dot { animation: biPulseDot 2.2s ease-in-out infinite; }
+
 @keyframes shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
 }
 
-/* ── Legacy color overrides → cream/navy/gold ──────────────────────── */
-.bg-\[\#ffffff\]       { background-color: var(--bg-card) !important; }
-.bg-white              { background-color: var(--bg-card) !important; color: var(--text-primary); }
-.bg-\[\#f8fafc\]       { background-color: var(--bg-surface) !important; }
-.bg-\[\#f1f5f9\]       { background-color: var(--bg-elev) !important; }
-.hover\:bg-\[\#f8fafc\]:hover { background-color: var(--bg-surface) !important; }
-.hover\:bg-\[\#f1f5f9\]:hover { background-color: rgba(201, 168, 76, 0.08) !important; }
-.hover\:bg-\[\#e5e7eb\]:hover { background-color: rgba(201, 168, 76, 0.08) !important; }
+/* MIGRATION OVERRIDE — remaps legacy hex classes to new BI tokens.
+   Delete the entry for a given page once that page is rewritten
+   with proper token-based classes. */
 
-.text-\[\#0f172a\]     { color: var(--text-primary) !important; }
-.text-\[\#64748b\]     { color: var(--text-muted) !important; }
-.text-\[\#94a3b8\]     { color: rgba(10, 22, 40, 0.45) !important; }
+.bg-\[\#ffffff\]       { background-color: var(--bi-bg-card) !important; }
+.bg-white              { background-color: var(--bi-bg-card) !important; color: var(--bi-text-primary); }
+.bg-\[\#f8fafc\]       { background-color: var(--bi-bg-page) !important; }
+.bg-\[\#f1f5f9\]       { background-color: var(--bi-bg-subtle) !important; }
+.hover\:bg-\[\#f8fafc\]:hover { background-color: var(--bi-bg-page) !important; }
+.hover\:bg-\[\#f1f5f9\]:hover { background-color: var(--bi-bg-subtle) !important; }
+.hover\:bg-\[\#e5e7eb\]:hover { background-color: var(--bi-bg-subtle) !important; }
 
-.border-\[\#e5e7eb\]   { border-color: var(--border-subtle) !important; }
+.text-\[\#0f172a\]     { color: var(--bi-text-primary) !important; }
+.text-\[\#64748b\]     { color: var(--bi-text-secondary) !important; }
+.text-\[\#94a3b8\]     { color: var(--bi-text-tertiary) !important; }
 
-/* Blue → navy/gold remap */
-.text-\[\#2563eb\]              { color: var(--accent-navy) !important; }
-.bg-\[\#2563eb\]                { background-color: var(--accent-navy) !important; color: #F5F0E8 !important; }
-.hover\:bg-\[\#1d4ed8\]:hover   { background-color: var(--accent-blue) !important; }
-.border-\[\#2563eb\]            { border-color: var(--accent-navy) !important; }
-.focus\:ring-\[\#2563eb\]:focus { --tw-ring-color: var(--accent-gold) !important; }
-.bg-\[\#2563eb\]\/10            { background-color: rgba(201, 168, 76, 0.14) !important; color: var(--accent-navy) !important; }
-.bg-\[\#2563eb\]\/5             { background-color: rgba(201, 168, 76, 0.06) !important; }
-.border-\[\#2563eb\]\/20        { border-color: rgba(201, 168, 76, 0.3) !important; }
-.border-\[\#2563eb\]\/30        { border-color: rgba(201, 168, 76, 0.45) !important; }
-.hover\:border-\[\#2563eb\]:hover { border-color: var(--accent-gold) !important; }
-.hover\:text-\[\#2563eb\]:hover { color: var(--accent-navy) !important; }
+.border-\[\#e5e7eb\]   { border-color: var(--bi-border-subtle) !important; }
 
-/* Green / red remap to forest / muted red */
-.text-\[\#16a34a\]     { color: var(--positive) !important; }
-.text-\[\#dc2626\]     { color: var(--negative) !important; }
-.border-\[\#16a34a\]   { border-color: var(--positive) !important; }
-.border-\[\#dc2626\]   { border-color: var(--negative) !important; }
-.bg-\[\#16a34a\]\/10   { background-color: rgba(45, 106, 79, 0.10) !important; }
-.bg-\[\#16a34a\]\/20   { background-color: rgba(45, 106, 79, 0.20) !important; }
-.border-\[\#16a34a\]\/20 { border-color: rgba(45, 106, 79, 0.3) !important; }
-.border-\[\#16a34a\]\/30 { border-color: rgba(45, 106, 79, 0.4) !important; }
-.bg-\[\#dc2626\]\/10   { background-color: rgba(224, 82, 82, 0.10) !important; }
-.bg-\[\#dc2626\]\/20   { background-color: rgba(224, 82, 82, 0.20) !important; }
-.border-\[\#dc2626\]\/20 { border-color: rgba(224, 82, 82, 0.3) !important; }
-.border-\[\#dc2626\]\/30 { border-color: rgba(224, 82, 82, 0.4) !important; }
-.text-\[\#d97706\]     { color: #B5862C !important; }
-.bg-\[\#d97706\]\/10   { background-color: rgba(181, 134, 44, 0.12) !important; }
-.bg-\[\#d97706\]\/5    { background-color: rgba(181, 134, 44, 0.06) !important; }
-.border-\[\#d97706\]\/20 { border-color: rgba(181, 134, 44, 0.3) !important; }
-.border-\[\#d97706\]\/30 { border-color: rgba(181, 134, 44, 0.4) !important; }
+/* Blue → BI navy */
+.text-\[\#2563eb\]              { color: var(--bi-navy-700) !important; }
+.bg-\[\#2563eb\]                { background-color: var(--bi-navy-700) !important; color: var(--bi-text-inverse) !important; }
+.hover\:bg-\[\#1d4ed8\]:hover   { background-color: var(--bi-navy-900) !important; }
+.border-\[\#2563eb\]            { border-color: var(--bi-navy-700) !important; }
+.focus\:ring-\[\#2563eb\]:focus { --tw-ring-color: var(--bi-navy-500) !important; }
+.bg-\[\#2563eb\]\/10            { background-color: var(--bi-navy-100) !important; color: var(--bi-navy-700) !important; }
+.bg-\[\#2563eb\]\/5             { background-color: var(--bi-bg-subtle) !important; }
+.border-\[\#2563eb\]\/20        { border-color: var(--bi-border-strong) !important; }
+.border-\[\#2563eb\]\/30        { border-color: var(--bi-navy-500) !important; }
+.hover\:border-\[\#2563eb\]:hover { border-color: var(--bi-navy-700) !important; }
+.hover\:text-\[\#2563eb\]:hover { color: var(--bi-navy-700) !important; }
+
+/* Green / red → BI semantic */
+.text-\[\#16a34a\]     { color: var(--bi-success-fg) !important; }
+.text-\[\#dc2626\]     { color: var(--bi-danger-fg) !important; }
+.border-\[\#16a34a\]   { border-color: var(--bi-success-fg) !important; }
+.border-\[\#dc2626\]   { border-color: var(--bi-danger-fg) !important; }
+.bg-\[\#16a34a\]\/10   { background-color: var(--bi-success-bg) !important; }
+.bg-\[\#16a34a\]\/20   { background-color: var(--bi-success-bg) !important; }
+.border-\[\#16a34a\]\/20 { border-color: var(--bi-success-fg) !important; }
+.border-\[\#16a34a\]\/30 { border-color: var(--bi-success-fg) !important; }
+.bg-\[\#dc2626\]\/10   { background-color: var(--bi-danger-bg) !important; }
+.bg-\[\#dc2626\]\/20   { background-color: var(--bi-danger-bg) !important; }
+.border-\[\#dc2626\]\/20 { border-color: var(--bi-danger-fg) !important; }
+.border-\[\#dc2626\]\/30 { border-color: var(--bi-danger-fg) !important; }
+.text-\[\#d97706\]     { color: var(--bi-warning-fg) !important; }
+.bg-\[\#d97706\]\/10   { background-color: var(--bi-warning-bg) !important; }
+.bg-\[\#d97706\]\/5    { background-color: var(--bi-warning-bg) !important; }
+.border-\[\#d97706\]\/20 { border-color: var(--bi-warning-fg) !important; }
+.border-\[\#d97706\]\/30 { border-color: var(--bi-warning-fg) !important; }
