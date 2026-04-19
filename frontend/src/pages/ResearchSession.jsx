@@ -119,6 +119,7 @@ export const ResearchSession = ({ onSessionChange }) => {
   const [dcfData, setDcfData] = useState(null);
   const [dcfLoading, setDcfLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
+  const [xlsmState, setXlsmState] = useState('idle'); // idle | running | error
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -378,6 +379,53 @@ export const ResearchSession = ({ onSessionChange }) => {
         setDcfData(data.dcf_output);
       }
     } catch (e) { console.error(e); }
+  };
+
+  const downloadDcfExcel = async () => {
+    const sid = researchData?.session_id || sessionId;
+    const tk = researchData?.ticker || ticker;
+    if (!isValidSessionId(sid) || !tk) return;
+
+    const triggerDownload = (url) => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    setXlsmState('running');
+    try {
+      const initial = await apiGet(`/api/research/${sid}/dcf/status`);
+      if (initial.status === 'complete' && initial.download_url) {
+        triggerDownload(initial.download_url);
+        setXlsmState('idle');
+        return;
+      }
+
+      if (initial.status !== 'running') {
+        await apiPost(`/api/research/${sid}/dcf/run`, { ticker: tk });
+      }
+
+      const deadline = Date.now() + 10 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const s = await apiGet(`/api/research/${sid}/dcf/status`);
+        if (s.status === 'complete' && s.download_url) {
+          triggerDownload(s.download_url);
+          setXlsmState('idle');
+          return;
+        }
+        if (s.status === 'error' || s.status === 'failed') {
+          throw new Error(s.error || 'DCF run failed');
+        }
+      }
+      throw new Error('Timed out waiting for DCF');
+    } catch (e) {
+      console.error('DCF xlsm download error:', e);
+      setXlsmState('error');
+    }
   };
 
   const downloadReport = async () => {
@@ -793,6 +841,18 @@ export const ResearchSession = ({ onSessionChange }) => {
 >
   📊 Excel
 </button>
+                    <button
+                      onClick={downloadDcfExcel}
+                      disabled={xlsmState === 'running'}
+                      className="flex items-center gap-1 bg-[#0f766e] hover:bg-[#115e59] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg"
+                    >
+                      {xlsmState === 'running' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                      {xlsmState === 'running'
+                        ? 'Generating…'
+                        : xlsmState === 'error'
+                        ? 'Failed — Retry'
+                        : 'Download DCF Excel'}
+                    </button>
                     <button onClick={refreshDCF} className="text-xs bg-[#f1f5f9] text-[#64748b] px-2 py-1.5 rounded-lg">↻</button>
                     <button onClick={downloadReport} disabled={reportLoading} className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
                       {reportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : '📄'}
