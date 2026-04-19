@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
 import { Loader2, Search, BarChart2 } from 'lucide-react';
+import { validateTicker } from '@/lib/ticker';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, ReferenceLine,
@@ -123,12 +124,26 @@ const SectionHeading = ({ children, right }) => (
 // ─── Hero: ticker input ─────────────────────────────────────────────────────
 const TickerHero = ({ onAnalyze }) => {
   const [value, setValue] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+  const errorTimerRef = useRef(null);
   const suggestions = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'BHARTIARTL'];
 
+  const flashError = (msg) => {
+    setErrorMsg(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setErrorMsg(''), 4000);
+  };
+
   const submit = (t) => {
-    const cleaned = (t ?? value).trim().toUpperCase();
-    if (!cleaned) return;
-    onAnalyze?.(cleaned);
+    const raw = t ?? value;
+    const { ok, value: cleaned, error } = validateTicker(raw);
+    if (!ok) { flashError(error); return; }
+    setErrorMsg('');
+    setAnalyzing(true);
+    try { onAnalyze?.(cleaned); } finally {
+      setTimeout(() => setAnalyzing(false), 600);
+    }
   };
 
   return (
@@ -180,19 +195,35 @@ const TickerHero = ({ onAnalyze }) => {
         </div>
         <button
           onClick={() => submit()}
-          disabled={!value.trim()}
+          disabled={!value.trim() || analyzing}
           style={{
             height: 56, padding: '0 24px',
             borderRadius: 8,
             backgroundColor: 'var(--bi-navy-700)',
             color: 'var(--bi-text-inverse)',
             fontSize: 16, fontWeight: 600,
-            opacity: value.trim() ? 1 : 0.5,
+            opacity: value.trim() && !analyzing ? 1 : 0.5,
+            cursor: analyzing ? 'not-allowed' : 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
           }}
           data-testid="home-analyze-btn"
         >
-          Analyze
+          {analyzing && <Loader2 size={16} className="animate-spin" />}
+          {analyzing ? 'Analyzing…' : 'Analyze'}
         </button>
+      </div>
+
+      <div
+        aria-live="polite"
+        style={{
+          minHeight: 18, marginTop: 8,
+          fontSize: 13, color: '#DC2626',
+          opacity: errorMsg ? 1 : 0,
+          transition: 'opacity 400ms ease-out',
+        }}
+        data-testid="home-ticker-error"
+      >
+        {errorMsg || ' '}
       </div>
 
       <div className="flex items-center justify-center flex-wrap gap-2" style={{ marginTop: 16 }}>

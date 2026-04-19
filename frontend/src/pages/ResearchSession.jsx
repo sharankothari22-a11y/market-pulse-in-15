@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { validateTicker } from '@/lib/ticker';
 import {
   Search, Loader2, Plus, X, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
@@ -678,6 +679,14 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
+  const [tickerError, setTickerError] = useState('');
+  const tickerErrorTimerRef = useRef(null);
+
+  const flashTickerError = (msg) => {
+    setTickerError(msg);
+    if (tickerErrorTimerRef.current) clearTimeout(tickerErrorTimerRef.current);
+    tickerErrorTimerRef.current = setTimeout(() => setTickerError(''), 4000);
+  };
 
   // New-session modal (optional; Analyze works without it)
   const [showNewModal, setShowNewModal] = useState(false);
@@ -738,8 +747,9 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
   const handleAnalyze = async (overrideTicker) => {
     const raw = typeof overrideTicker === 'string' ? overrideTicker : ticker;
-    const t = String(raw ?? '').trim().toUpperCase();
-    if (!t) return;
+    const { ok, value: t, error: vErr } = validateTicker(raw);
+    if (!ok) { flashTickerError(vErr); return; }
+    setTickerError('');
     if (overrideTicker) setTicker(t);
     try {
       setAnalyzing(true);
@@ -960,7 +970,8 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       )}
 
       {/* Ticker input */}
-      <section className="flex items-center gap-3 mb-4" data-testid="ticker-input-section">
+      <section className="mb-4" data-testid="ticker-input-section">
+      <div className="flex items-center gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748b]" />
           <input
@@ -989,6 +1000,19 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
         >
           <Plus className="w-4 h-4" />
         </button>
+      </div>
+      <div
+        aria-live="polite"
+        style={{
+          minHeight: 18, marginTop: 6,
+          fontSize: 13, color: '#DC2626',
+          opacity: tickerError ? 1 : 0,
+          transition: 'opacity 400ms ease-out',
+        }}
+        data-testid="ticker-input-error"
+      >
+        {tickerError || ' '}
+      </div>
       </section>
 
       {sessions.length > 0 && (() => {
