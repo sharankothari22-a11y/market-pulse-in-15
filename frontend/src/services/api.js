@@ -31,7 +31,7 @@ export const API_ENDPOINTS = {
   sessions: '/api/sessions',
 
   // Chat
-  chat: '/api/chat',
+  chat: '/api/chat/message',
 
   // Reports
   reportMarket: '/api/reports/market',

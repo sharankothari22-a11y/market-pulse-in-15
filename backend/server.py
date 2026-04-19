@@ -2309,6 +2309,52 @@ async def chat(request: Request):
         logger.warning(f"chat failed: {e}")
         return {"reply": "Chat temporarily unavailable."}
 
+
+BEAVER_CHAT_SYSTEM_PROMPT = (
+    "You are Beaver AI, an equity research assistant focused on Indian "
+    "markets (NSE and BSE). You help users understand stocks, DCF valuation, "
+    "scenarios, and macro factors. Keep responses concise and professional "
+    "— 2-3 short paragraphs max. If asked about a specific stock, give "
+    "genuinely useful analytical context. If asked something off-topic, "
+    "politely redirect to equity research questions."
+)
+
+
+@api_router.post("/chat/message")
+async def chat_message(request: Request):
+    """Beaver AI chat — Claude Sonnet, Indian-equities-focused assistant."""
+    from fastapi.responses import JSONResponse
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    message = (body.get("message") or "").strip()
+    if not message:
+        return JSONResponse(status_code=400, content={"error": "message is required"})
+    if not ANTHROPIC_KEY:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Chat service not configured"},
+        )
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+        resp = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=500,
+            system=BEAVER_CHAT_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": message}],
+        )
+        text = "".join(b.text for b in resp.content if hasattr(b, "text"))
+        return {"response": text or "No response."}
+    except Exception as e:
+        logger.error(f"chat_message failed: {e}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Couldn't get a response, try again"},
+        )
+
+
 # =====================================================================
 # MOUNT ROUTER — LAST, ALWAYS
 # =====================================================================

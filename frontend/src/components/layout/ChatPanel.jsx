@@ -11,6 +11,7 @@ export const ChatPanel = ({ sessionId }) => {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const messagesEndRef = useRef(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -22,6 +23,7 @@ export const ChatPanel = ({ sessionId }) => {
     const userInput = input;
     setInput('');
     setIsTyping(true);
+    setErrorMsg('');
     try {
       const requestBody = { message: userInput };
       if (sessionId) requestBody.session_id = sessionId;
@@ -31,7 +33,7 @@ export const ChatPanel = ({ sessionId }) => {
       setMessages((prev) => [...prev, { id: Date.now() + 1, type: 'ai', text: responseText }]);
     } catch (error) {
       console.error('Chat API error:', error);
-      setMessages((prev) => [...prev, { id: Date.now() + 1, type: 'ai', text: 'Sorry, I encountered an error processing your request. Please try again.' }]);
+      setErrorMsg("Couldn't get a response, try again");
     } finally {
       setIsTyping(false);
     }
@@ -127,6 +129,14 @@ export const ChatPanel = ({ sessionId }) => {
 
       {/* Input */}
       <div className="p-3" style={{ borderTop: '1px solid var(--bi-border-subtle)' }}>
+        {errorMsg && (
+          <div
+            style={{ fontSize: 12, color: '#DC2626', marginBottom: 6 }}
+            data-testid="chat-error"
+          >
+            {errorMsg}
+          </div>
+        )}
         <div className="flex gap-2 items-center">
           <input
             type="text"
