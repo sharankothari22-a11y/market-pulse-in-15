@@ -29,6 +29,7 @@ from __future__ import annotations
 import os
 import sys
 import json
+import re
 import logging
 import asyncio
 import traceback
@@ -1866,6 +1867,386 @@ def _indian_format(n, digits=0):
         return "—"
 
 
+_yf_cache = {}
+_YF_CACHE_TTL = 600
+
+PEER_MAP = {
+    "IT":              ["INFY", "WIPRO", "HCLTECH"],
+    "TECHNOLOGY":      ["INFY", "WIPRO", "HCLTECH"],
+    "SOFTWARE":        ["INFY", "WIPRO", "HCLTECH"],
+    "BANKING":         ["HDFCBANK", "ICICIBANK", "AXISBANK"],
+    "BANKS":           ["HDFCBANK", "ICICIBANK", "AXISBANK"],
+    "FINANCIAL":       ["HDFCBANK", "ICICIBANK", "AXISBANK"],
+    "PHARMA":          ["SUNPHARMA", "CIPLA", "DRREDDY"],
+    "PHARMACEUTICALS": ["SUNPHARMA", "CIPLA", "DRREDDY"],
+    "HEALTHCARE":      ["SUNPHARMA", "CIPLA", "DRREDDY"],
+    "ENERGY":          ["RELIANCE", "ONGC", "IOC"],
+    "OIL":             ["RELIANCE", "ONGC", "IOC"],
+    "FMCG":            ["HINDUNILVR", "NESTLEIND", "ITC"],
+    "CONSUMER":        ["HINDUNILVR", "NESTLEIND", "ITC"],
+    "DEFAULT":         ["RELIANCE", "TCS", "INFY"],
+}
+
+
+def _yf_info(ticker: str) -> dict:
+    """Cached yfinance lookup; 10-min TTL. Returns {} on failure."""
+    import time as _time
+    now = _time.time()
+    cached = _yf_cache.get(ticker)
+    if cached and now - cached[0] < _YF_CACHE_TTL:
+        return cached[1]
+    info = {}
+    try:
+        import yfinance as yf
+        info = yf.Ticker(f"{ticker}.NS").info or {}
+    except Exception as e:
+        logger.warning(f"yfinance fetch failed for {ticker}: {e}")
+    _yf_cache[ticker] = (now, info)
+    return info
+
+
+def _read_rp_session_file(rp_ses, filename: str) -> dict:
+    """Read a JSON file from an RP session's directory. Returns {} on any failure."""
+    if rp_ses is None:
+        return {}
+    try:
+        sdir = (getattr(rp_ses, "session_dir", None)
+                or getattr(rp_ses, "path", None)
+                or getattr(rp_ses, "dir", None))
+        if sdir is None:
+            return {}
+        fp = Path(sdir) / filename
+        if not fp.exists():
+            return {}
+        import json as _json
+        return _json.loads(fp.read_text(encoding="utf-8")) or {}
+    except Exception as e:
+        logger.debug(f"read_rp_session_file({filename}): {e}")
+        return {}
+
+
+async def build_report_context(session_id: str, ticker: str, session: dict) -> dict:
+    """
+    Gather report context from tiered sources. Never raises.
+    Returns dict; missing fields are None.
+    """
+    ctx = {
+        "thesis_line": None,
+        "rationale_our_view": None,
+        "rationale_catalyst": None,
+        "rationale_valuation": None,
+        "bull_case_tp": None,
+        "bear_case_tp": None,
+        "val_caption": None,
+        "company_name": None,
+        "sector": None,
+        "cmp": None,
+        "cmp_date": None,
+        "market_cap_cr": None,
+        "week52_high": None,
+        "week52_low": None,
+        "avg_volume_cr": None,
+        "free_float_pct": None,
+        "beta": None,
+        "peers": [],
+        "exec_summary": None,
+    }
+    tiers = {"tier1": False, "tier2": False, "tier3": False,
+             "tier4": False, "tier5": False, "tier6": False}
+
+    # ── TIER 1: research_platform session files ───────────────────────
+    rp_ses = None
+    try:
+        rp_ses = _find_rp_session(session_id) or _find_rp_session_by_ticker(ticker)
+    except Exception:
+        pass
+    if rp_ses is not None:
+        try:
+            meta = _read_rp_session_file(rp_ses, "session_meta.json")
+            if isinstance(meta, dict):
+                if meta.get("thesis"):
+                    ctx["thesis_line"] = str(meta["thesis"]).strip()
+                if meta.get("variant_view"):
+                    ctx["rationale_our_view"] = str(meta["variant_view"]).strip()
+                cats = meta.get("catalysts") or []
+                if isinstance(cats, list) and cats:
+                    first = cats[0]
+                    desc = first.get("description") if isinstance(first, dict) else str(first)
+                    if desc:
+                        ctx["rationale_catalyst"] = str(desc).strip()
+            scen = _read_rp_session_file(rp_ses, "scenarios.json")
+            scen_data = scen.get("scenarios") if isinstance(scen, dict) else None
+            scen_data = scen_data or (scen if isinstance(scen, dict) else {})
+            base = scen_data.get("base") or {}
+            bull = scen_data.get("bull") or {}
+            bear = scen_data.get("bear") or {}
+            if isinstance(base, dict) and base.get("key_assumption"):
+                ctx["rationale_valuation"] = str(base["key_assumption"]).strip()
+            ctx["bull_case_tp"] = (bull.get("price_per_share") or bull.get("per_share")
+                                   if isinstance(bull, dict) else None)
+            ctx["bear_case_tp"] = (bear.get("price_per_share") or bear.get("per_share")
+                                   if isinstance(bear, dict) else None)
+            assump = _read_rp_session_file(rp_ses, "assumptions.json")
+            if isinstance(assump, dict):
+                wacc = assump.get("wacc")
+                tg = assump.get("terminal_growth_rate") or assump.get("terminal_growth")
+                if wacc is not None and tg is not None:
+                    try:
+                        ctx["val_caption"] = (
+                            f"WACC {float(wacc)*100:.1f}%, "
+                            f"terminal growth {float(tg)*100:.1f}%"
+                        )
+                    except Exception:
+                        pass
+            tiers["tier1"] = any([ctx["thesis_line"], ctx["rationale_our_view"],
+                                  ctx["rationale_catalyst"], ctx["rationale_valuation"],
+                                  ctx["bull_case_tp"], ctx["bear_case_tp"]])
+        except Exception as e:
+            logger.warning(f"tier1 report data failed for {ticker}: {e}")
+
+    # ── TIER 2: MongoDB company + price_history ───────────────────────
+    try:
+        db = _get_db()
+        if db is not None:
+            try:
+                company = await db["company"].find_one({"ticker": ticker})
+                if company:
+                    ctx["company_name"] = company.get("name") or ctx["company_name"]
+                    ctx["sector"] = (company.get("sector_mapped")
+                                     or company.get("sector") or ctx["sector"])
+                    tiers["tier2"] = True
+            except Exception as e:
+                logger.debug(f"company lookup failed: {e}")
+            try:
+                ph = await db["price_history"].find_one(
+                    {"ticker": ticker}, sort=[("date", -1)]
+                )
+                if ph:
+                    ctx["cmp"] = ph.get("close") or ctx["cmp"]
+                    d = ph.get("date")
+                    if d is not None:
+                        if isinstance(d, datetime):
+                            ctx["cmp_date"] = d.strftime("%d %b %Y")
+                        else:
+                            ctx["cmp_date"] = str(d)
+                    tiers["tier2"] = True
+            except Exception as e:
+                logger.debug(f"price_history lookup failed: {e}")
+    except Exception as e:
+        logger.warning(f"tier2 report data failed for {ticker}: {e}")
+
+    # ── TIER 3: yfinance ──────────────────────────────────────────────
+    try:
+        info = _yf_info(ticker)
+        if info:
+            mc = info.get("marketCap")
+            if mc:
+                try: ctx["market_cap_cr"] = float(mc) / 1e7
+                except Exception: pass
+            ctx["week52_high"] = info.get("fiftyTwoWeekHigh") or ctx["week52_high"]
+            ctx["week52_low"] = info.get("fiftyTwoWeekLow") or ctx["week52_low"]
+            av = info.get("averageDailyVolume10Day")
+            if av:
+                try:
+                    price_for_vol = info.get("currentPrice") or info.get("regularMarketPrice") or ctx["cmp"] or 0
+                    if price_for_vol:
+                        ctx["avg_volume_cr"] = float(av) * float(price_for_vol) / 1e7
+                except Exception: pass
+            fl = info.get("floatShares")
+            so = info.get("sharesOutstanding")
+            if fl and so:
+                try: ctx["free_float_pct"] = float(fl) / float(so) * 100
+                except Exception: pass
+            if info.get("beta") is not None:
+                ctx["beta"] = info["beta"]
+            if ctx["cmp"] is None:
+                ctx["cmp"] = info.get("currentPrice") or info.get("regularMarketPrice")
+            tiers["tier3"] = any([mc, ctx["week52_high"], ctx["week52_low"], av, ctx["beta"]])
+    except Exception as e:
+        logger.warning(f"tier3 report data failed for {ticker}: {e}")
+
+    # ── TIER 4: summary.md exec summary ───────────────────────────────
+    try:
+        if rp_ses is not None:
+            sdir = (getattr(rp_ses, "session_dir", None)
+                    or getattr(rp_ses, "path", None)
+                    or getattr(rp_ses, "dir", None))
+            if sdir:
+                sfp = Path(sdir) / "summary.md"
+                if sfp.exists():
+                    txt = sfp.read_text(encoding="utf-8").strip()
+                    if txt:
+                        para = txt.split("\n\n")[0].strip()
+                        ctx["exec_summary"] = para
+                        tiers["tier4"] = True
+    except Exception as e:
+        logger.debug(f"tier4 summary.md read failed: {e}")
+    if not ctx["exec_summary"]:
+        ctx["exec_summary"] = "Detailed analysis available in the Excel model download."
+
+    # ── Peers ─────────────────────────────────────────────────────────
+    try:
+        sec = (ctx["sector"] or session.get("sector") or "").upper()
+        peer_key = None
+        for k in PEER_MAP:
+            if k != "DEFAULT" and k in sec:
+                peer_key = k
+                break
+        peers = PEER_MAP.get(peer_key) if peer_key else PEER_MAP["DEFAULT"]
+        ctx["peers"] = [p for p in peers if p.upper() != ticker.upper()][:3]
+    except Exception:
+        pass
+
+    ctx["_tiers"] = tiers
+    logger.info(
+        f"Report data for {ticker}: "
+        f"session={tiers['tier1']}, db={tiers['tier2']}, "
+        f"yf={tiers['tier3']}, llm={tiers['tier4']}, "
+        f"swot={tiers['tier5']}, financials={tiers['tier6']}"
+    )
+    return ctx
+
+
+_report_llm_cache: dict = {}
+
+_REPORT_EMPTY_CONTENT = {
+    "thesis": "", "exec_summary": "",
+    "rationale_consensus": "", "rationale_our_view": "",
+    "rationale_catalyst": "", "rationale_valuation": "",
+    "driver_1_name": "", "driver_1_desc": "",
+    "driver_2_name": "", "driver_2_desc": "",
+    "driver_3_name": "", "driver_3_desc": "",
+    "headwind_1_name": "", "headwind_1_desc": "",
+    "headwind_2_name": "", "headwind_2_desc": "",
+    "net_view": "",
+    "opp_1_name": "", "opp_1_desc": "",
+    "opp_2_name": "", "opp_2_desc": "",
+    "risk_1_name": "", "risk_1_desc": "",
+    "risk_2_name": "", "risk_2_desc": "",
+    "kill_switch": "",
+}
+
+
+def generate_report_commentary(session_id: str, ticker: str, sector: str,
+                               ctx: dict, session: dict) -> dict:
+    """
+    Use Claude to generate institutional report commentary from real DCF data.
+    Cached per session_id. Never raises — returns empty-string dict on failure.
+    """
+    if session_id in _report_llm_cache:
+        return _report_llm_cache[session_id]
+
+    if not ANTHROPIC_KEY:
+        logger.warning("[report-llm] ANTHROPIC_API_KEY missing; skipping LLM commentary")
+        return dict(_REPORT_EMPTY_CONTENT)
+
+    # Assemble real numbers from whatever tiers landed
+    base_price = None
+    scen = session.get("scenarios") or {}
+    if isinstance(scen, dict):
+        base = scen.get("base") or {}
+        if isinstance(base, dict):
+            base_price = base.get("price_per_share") or base.get("per_share")
+    if base_price is None:
+        base_price = (session.get("dcf") or {}).get("fair_value")
+
+    rating = None
+    try:
+        rating = ((scen.get("base") or {}).get("rating")
+                  or (session.get("scoring") or {}).get("recommendation"))
+    except Exception:
+        pass
+
+    upside = None
+    try:
+        upside = (scen.get("base") or {}).get("upside_pct")
+    except Exception:
+        pass
+
+    wacc = (session.get("assumptions") or {}).get("wacc")
+    tg = ((session.get("assumptions") or {}).get("terminal_growth_rate")
+          or (session.get("assumptions") or {}).get("terminal_growth"))
+    current_price = ctx.get("cmp") or session.get("current_price")
+
+    def _fmt(v, pct=False, d=1):
+        if v is None:
+            return "n/a"
+        try:
+            if pct:
+                return f"{float(v)*100:.{d}f}%"
+            return f"{float(v):.0f}"
+        except Exception:
+            return "n/a"
+
+    prompt = f"""You are writing an institutional equity research report for {ticker} ({sector or 'Indian equities'} sector). Here is the DCF output from our quantitative model:
+
+- Base case target price: ₹{_fmt(base_price)}
+- Bull case target: ₹{_fmt(ctx.get('bull_case_tp'))}
+- Bear case target: ₹{_fmt(ctx.get('bear_case_tp'))}
+- Current market price: ₹{_fmt(current_price)}
+- Upside: {_fmt(upside, d=1) if upside is not None else 'n/a'}%
+- Rating: {rating or 'n/a'}
+- WACC used: {_fmt(wacc, pct=True)}
+- Terminal growth: {_fmt(tg, pct=True)}
+
+Generate the following report sections as a JSON object. Be specific, data-grounded, and institutional in tone. 50-80 words per section max.
+
+{{
+  "thesis": "10-15 word thesis line. What's the differentiated view?",
+  "exec_summary": "3-sentence executive summary. Open with rating+target, explain thesis, name the catalyst.",
+  "rationale_consensus": "1 sentence describing what consensus believes.",
+  "rationale_our_view": "1 sentence describing our differentiated view.",
+  "rationale_catalyst": "1 sentence describing the catalyst.",
+  "rationale_valuation": "1 sentence on valuation anchor.",
+  "driver_1_name": "3-4 word name of positive driver",
+  "driver_1_desc": "1-sentence quantified driver description.",
+  "driver_2_name": "3-4 word name",
+  "driver_2_desc": "1-sentence driver description.",
+  "driver_3_name": "3-4 word name",
+  "driver_3_desc": "1-sentence driver description.",
+  "headwind_1_name": "3-4 word name",
+  "headwind_1_desc": "1-sentence headwind description.",
+  "headwind_2_name": "3-4 word name",
+  "headwind_2_desc": "1-sentence headwind description.",
+  "net_view": "1-sentence net view for why positives outweigh.",
+  "opp_1_name": "3-4 word upside optionality",
+  "opp_1_desc": "1 sentence with probability and TP impact.",
+  "opp_2_name": "3-4 word upside optionality",
+  "opp_2_desc": "1 sentence with probability and TP impact.",
+  "risk_1_name": "3-4 word downside risk",
+  "risk_1_desc": "1 sentence with probability and TP impact.",
+  "risk_2_name": "3-4 word downside risk",
+  "risk_2_desc": "1 sentence with probability and TP impact.",
+  "kill_switch": "1 sentence with specific observable data point."
+}}
+
+Return ONLY the JSON object, no markdown, no commentary."""
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_KEY, timeout=15.0)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = resp.content[0].text.strip()
+        # Strip possible ```json fences
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.DOTALL)
+        data = json.loads(text)
+        out = dict(_REPORT_EMPTY_CONTENT)
+        for k in out:
+            if k in data and isinstance(data[k], str):
+                out[k] = data[k].strip()
+        _report_llm_cache[session_id] = out
+        logger.info(f"[report-llm] generated commentary for {ticker} ({session_id})")
+        return out
+    except Exception as e:
+        logger.warning(f"[report-llm] generation failed for {ticker}: {e}")
+        return dict(_REPORT_EMPTY_CONTENT)
+
+
 @api_router.get("/research/{session_id}/report/download")
 async def report_download_html(session_id: str):
     """
@@ -1874,6 +2255,7 @@ async def report_download_html(session_id: str):
     Missing fields render as "—"; never returns 500.
     """
     from fastapi.responses import HTMLResponse, Response
+    from html import escape as _html_escape
     import re
 
     # ─── Template-based report ────────────────────────────────────────────
@@ -1886,8 +2268,19 @@ async def report_download_html(session_id: str):
             long_name = meta.get("long_name") or session.get("long_name") or ticker
             sector = session.get("sector") or meta.get("sector") or "—"
 
+            try:
+                ctx = await build_report_context(session_id, ticker, session)
+            except Exception as _e:
+                logger.warning(f"[report] build_report_context failed: {_e}")
+                ctx = {}
+            if ctx.get("company_name"):
+                long_name = ctx["company_name"]
+            if ctx.get("sector") and ctx["sector"] != "—":
+                sector = ctx["sector"]
+
             current_price = (
-                session.get("current_price")
+                ctx.get("cmp")
+                or session.get("current_price")
                 or session.get("price")
                 or (session.get("dcf") or {}).get("current_price")
             )
@@ -1899,7 +2292,9 @@ async def report_download_html(session_id: str):
             base = scenarios.get("base") if isinstance(scenarios, dict) else None
             target = (base or {}).get("per_share") if base else dcf.get("fair_value")
             upside = (base or {}).get("upside_pct") if base else dcf.get("upside_pct")
-            rating = ((base or {}).get("rating") or scoring.get("recommendation") or "—")
+            rating = ((base or {}).get("rating") or scoring.get("recommendation") or "HOLD")
+            if not rating or str(rating).strip() in ("", "—"):
+                rating = "HOLD"
 
             market_cap_cr = None
             mc_raw = meta.get("market_cap") or session.get("market_cap") or dcf.get("equity_value")
@@ -1909,7 +2304,9 @@ async def report_download_html(session_id: str):
                 except Exception:
                     market_cap_cr = None
 
-            beta = (session.get("assumptions") or {}).get("beta") or meta.get("beta")
+            beta = (session.get("assumptions") or {}).get("beta") or meta.get("beta") or ctx.get("beta")
+            if ctx.get("market_cap_cr"):
+                market_cap_cr = ctx["market_cap_cr"]
 
             now = datetime.now()
             report_date = now.strftime("%d %b %Y")
@@ -1961,18 +2358,241 @@ async def report_download_html(session_id: str):
                 ('<td class="value">[X.XX]</td>', f'<td class="value">{beta_str}</td>'),
                 ("[INH000000000]", "INH300009999"),
                 ("[Year]", year),
-                ("[Peer 1]", "Peer 1"),
-                ("[Peer 2]", "Peer 2"),
-                ("[Peer 3]", "Peer 3"),
                 ("[YY]", "25"),
             ]
+
+            # 52-week range, avg volume, free float from ctx (yfinance tier)
+            wk_hi = ctx.get("week52_high")
+            wk_lo = ctx.get("week52_low")
+            if wk_hi is not None and wk_lo is not None:
+                try:
+                    range_str = f"₹ {_indian_format(wk_lo, 0)} — ₹ {_indian_format(wk_hi, 0)}"
+                    replacements.append(('<td class="value">[X] — [Y]</td>',
+                                         f'<td class="value">{range_str}</td>'))
+                except Exception:
+                    pass
+            if ctx.get("avg_volume_cr") is not None:
+                try:
+                    replacements.append(('<td class="value">₹ [XX] cr</td>',
+                                         f'<td class="value">₹ {_indian_format(ctx["avg_volume_cr"], 0)} cr</td>'))
+                except Exception:
+                    pass
+            if ctx.get("free_float_pct") is not None:
+                try:
+                    replacements.append(('<td class="value">[XX]%</td>',
+                                         f'<td class="value">{ctx["free_float_pct"]:.0f}%</td>'))
+                except Exception:
+                    pass
+
+            # Peers
+            peers = ctx.get("peers") or []
+            for i, slot in enumerate(["[Peer 1]", "[Peer 2]", "[Peer 3]"]):
+                replacements.append((slot, peers[i] if i < len(peers) else "—"))
+
+            # Bull / bear TPs
+            if ctx.get("bull_case_tp") is not None:
+                try:
+                    replacements.append(('<strong style="color: #0D3B2E;">₹ [X,XXX]</strong>',
+                                         f'<strong style="color: #0D3B2E;">₹ {_indian_format(ctx["bull_case_tp"], 0)}</strong>'))
+                except Exception:
+                    pass
+            if ctx.get("bear_case_tp") is not None:
+                try:
+                    replacements.append(('<strong style="color: #7A2028;">₹ [X,XXX]</strong>',
+                                         f'<strong style="color: #7A2028;">₹ {_indian_format(ctx["bear_case_tp"], 0)}</strong>'))
+                except Exception:
+                    pass
             for old, new in replacements:
                 html = html.replace(old, new)
 
-            # ── Generic bracketed numeric placeholders → "—" ──────────────
-            # Only matches short tokens (≤10 chars inside brackets) so long
-            # commentary placeholders are left untouched.
-            html = re.sub(r"\[[^\[\]]{1,10}\]", "—", html)
+            # Thesis one-liner
+            if ctx.get("thesis_line"):
+                html = re.sub(
+                    r'(<div class="thesis">)[\s\S]*?(</div>)',
+                    lambda m: m.group(1) + _html_escape(ctx["thesis_line"]) + m.group(2),
+                    html, count=1,
+                )
+
+            # Executive summary paragraph (the 3-4 sentence bracketed block)
+            if ctx.get("exec_summary"):
+                html = re.sub(
+                    r"\[Three to four sentences\.[^\]]*\]",
+                    _html_escape(ctx["exec_summary"]),
+                    html, count=1,
+                )
+
+            # Valuation-derivation caption
+            if ctx.get("val_caption"):
+                html = re.sub(
+                    r"\[How the ₹\[X,XXX\] target price[^\]]*\]",
+                    _html_escape(ctx["val_caption"]),
+                    html, count=1,
+                )
+
+            # ── LLM-generated institutional commentary ────────────────────
+            try:
+                llm = generate_report_commentary(session_id, ticker, sector, ctx, session)
+            except Exception as _e:
+                logger.warning(f"[report-llm] wrapper failed: {_e}")
+                llm = dict(_REPORT_EMPTY_CONTENT)
+
+            def _rep_once(haystack: str, needle: str, value: str) -> str:
+                if not value or needle not in haystack:
+                    return haystack
+                return haystack.replace(needle, _html_escape(value), 1)
+
+            # Thesis (override if LLM gave one and tier1 didn't)
+            if llm.get("thesis") and not ctx.get("thesis_line"):
+                html = re.sub(
+                    r'(<div class="thesis">)[\s\S]*?(</div>)',
+                    lambda m: m.group(1) + _html_escape(llm["thesis"]) + m.group(2),
+                    html, count=1,
+                )
+
+            # Exec summary — fill the standard bracketed prompt if still present
+            if llm.get("exec_summary"):
+                html = re.sub(
+                    r"\[Three to four sentences\.[^\]]*\]",
+                    _html_escape(llm["exec_summary"]),
+                    html, count=1,
+                )
+            # Optional second paragraph — delete its placeholder
+            html = re.sub(
+                r"\[Optional second paragraph:[^\]]*\]", "", html, count=1,
+            )
+
+            # Rationale quadrants
+            html = re.sub(r"\[One-line summary of consensus view[^\]]*\]",
+                          _html_escape(llm.get("rationale_consensus") or "—"),
+                          html, count=1)
+            html = re.sub(r"\[Where you disagree and why[^\]]*\]",
+                          _html_escape(llm.get("rationale_our_view")
+                                       or ctx.get("rationale_our_view") or "—"),
+                          html, count=1)
+            html = re.sub(r"\[The specific catalyst that closes the gap[^\]]*\]",
+                          _html_escape(llm.get("rationale_catalyst")
+                                       or ctx.get("rationale_catalyst") or "—"),
+                          html, count=1)
+            html = re.sub(r"\[How the ₹\[X,XXX\] target price[^\]]*\]",
+                          _html_escape(llm.get("rationale_valuation")
+                                       or ctx.get("val_caption") or "—"),
+                          html, count=1)
+
+            # Named drivers / headwinds / opps / risks
+            for slot, key in [
+                ("[Driver 1]", "driver_1_name"),
+                ("[Driver 2]", "driver_2_name"),
+                ("[Driver 3]", "driver_3_name"),
+                ("[Headwind 1]", "headwind_1_name"),
+                ("[Headwind 2]", "headwind_2_name"),
+                ("[Opportunity 1]", "opp_1_name"),
+                ("[Opportunity 2]", "opp_2_name"),
+                ("[Risk 1]", "risk_1_name"),
+                ("[Risk 2]", "risk_2_name"),
+            ]:
+                html = _rep_once(html, slot, llm.get(key) or slot.strip("[]"))
+
+            # Driver descriptions — repeat placeholder, replace in order
+            driver_descs = [llm.get("driver_1_desc"), llm.get("driver_2_desc"),
+                            llm.get("driver_3_desc")]
+            for d in driver_descs:
+                if not d:
+                    continue
+                html = html.replace("[One sentence. Specific, evidence-led, quantified.]",
+                                    _html_escape(d), 1)
+            # First driver may use the long examplified variant
+            html = html.replace(
+                '[One sentence. Specific, evidence-led, quantified where possible. '
+                'E.g., "Studded share has risen 200 bps annually for four years; '
+                'each 100 bps lifts jewellery EBIT margin by 40 bps."]',
+                _html_escape(driver_descs[0] or "—"), 1,
+            )
+
+            # Headwind descriptions
+            for d in [llm.get("headwind_1_desc"), llm.get("headwind_2_desc")]:
+                if not d:
+                    continue
+                html = html.replace("[One sentence. The drag, quantified.]",
+                                    _html_escape(d), 1)
+
+            # Net view
+            html = html.replace(
+                "[One sentence explaining why the positives still outweigh — "
+                "this is what the rating depends on.]",
+                _html_escape(llm.get("net_view") or "—"), 1,
+            )
+
+            # Opportunity / risk descriptions
+            opp_descs = [llm.get("opp_1_desc"), llm.get("opp_2_desc")]
+            risk_descs = [llm.get("risk_1_desc"), llm.get("risk_2_desc")]
+            # First opportunity uses the long example variant
+            html = html.replace(
+                '[Scenario · probability · TP impact. E.g., "If US expansion '
+                'reaches 50 stores by FY30 vs. our 25, adds ₹300 to TP."]',
+                _html_escape(opp_descs[0] or "—"), 1,
+            )
+            for d in opp_descs[1:] + risk_descs:
+                if not d:
+                    continue
+                html = html.replace("[Scenario · probability · TP impact.]",
+                                    _html_escape(d), 1)
+
+            # Kill switch
+            html = re.sub(
+                r"\[A single, observable data point[\s\S]*?\]",
+                _html_escape(llm.get("kill_switch") or "—"),
+                html, count=1,
+            )
+
+            # ── Belt-and-suspenders: safe rating read straight from disk ──
+            try:
+                _sess_dir = f"/app/backend/research_platform/ai_engine/sessions/{session_id}"
+                with open(f"{_sess_dir}/scenarios.json") as _f:
+                    _scen = json.load(_f)
+                _r = (_scen.get("scenarios", {}).get("base", {}).get("rating")
+                      or _scen.get("base", {}).get("rating")
+                      or "HOLD")
+                rating = str(_r).upper()
+            except Exception as _e:
+                logger.debug(f"[report] disk rating read fallback: {_e}")
+            if not rating or str(rating).strip() in ("", "—"):
+                rating = "HOLD"
+            html = html.replace("[BUY]", str(rating).upper())
+
+            # ── Final cleanup pass ────────────────────────────────────────
+            short_labels = [
+                "[Driver 1]", "[Driver 2]", "[Driver 3]",
+                "[Headwind 1]", "[Headwind 2]",
+                "[Opportunity 1]", "[Opportunity 2]",
+                "[Risk 1]", "[Risk 2]",
+                "[Peer 1]", "[Peer 2]", "[Peer 3]",
+                "[Subject]",
+                "[X,XX,XXX]", "[X,XXX]", "[XXX]", "[XX.X]", "[XX]",
+                "[+XX]", "[XXx]", "[X.X]", "[X]", "[Y]", "[Date]",
+                "[Name, Credential]", "[Analyst Name, Credential]",
+                "[INH000000000]", "[Year]",
+                "[Report Type]", "[Report Date]", "[email]",
+                "[Company Name]", "[Ticker]", "[BLOOMBERG TICKER]",
+                "[Sub-sector]",
+            ]
+            for label in short_labels:
+                html = html.replace(label, "—")
+
+            html = html.replace("[XX.X]%", "—")
+            html = html.replace("[XX]%", "—")
+            html = html.replace("[+XX]%", "—")
+            html = html.replace("[+XX] bps", "—")
+            html = html.replace("₹ [X,XXX]", "₹ —")
+            html = html.replace("₹[X,XXX]", "₹—")
+            html = html.replace("₹ [X,XX,XXX]", "₹ —")
+            html = html.replace("₹[XX]", "₹—")
+            html = html.replace("FY[YY]E", "FY25E")
+            html = html.replace("FY[YY]", "FY25")
+
+            # Strip long instructional brackets (sentences)
+            html = re.sub(r"\[[^\]]{20,}\]", "—", html)
+            # Final sweep: short word-only brackets still remaining
+            html = re.sub(r"\[[A-Za-z][a-zA-Z ]{1,25}\d?\]", "—", html)
 
             filename = f"BEAVER_{ticker}_research_report.html"
             return Response(
