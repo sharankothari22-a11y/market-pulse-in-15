@@ -29,7 +29,7 @@ const IndexChip = ({ label, data }) => {
   );
 };
 
-export const TopBar = () => {
+export const TopBar = ({ currentPage, onNavigate }) => {
   const [time, setTime] = useState(new Date());
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [indices, setIndices] = useState({ nifty: null, sensex: null });
@@ -76,23 +76,55 @@ export const TopBar = () => {
       }}
       data-testid="top-bar"
     >
-      {/* Left: logo + wordmark */}
-      <div className="flex items-center gap-3">
-        <div
-          style={{
-            width: 36, height: 36, borderRadius: 8, overflow: 'hidden',
-            backgroundColor: 'var(--bi-navy-700)',
-          }}
+      {/* Left: logo + wordmark + nav */}
+      <div className="flex items-center gap-5">
+        <button
+          onClick={() => onNavigate?.('/')}
+          className="flex items-center gap-3"
+          style={{ background: 'transparent', cursor: 'pointer' }}
+          data-testid="topbar-home"
         >
-          <img src={BEAVER_LOGO_URL} alt="Beaver"
-               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-        <span style={{
-          color: 'var(--bi-text-inverse)',
-          fontSize: 14, fontWeight: 600, letterSpacing: '0.08em',
-        }}>
-          BEAVER INTELLIGENCE
-        </span>
+          <div
+            style={{
+              width: 36, height: 36, borderRadius: 8, overflow: 'hidden',
+              backgroundColor: 'var(--bi-navy-700)',
+            }}
+          >
+            <img src={BEAVER_LOGO_URL} alt="Beaver"
+                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <span style={{
+            color: 'var(--bi-text-inverse)',
+            fontSize: 14, fontWeight: 600, letterSpacing: '0.08em',
+          }}>
+            BEAVER INTELLIGENCE
+          </span>
+        </button>
+        <nav className="flex items-center gap-4" style={{ marginLeft: 8 }}>
+          {[
+            { label: 'MARKET', path: '/' },
+            { label: 'RESEARCH', path: '/research' },
+          ].map((item) => {
+            const active = currentPage === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => onNavigate?.(item.path)}
+                style={{
+                  background: 'transparent',
+                  color: active ? '#FFFFFF' : 'rgba(255,255,255,0.65)',
+                  fontSize: 13, fontWeight: 500, letterSpacing: '0.08em',
+                  padding: '4px 2px',
+                  borderBottom: active ? '2px solid #FFFFFF' : '2px solid transparent',
+                  cursor: 'pointer',
+                }}
+                data-testid={`topbar-nav-${item.label.toLowerCase()}`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       {/* Center: index chips */}

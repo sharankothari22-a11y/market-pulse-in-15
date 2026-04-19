@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, X, MessageCircle } from 'lucide-react';
 import { apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from '@/lib/utils';
 
@@ -7,14 +7,45 @@ const initialMessages = [
   { id: 1, type: 'ai', text: 'Welcome to Beaver Intelligence. I can help you analyze Indian market trends, stock signals, and macro indicators. What would you like to know?' },
 ];
 
-export const ChatPanel = ({ sessionId }) => {
+export const ChatPanel = ({ sessionId, open, onOpen, onClose }) => {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 220);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  if (!open) {
+    return (
+      <button
+        onClick={onOpen}
+        className="fixed flex items-center justify-center transition-transform"
+        style={{
+          bottom: 24, right: 24,
+          width: 56, height: 56, borderRadius: '50%',
+          backgroundColor: 'var(--bi-navy-700)',
+          color: 'var(--bi-text-inverse)',
+          boxShadow: '0 10px 24px rgba(15,37,64,0.25)',
+          cursor: 'pointer',
+          zIndex: 40,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-navy-900)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-navy-700)'; }}
+        data-testid="chat-fab"
+        aria-label="Open Beaver AI chat"
+      >
+        <MessageCircle size={22} />
+      </button>
+    );
+  }
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
@@ -45,34 +76,57 @@ export const ChatPanel = ({ sessionId }) => {
 
   return (
     <aside
-      className="flex flex-col flex-shrink-0"
+      className="fixed flex flex-col animate-in fade-in"
       style={{
-        width: 340,
+        bottom: 24, right: 24,
+        width: 380,
+        height: 'min(640px, calc(100vh - 48px))',
         backgroundColor: 'var(--bi-bg-card)',
-        borderLeft: '1px solid var(--bi-border-subtle)',
+        border: '1px solid var(--bi-border-subtle)',
+        borderRadius: 16,
+        boxShadow: '0 24px 48px rgba(15,37,64,0.28)',
+        overflow: 'hidden',
+        zIndex: 40,
       }}
       data-testid="chat-panel"
     >
       {/* Header */}
       <div
-        className="flex items-center gap-2 px-4"
+        className="flex items-center justify-between gap-2 px-4"
         style={{
           height: 56,
           borderBottom: '1px solid var(--bi-border-subtle)',
         }}
       >
-        <div
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: 28, height: 28, borderRadius: '50%',
+              backgroundColor: 'var(--bi-navy-700)',
+              color: 'var(--bi-text-inverse)',
+              fontSize: 13, fontWeight: 600,
+            }}
+          >B</div>
+          <span style={{ color: 'var(--bi-text-primary)', fontSize: 14, fontWeight: 600 }}>
+            Beaver AI
+          </span>
+        </div>
+        <button
+          onClick={onClose}
           className="flex items-center justify-center"
           style={{
-            width: 28, height: 28, borderRadius: '50%',
-            backgroundColor: 'var(--bi-navy-700)',
-            color: 'var(--bi-text-inverse)',
-            fontSize: 13, fontWeight: 600,
+            width: 28, height: 28, borderRadius: 6,
+            color: 'var(--bi-text-tertiary)',
+            cursor: 'pointer', background: 'transparent',
           }}
-        >B</div>
-        <span style={{ color: 'var(--bi-text-primary)', fontSize: 14, fontWeight: 600 }}>
-          Beaver AI
-        </span>
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-bg-subtle)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          data-testid="chat-close"
+          aria-label="Close chat"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {/* Messages */}
@@ -139,6 +193,7 @@ export const ChatPanel = ({ sessionId }) => {
         )}
         <div className="flex gap-2 items-center">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

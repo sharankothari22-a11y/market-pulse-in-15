@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import '@/App.css';
 
-import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { ChatPanel } from '@/components/layout/ChatPanel';
 import { SplashScreen } from '@/components/SplashScreen';
@@ -16,6 +15,7 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [splashDone, setSplashDone] = useState(false);
   const [pendingTicker, setPendingTicker] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const handleAnalyzeTicker = (t) => {
     const cleaned = String(t || '').trim().toUpperCase();
@@ -44,26 +44,26 @@ function App() {
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
       <div
-        className="app-container flex h-screen overflow-hidden"
+        className="app-container flex flex-col h-screen overflow-hidden"
         style={{ backgroundColor: 'var(--bi-bg-page)' }}
         data-testid="app-root"
       >
-        {/* Left Sidebar */}
-        <Sidebar activePage={currentPage} onNavigate={setCurrentPage} />
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopBar />
-          <main
-            className="flex-1 overflow-auto"
-            style={{ backgroundColor: 'var(--bi-bg-page)', padding: 24 }}
-          >
+        <TopBar currentPage={currentPage} onNavigate={setCurrentPage} />
+        <main
+          className="flex-1 overflow-auto"
+          style={{ backgroundColor: 'var(--bi-bg-page)' }}
+        >
+          <div style={{ maxWidth: 1600, margin: '0 auto', padding: '24px 48px' }}>
             {renderPage()}
-          </main>
-        </div>
+          </div>
+        </main>
 
-        {/* Right Chat Panel */}
-        <ChatPanel sessionId={currentPage === '/research' ? currentSessionId : null} />
+        <ChatPanel
+          sessionId={currentPage === '/research' ? currentSessionId : null}
+          open={chatOpen}
+          onOpen={() => setChatOpen(true)}
+          onClose={() => setChatOpen(false)}
+        />
       </div>
     </>
   );
