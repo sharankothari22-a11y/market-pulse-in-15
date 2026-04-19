@@ -156,15 +156,16 @@ const CompanyHeader = ({
         </div>
 
         {/* Right — actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center" style={{ gap: 8 }}>
           <button
             onClick={onDownloadExcel}
             disabled={xlsmState === 'running'}
             className="flex items-center gap-1.5 disabled:opacity-50"
             style={{
-              padding: '6px 12px', borderRadius: 6,
+              height: 36, padding: '0 16px', borderRadius: 6,
               backgroundColor: 'var(--bi-navy-700, #1B3A6B)',
-              color: '#ffffff', fontSize: 12, fontWeight: 500,
+              color: '#ffffff', fontSize: 13, fontWeight: 500,
+              border: '1px solid var(--bi-navy-700, #1B3A6B)',
             }}
             data-testid="header-download-excel"
           >
@@ -173,26 +174,21 @@ const CompanyHeader = ({
               : xlsmState === 'error' ? 'Retry Excel'
               : 'Download Excel'}
           </button>
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={onDownloadPdf}
-              disabled={reportLoading}
-              className="flex items-center gap-1.5 disabled:opacity-50"
-              style={{
-                padding: '6px 12px', borderRadius: 6,
-                backgroundColor: 'transparent',
-                border: '1px solid var(--bi-navy-700, #1B3A6B)',
-                color: 'var(--bi-navy-700, #1B3A6B)', fontSize: 12, fontWeight: 500,
-              }}
-              data-testid="header-download-pdf"
-            >
-              {reportLoading && <Loader2 className="w-3 h-3 animate-spin" />}
-              {reportLoading ? 'Loading…' : 'Download Report'}
-            </button>
-            <span style={{ fontSize: 11, color: 'var(--bi-text-tertiary)' }}>
-              HTML format · opens in browser, print to save as PDF
-            </span>
-          </div>
+          <button
+            onClick={onDownloadPdf}
+            disabled={reportLoading}
+            className="flex items-center gap-1.5 disabled:opacity-50"
+            style={{
+              height: 36, padding: '0 16px', borderRadius: 6,
+              backgroundColor: 'var(--bi-navy-700, #1B3A6B)',
+              color: '#ffffff', fontSize: 13, fontWeight: 500,
+              border: '1px solid var(--bi-navy-700, #1B3A6B)',
+            }}
+            data-testid="header-download-pdf"
+          >
+            {reportLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+            {reportLoading ? 'Loading…' : 'Download Report'}
+          </button>
         </div>
       </div>
     </div>
@@ -503,6 +499,7 @@ const SensitivityPanel = ({ researchData, currentPrice }) => {
 // ─── Panel 6 — Forecast table ──────────────────────────────────────────────
 const ForecastPanel = ({ researchData, dcfData }) => {
   const forecast = dcfData?.forecast
+    || researchData?.dcf_summary?.forecast
     || researchData?.dcf_output?.forecast
     || researchData?.forecast
     || null;
@@ -556,7 +553,7 @@ const ForecastPanel = ({ researchData, dcfData }) => {
         </tbody>
       </table>
       <div style={{ fontSize: 10, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 6 }}>
-        All figures ₹ {dcfData?.meta?.units?.toLowerCase() === 'millions' ? 'mn' : 'cr'}
+        All figures ₹ {(dcfData?.meta?.units || researchData?.dcf_summary?.meta?.units || '').toLowerCase() === 'millions' ? 'mn' : 'cr'}
       </div>
     </Panel>
   );
