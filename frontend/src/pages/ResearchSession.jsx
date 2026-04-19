@@ -779,7 +779,10 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
         const list = await apiGet(API_ENDPOINTS.sessions);
         setSessions(unwrapList(list, 'sessions'));
       } catch (_) {}
-    } catch (err) { setError(err.message); }
+    } catch (err) {
+      setError(err.message);
+      flashTickerError(err.message || 'Analyze failed — please try again');
+    }
     finally { setAnalyzing(false); }
   };
 
