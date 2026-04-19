@@ -167,21 +167,26 @@ const CompanyHeader = ({
               : xlsmState === 'error' ? 'Retry Excel'
               : 'Download Excel'}
           </button>
-          <button
-            onClick={onDownloadPdf}
-            disabled={reportLoading}
-            className="flex items-center gap-1.5 disabled:opacity-50"
-            style={{
-              padding: '6px 12px', borderRadius: 6,
-              backgroundColor: 'transparent',
-              border: '1px solid var(--bi-navy-700, #1B3A6B)',
-              color: 'var(--bi-navy-700, #1B3A6B)', fontSize: 12, fontWeight: 500,
-            }}
-            data-testid="header-download-pdf"
-          >
-            {reportLoading && <Loader2 className="w-3 h-3 animate-spin" />}
-            {reportLoading ? 'Loading…' : 'Download PDF'}
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={onDownloadPdf}
+              disabled={reportLoading}
+              className="flex items-center gap-1.5 disabled:opacity-50"
+              style={{
+                padding: '6px 12px', borderRadius: 6,
+                backgroundColor: 'transparent',
+                border: '1px solid var(--bi-navy-700, #1B3A6B)',
+                color: 'var(--bi-navy-700, #1B3A6B)', fontSize: 12, fontWeight: 500,
+              }}
+              data-testid="header-download-pdf"
+            >
+              {reportLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+              {reportLoading ? 'Loading…' : 'Download Report'}
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--bi-text-tertiary)' }}>
+              HTML format · opens in browser, print to save as PDF
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -864,7 +869,8 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = (researchData?.ticker || 'research') + '_report.html';
+      a.href = url;
+      a.download = `BEAVER_${researchData?.ticker || 'research'}_research_report.html`;
       a.click(); URL.revokeObjectURL(url);
     } catch (e) { console.error(e); }
     finally { setReportLoading(false); }
