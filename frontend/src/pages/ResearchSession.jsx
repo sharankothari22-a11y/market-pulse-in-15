@@ -421,7 +421,8 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
   // Primary Analyze action — one click, no modal, calls /api/research/analyze directly
   const handleAnalyze = async (overrideTicker) => {
-    const t = (overrideTicker ?? ticker).trim().toUpperCase();
+    const raw = typeof overrideTicker === 'string' ? overrideTicker : ticker;
+    const t = String(raw ?? '').trim().toUpperCase();
     if (!t) return;
     if (overrideTicker) setTicker(t);
     try {
