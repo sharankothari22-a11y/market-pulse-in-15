@@ -112,6 +112,207 @@ const PriceChart = ({ ticker, livePrice }) => {
   );
 };
 
+const fmtInr = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return '—';
+  return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+};
+const fmtPct = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return '—';
+  const v = Number(n);
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+};
+const normalizeRating = (r) => {
+  if (!r) return null;
+  const s = String(r).toLowerCase();
+  if (s.includes('buy')) return 'Buy';
+  if (s.includes('sell')) return 'Sell';
+  if (s.includes('avoid')) return 'Avoid';
+  if (s.includes('hold')) return 'Hold';
+  return String(r).charAt(0).toUpperCase() + String(r).slice(1).toLowerCase();
+};
+const ratingStyle = (rating) => {
+  const map = {
+    Buy:   { bg: 'rgba(15,122,62,0.10)',  fg: '#0F7A3E' },
+    Hold:  { bg: 'rgba(107,122,147,0.12)', fg: '#4B5A75' },
+    Sell:  { bg: 'rgba(199,55,47,0.10)',  fg: '#C7372F' },
+    Avoid: { bg: 'rgba(199,55,47,0.10)',  fg: '#C7372F' },
+  };
+  return map[rating] || map.Hold;
+};
+
+const ValuationCard = ({
+  researchData, dcfData, getScenarios,
+  onDownloadExcel, xlsmState, onDownloadPdf, reportLoading,
+}) => {
+  const scenarios = getScenarios();
+  const byKey = Object.fromEntries(scenarios.map((s) => [s.key, s]));
+  const order = ['bear', 'base', 'bull'];
+
+  const runAt = dcfData?.meta?.run_at
+    || researchData?.dcf_output?.meta?.run_at
+    || researchData?.created_at
+    || null;
+  const runAtFmt = runAt ? new Date(runAt).toLocaleString('en-IN', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }) : '—';
+
+  const anyData = scenarios.length > 0;
+
+  return (
+    <div
+      className="dashboard-card"
+      style={{
+        backgroundColor: 'var(--bi-bg-card, #ffffff)',
+        border: '1px solid var(--bi-border-subtle, #E2E7EF)',
+        borderRadius: 12,
+        padding: 24,
+        boxShadow: 'var(--bi-shadow-card, 0 1px 2px rgba(15,37,64,0.04))',
+      }}
+      data-testid="valuation-card"
+    >
+      <div className="flex items-baseline justify-between mb-4">
+        <div>
+          <h3 style={{ fontSize: 14, fontWeight: 500, letterSpacing: '0.06em',
+                       textTransform: 'uppercase', color: 'var(--bi-text-secondary, #4B5A75)' }}>
+            Valuation
+          </h3>
+          <p style={{ fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 2 }}>
+            DCF pipeline · {runAtFmt}
+          </p>
+        </div>
+      </div>
+
+      {!anyData ? (
+        <div style={{ fontSize: 13, color: 'var(--bi-text-tertiary, #8593AB)', padding: '24px 0' }}>
+          No scenarios available yet. Analyze a ticker to populate valuation.
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          {order.map((key) => {
+            const s = byKey[key];
+            if (!s) {
+              return (
+                <div key={key} style={{
+                  padding: 16, borderRadius: 10,
+                  border: '1px solid var(--bi-border-subtle, #E2E7EF)',
+                  backgroundColor: 'var(--bi-bg-subtle, #EEF1F6)',
+                  opacity: 0.5,
+                }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em',
+                                color: 'var(--bi-text-tertiary, #8593AB)' }}>
+                    {key}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 8 }}>
+                    Not available
+                  </div>
+                </div>
+              );
+            }
+            const isBase = key === 'base';
+            const price = s.price_per_share ?? s.per_share;
+            const upside = s.upside_pct;
+            const rating = normalizeRating(s.rating);
+            const rs = rating ? ratingStyle(rating) : null;
+            const upsideColor = upside == null ? 'var(--bi-text-tertiary, #8593AB)'
+              : upside >= 0 ? 'var(--bi-success-fg, #0F7A3E)' : 'var(--bi-danger-fg, #C7372F)';
+            return (
+              <div
+                key={key}
+                style={{
+                  padding: 16, borderRadius: 10,
+                  border: isBase
+                    ? '2px solid var(--bi-navy-700, #1B3A6B)'
+                    : '1px solid var(--bi-border-subtle, #E2E7EF)',
+                  backgroundColor: 'var(--bi-bg-card, #ffffff)',
+                }}
+                data-testid={`valuation-tile-${key}`}
+              >
+                <div style={{
+                  fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: 'var(--bi-text-tertiary, #8593AB)',
+                }}>
+                  {s.label || key.charAt(0).toUpperCase() + key.slice(1)}
+                </div>
+                <div style={{
+                  fontSize: 24, fontWeight: 500, marginTop: 6,
+                  color: 'var(--bi-text-primary, #0F2540)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {fmtInr(price)}
+                </div>
+                <div style={{
+                  fontSize: 13, fontWeight: 500, marginTop: 2, color: upsideColor,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {fmtPct(upside)}
+                </div>
+                {rating && (
+                  <div style={{ marginTop: 8 }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 8px', borderRadius: 999,
+                      fontSize: 11, fontWeight: 600,
+                      backgroundColor: rs.bg, color: rs.fg,
+                    }}>
+                      {rating}
+                    </span>
+                  </div>
+                )}
+                {s.key_assumption && (
+                  <div
+                    title={s.key_assumption}
+                    style={{
+                      fontSize: 12, color: 'var(--bi-text-secondary, #4B5A75)',
+                      marginTop: 10, lineHeight: 1.4,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {s.key_assumption}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 mt-5">
+        <button
+          onClick={onDownloadExcel}
+          disabled={xlsmState === 'running'}
+          className="flex items-center gap-2 disabled:opacity-50"
+          style={{
+            padding: '10px 16px', borderRadius: 8,
+            backgroundColor: 'var(--bi-navy-700, #1B3A6B)',
+            color: '#ffffff', fontSize: 13, fontWeight: 500,
+          }}
+          data-testid="valuation-download-excel"
+        >
+          {xlsmState === 'running' && <Loader2 className="w-4 h-4 animate-spin" />}
+          {xlsmState === 'running' ? 'Generating…'
+            : xlsmState === 'error' ? 'Failed — Retry'
+            : 'Download Excel'}
+        </button>
+        <button
+          onClick={onDownloadPdf}
+          disabled={reportLoading}
+          className="flex items-center gap-2 disabled:opacity-50"
+          style={{
+            padding: '10px 16px', borderRadius: 8,
+            backgroundColor: 'transparent',
+            border: '1px solid var(--bi-navy-700, #1B3A6B)',
+            color: 'var(--bi-navy-700, #1B3A6B)', fontSize: 13, fontWeight: 500,
+          }}
+          data-testid="valuation-download-pdf"
+        >
+          {reportLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {reportLoading ? 'Loading…' : 'Download PDF'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [ticker, setTicker] = useState('');
   const [sessionId, setSessionId] = useState(null);
@@ -659,8 +860,20 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           )}
 
           {/* Main Grid */}
-          <section className="grid grid-cols-2 gap-6" data-testid="research-content">
-            {/* Left Column */}
+          <section className="space-y-6" data-testid="research-content">
+            {/* Unified Valuation card — replaces the old Scenario + DCF panels */}
+            <ValuationCard
+              researchData={researchData}
+              dcfData={dcfData}
+              getScenarios={getScenarios}
+              onDownloadExcel={downloadDcfExcel}
+              xlsmState={xlsmState}
+              onDownloadPdf={downloadReport}
+              reportLoading={reportLoading}
+            />
+
+            {/* HIDDEN — superseded by valuation/reverse-DCF/scoring cards. Restore when those features have real content. */}
+            {false && (
             <div className="space-y-6">
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-2">
@@ -787,8 +1000,10 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Right Column */}
+            {/* HIDDEN — old right column (Scenario Analysis + DCF Valuation) superseded by ValuationCard above. */}
+            {false && (
             <div className="space-y-6">
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-3">
@@ -892,6 +1107,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
                 )}
               </div>
             </div>
+            )}
           </section>
         </>
       ) : (
