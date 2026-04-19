@@ -1137,6 +1137,13 @@ async def analyze(request: Request):
         },
     }
 
+    # Attach DCF summary JSON (papermill output) if available
+    try:
+        response["dcf_summary"] = _load_dcf_summary(ticker)
+    except Exception as _e:
+        logger.debug(f"dcf_summary attach failed: {_e}")
+        response["dcf_summary"] = None
+
     # Cache for next time yfinance fails
     await cache_set(cache_key, response)
     # Also cache by session_id so GET /research/{session_id} works
@@ -1316,12 +1323,22 @@ async def get_session(session_id: str):
                     doc["created_at"] = doc["created_at"].isoformat()
                 # Enrich with live price
                 doc = await _enrich_with_live_price(doc)
+                try:
+                    if not doc.get("dcf_summary"):
+                        doc["dcf_summary"] = _load_dcf_summary(doc.get("ticker"))
+                except Exception:
+                    pass
                 return doc
         except Exception as e:
             logger.debug(f"get_session mongo: {e}")
     # 2. Try cache (analyze endpoint caches by session_id) — already has flat fields
     cached, _ = await cache_get(f"session:{session_id}")
     if cached:
+        try:
+            if not cached.get("dcf_summary"):
+                cached["dcf_summary"] = _load_dcf_summary(cached.get("ticker"))
+        except Exception:
+            pass
         return cached
     # 3. Skeleton session so frontend doesn't crash
     return {
@@ -1346,6 +1363,65 @@ _DCF_LOCK = asyncio.Lock()
 
 # Paths
 DCF_NOTEBOOK_SRC = Path("/app/notebooks/DCF_Multi_Source_Pipeline_REFACTORED.ipynb")
+
+
+def _load_dcf_summary(ticker: str) -> dict | None:
+    """
+    Load the papermill-written DCF summary JSON for a ticker and normalize
+    into { forecast: [{year,revenue,ebit,fcff,revenue_growth}], meta: {...},
+    sensitivity_table: null, ... }. Never raises.
+    """
+    if not ticker:
+        return None
+    t = ticker.upper().strip()
+    ticker_ns = t if "." in t else f"{t}.NS"
+    candidates = [
+        Path("/app/notebooks") / f"DCF_Output_{ticker_ns}_INR.summary.json",
+        DCF_NOTEBOOK_SRC.parent / f"DCF_Output_{ticker_ns}_INR.summary.json",
+        Path(__file__).parent.parent / "notebooks" / f"DCF_Output_{ticker_ns}_INR.summary.json",
+    ]
+    for p in candidates:
+        try:
+            if p.exists():
+                raw = json.loads(p.read_text(encoding="utf-8"))
+                # Normalize: merge forecast_revenue + forecast_fcf into a
+                # single `forecast` list with year/revenue/fcff/revenue_growth.
+                rev_rows = raw.get("forecast_revenue") or []
+                fcf_rows = raw.get("forecast_fcf") or []
+                rev_by_fy = {int(r["fy"]): r for r in rev_rows if r.get("fy") is not None}
+                fcf_by_fy = {int(r["fy"]): r for r in fcf_rows if r.get("fy") is not None}
+                fys = sorted(set(rev_by_fy) | set(fcf_by_fy))
+                forecast = []
+                prev_rev = None
+                for fy in fys:
+                    r = rev_by_fy.get(fy, {})
+                    f = fcf_by_fy.get(fy, {})
+                    rev = r.get("revenue")
+                    growth = None
+                    if prev_rev not in (None, 0) and rev is not None:
+                        try:
+                            growth = (float(rev) / float(prev_rev) - 1.0)
+                        except Exception:
+                            growth = None
+                    forecast.append({
+                        "year": fy,
+                        "revenue": rev,
+                        "ebit": r.get("ebit"),
+                        "fcff": f.get("fcff"),
+                        "revenue_growth": growth,
+                    })
+                    if rev is not None:
+                        prev_rev = rev
+                raw["forecast"] = forecast
+                raw["meta"] = {
+                    "base_year": (raw.get("assumptions") or {}).get("base_year"),
+                    "currency": raw.get("currency", "INR"),
+                    "units": "millions",
+                }
+                return raw
+        except Exception as e:
+            logger.debug(f"_load_dcf_summary failed for {p}: {e}")
+    return None
 DCF_RUN_ROOT = Path("/tmp/dcf_runs")
 DCF_RUN_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -2543,6 +2619,54 @@ async def report_download_html(session_id: str):
                 _html_escape(llm.get("kill_switch") or "—"),
                 html, count=1,
             )
+
+            # ── Key Financials: revenue row + FY labels from DCF summary ──
+            try:
+                _dcf_sum = _load_dcf_summary(ticker)
+                _fcast = (_dcf_sum or {}).get("forecast") or []
+                if _fcast:
+                    years4 = _fcast[:4]
+                    fy_labels = [f"FY{str(int(r['year']))[-2:]}E" for r in years4]
+                    # pad if fewer than 4
+                    while len(fy_labels) < 4:
+                        fy_labels.append("—")
+                    header_old = (
+                        '<th class="num">FY23</th>\n'
+                        '              <th class="num">FY24</th>\n'
+                        '              <th class="num">FY25E</th>\n'
+                        '              <th class="num">FY26E</th>'
+                    )
+                    header_new = "\n              ".join(
+                        [f'<th class="num">{l}</th>' for l in fy_labels]
+                    )
+                    html = html.replace(header_old, header_new, 1)
+
+                    # Revenue row — convert millions → crores (÷10)
+                    rev_cells = []
+                    for i in range(4):
+                        if i < len(years4) and years4[i].get("revenue") is not None:
+                            try:
+                                rev_cr = int(float(years4[i]["revenue"]) / 10)
+                                rev_cells.append(
+                                    f'<td class="num">{rev_cr:,}</td>'
+                                )
+                            except Exception:
+                                rev_cells.append('<td class="num">—</td>')
+                        else:
+                            rev_cells.append('<td class="num">—</td>')
+                    rev_row_old = (
+                        '<tr><td class="label-cell">Revenue</td>'
+                        '<td class="num">[X,XXX]</td><td class="num">[X,XXX]</td>'
+                        '<td class="num">[X,XXX]</td><td class="num">[X,XXX]</td></tr>'
+                    )
+                    rev_row_new = (
+                        '<tr><td class="label-cell">Revenue</td>'
+                        + "".join(rev_cells) + "</tr>"
+                    )
+                    html = html.replace(rev_row_old, rev_row_new, 1)
+                    logger.info(f"[report] wired {len(years4)}y forecast revenue row for {ticker}")
+            except Exception as _e:
+                logger.warning(f"[report] forecast wiring failed: {_e}")
 
             # ── Belt-and-suspenders: safe rating read straight from disk ──
             try:
