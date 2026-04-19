@@ -102,9 +102,12 @@ const CompanyHeader = ({
   const sector = researchData?.sector || '—';
   const sid = (researchData?.session_id || '').slice(-12);
   const status = researchData?.status || 'Active';
-  const changeColor = liveChangePct == null
-    ? 'var(--bi-text-tertiary, #8593AB)'
-    : liveChangePct >= 0 ? 'var(--bi-success-fg, #0F7A3E)' : 'var(--bi-danger-fg, #C7372F)';
+  const priceMissing = livePrice == null || livePrice === 0;
+  const changeMissing = liveChangePct == null || liveChangePct === 0;
+  const changeColor = 'var(--bi-navy-700, #1B3A6B)';
+  const nowIst = new Date().toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
 
   return (
     <div style={panelStyle} data-testid="panel-company-header">
@@ -141,11 +144,14 @@ const CompanyHeader = ({
         <div style={{ textAlign: 'right', minWidth: 160 }}>
           <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)',
                         fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-            {livePrice != null ? fmtInr2(livePrice) : '—'}
+            {priceMissing ? '—' : fmtInr2(livePrice)}
           </div>
           <div style={{ fontSize: 13, color: changeColor, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
-            {liveChangePct == null ? '—' :
+            {changeMissing ? '—' :
               `${liveChangePct >= 0 ? '▲' : '▼'} ${Math.abs(liveChangePct).toFixed(2)}%`}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 4 }}>
+            As of {nowIst} IST
           </div>
         </div>
 
@@ -334,7 +340,7 @@ const ScorePanel = ({ researchData }) => {
   if (!scoring || (composite == null && dims.length === 0)) {
     return (
       <Panel title="Score" testId="panel-score">
-        <div style={emptyStyle}>Not yet computed</div>
+        <div style={emptyStyle}>Composite scoring in the next release</div>
       </Panel>
     );
   }
@@ -404,7 +410,7 @@ const SensitivityPanel = ({ researchData, currentPrice }) => {
   if (!valid) {
     return (
       <Panel title="Sensitivity · Fair value" testId="panel-sensitivity">
-        <div style={emptyStyle}>Not yet computed</div>
+        <div style={emptyStyle}>Sensitivity analysis in the next release</div>
       </Panel>
     );
   }
@@ -504,7 +510,7 @@ const ForecastPanel = ({ researchData, dcfData }) => {
   if (!Array.isArray(forecast) || forecast.length === 0) {
     return (
       <Panel title="Forecast · 5 years" testId="panel-forecast">
-        <div style={emptyStyle}>Not yet computed</div>
+        <div style={emptyStyle}>5-year forecast in the next release</div>
       </Panel>
     );
   }
