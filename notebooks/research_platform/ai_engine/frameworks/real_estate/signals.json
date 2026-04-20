@@ -1,0 +1,88 @@
+{
+  "_sector": "Real Estate",
+  "_priority": 6,
+  "_valuation": "NAV + EV/EBITDA",
+  "key_drivers": [
+    "pre_sales",
+    "collections",
+    "land_bank",
+    "interest_rates"
+  ],
+  "signals": [
+    {
+      "id": "presales",
+      "name": "Pre-Sales / Bookings",
+      "keywords": [
+        "pre-sales",
+        "bookings",
+        "units sold",
+        "area sold",
+        "launches"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "Pre-sales drive revenue recognition 2-3 years later",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "collections",
+      "name": "Collections",
+      "keywords": [
+        "collections",
+        "cash flow",
+        "receivables",
+        "payment schedule"
+      ],
+      "factors": [
+        "ebitda_margin",
+        "capex"
+      ],
+      "transmission": "Poor collections \u2192 debt-funded construction \u2192 interest burden",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "home_loan_rate",
+      "name": "Home Loan Rate",
+      "keywords": [
+        "home loan",
+        "mortgage",
+        "repo rate",
+        "emi",
+        "affordability"
+      ],
+      "factors": [
+        "revenue_growth",
+        "terminal_growth_rate"
+      ],
+      "transmission": "Rate cuts are powerful demand catalyst. +200bps hike \u2192 demand slowdown",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "land_acquisition",
+      "name": "Land Bank",
+      "keywords": [
+        "land",
+        "acres",
+        "jda",
+        "outright purchase",
+        "land acquisition"
+      ],
+      "factors": [
+        "capex",
+        "terminal_growth_rate"
+      ],
+      "transmission": "Land bank signals future project pipeline",
+      "indicator_type": "leading"
+    }
+  ],
+  "default_assumptions": {
+    "pre_sales_growth_pct": 15,
+    "realization_growth_pct": 5,
+    "ebitda_margin_range": [
+      22,
+      30
+    ],
+    "terminal_growth_rate": 3.5
+  }
+}

@@ -1,0 +1,162 @@
+# config/sources.yaml
+# ─────────────────────────────────────────────────────────────────
+# Declarative catalogue of all data sources.
+# Collectors read their own section to self-configure.
+# ─────────────────────────────────────────────────────────────────
+
+free:
+
+  nse_csv:
+    enabled: true
+    description: "NSE Bhavcopy daily equity prices + FII/DII flows"
+    schedule: "daily_morning"
+    outputs: [price_history, fii_dii_flows]
+    fallback: bse_csv
+    retry_attempts: 3
+    timeout_seconds: 30
+
+  amfi:
+    enabled: true
+    description: "AMFI daily NAV for all mutual funds"
+    schedule: "daily_morning"
+    outputs: [fund_nav]
+    retry_attempts: 3
+    timeout_seconds: 30
+
+  rbi_dbie:
+    enabled: true
+    description: "RBI DBIE macro and banking statistics"
+    schedule: "weekly"
+    outputs: [macro_indicators]
+    retry_attempts: 2
+
+  mca_portal:
+    enabled: true
+    description: "MCA21 company master data and filings"
+    schedule: "quarterly"
+    outputs: [company, event]
+    retry_attempts: 2
+
+  sebi_portal:
+    enabled: true
+    description: "SEBI PMS and regulatory disclosures"
+    schedule: "quarterly"
+    outputs: [portfolio, event]
+    retry_attempts: 2
+
+  fred:
+    enabled: true
+    description: "FRED macroeconomic indicators (US + India)"
+    schedule: "weekly"
+    outputs: [macro_indicators]
+    series:
+      - id: FEDFUNDS
+        name: "US Federal Funds Rate"
+        country: US
+      - id: CPIAUCSL
+        name: "US CPI"
+        country: US
+      - id: A191RL1Q225SBEA
+        name: "US Real GDP Growth"
+        country: US
+      - id: INDIRLTLT01STM
+        name: "India Lending Rate"
+        country: IN
+      - id: DTWEXBGS
+        name: "DXY Dollar Index"
+        country: US
+    retry_attempts: 2
+
+  coingecko:
+    enabled: true
+    description: "Top-20 crypto prices, 24h change, market cap"
+    schedule: "daily_morning"
+    outputs: [commodity_prices]
+    top_n: 20
+    vs_currency: usd
+    retry_attempts: 3
+    timeout_seconds: 15
+
+  frankfurter:
+    enabled: true
+    description: "FX rates (ECB sourced, free)"
+    schedule: "daily_morning"
+    outputs: [fx_rates]
+    base_currency: USD
+    symbols: [EUR, GBP, JPY, INR, CNY, AUD, CAD, CHF, SGD, HKD]
+    retry_attempts: 3
+
+  eia:
+    enabled: true
+    description: "EIA oil and energy data"
+    schedule: "weekly"
+    outputs: [commodity_prices, macro_indicators]
+    retry_attempts: 2
+
+  gdelt:
+    enabled: true
+    description: "GDELT global event database"
+    schedule: "daily_morning"
+    outputs: [event]
+    retry_attempts: 2
+
+  world_bank:
+    enabled: true
+    description: "World Bank development indicators"
+    schedule: "weekly"
+    outputs: [macro_indicators]
+    indicators:
+      - NY.GDP.MKTP.KD.ZG   # GDP growth (annual %)
+      - FP.CPI.TOTL.ZG      # Inflation, consumer prices
+      - SL.UEM.TOTL.ZS      # Unemployment total
+    countries: [IN, US, CN, GB, DE, JP]
+    retry_attempts: 2
+
+  rss_feeds:
+    enabled: true
+    description: "Financial news RSS feeds"
+    schedule: "daily_morning"
+    outputs: [event]
+    feeds:
+      - name: "Economic Times Markets"
+        url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"
+      - name: "Moneycontrol News"
+        url: "https://www.moneycontrol.com/rss/MCtopnews.xml"
+      - name: "Reuters Business"
+        url: "https://feeds.reuters.com/reuters/businessNews"
+      - name: "Bloomberg Markets"
+        url: "https://feeds.bloomberg.com/markets/news.rss"
+    retry_attempts: 3
+
+paid:
+
+  finnhub:
+    enabled: false   # set to true once FINNHUB_API_KEY is set
+    description: "Finnhub real-time quotes, fundamentals, news"
+    schedule: "realtime"
+    outputs: [price_history, event]
+    retry_attempts: 3
+
+  newsapi:
+    enabled: false   # set to true once NEWSAPI_KEY is set
+    description: "NewsAPI financial news aggregator"
+    schedule: "daily_morning"
+    outputs: [event]
+    retry_attempts: 3
+
+schedules:
+  realtime:
+    interval_minutes: 5
+    market_hours_only: true
+    market_open_ist: "09:15"
+    market_close_ist: "15:30"
+  daily_morning:
+    cron: "0 6 * * *"      # 06:00 IST
+    timezone: "Asia/Kolkata"
+  weekly:
+    cron: "0 2 * * 0"      # Sunday 02:00 IST
+    timezone: "Asia/Kolkata"
+  quarterly:
+    # 1st of Jan, Apr, Jul, Oct at 03:00 IST
+    cron: "0 3 1 1,4,7,10 *"
+    timezone: "Asia/Kolkata"

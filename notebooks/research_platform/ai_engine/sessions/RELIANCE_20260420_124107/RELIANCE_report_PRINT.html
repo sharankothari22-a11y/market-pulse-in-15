@@ -1,0 +1,338 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; color: #2d3748; background: transparent; }
+@page { size: A4; margin: 0; }
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 16mm 12mm 16mm;
+  background: white;
+  page-break-after: always;
+  overflow: hidden;
+}
+.page:last-child { page-break-after: avoid; }
+@media screen {
+  body { background: #e8e8e8; padding: 20px; }
+  .page {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    margin: 0 auto 24px auto;
+  }
+}
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; padding: 0; }
+}
+.section-header {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #1a1a2e;
+  border-bottom: 2px solid #e94560;
+  padding-bottom: 3px;
+  margin-bottom: 8px;
+  margin-top: 12px;
+}
+</style></head><body>
+<div class="no-print" style="position:sticky;top:0;z-index:999;
+  background:#1a1a2e;color:white;padding:10px 20px;font-family:Arial;font-size:13px;
+  display:flex;align-items:center;justify-content:space-between;">
+  <span>📄 RELIANCE Research Note</span>
+  <button onclick="window.print()"
+    style="background:#e94560;color:white;border:none;padding:8px 18px;
+    border-radius:4px;cursor:pointer;font-weight:bold;font-size:13px;">
+    🖨️ Save as PDF
+  </button>
+</div>
+<div class="page">
+
+  <!-- Header bar -->
+  <div style="background:#1a1a2e;color:white;padding:10px 14px;border-radius:4px;
+              display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div>
+      <span style="font-size:18px;font-weight:bold">RELIANCE</span>
+      <span style="margin-left:10px;background:#e94560;padding:2px 8px;
+                  border-radius:3px;font-size:11px">Petroleum</span>
+    </div>
+    <div style="text-align:right;font-size:10px;opacity:0.8">
+      20 Apr 2026, 07:11 UTC<br>
+      <span style="font-style:italic;font-size:9px">Confidential Research Note</span>
+    </div>
+  </div>
+
+  <!-- Metric cards row -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:10px;text-align:center">
+      <div style="font-size:9px;text-transform:uppercase;color:#2d3748;margin-bottom:4px">Recommendation</div>
+      <span style="display:inline-block;background:#fff3cd;color:#856404;padding:4px 12px;border-radius:4px;font-weight:bold;font-size:14px">Hold</span>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:10px;text-align:center">
+      <div style="font-size:9px;text-transform:uppercase;color:#2d3748;margin-bottom:4px">Composite Score</div>
+      <div style="font-size:22px;font-weight:bold;color:#1a1a2e">48</div>
+      <div style="font-size:9px;color:#2d3748">/100</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:10px;text-align:center">
+      <div style="font-size:9px;text-transform:uppercase;color:#2d3748;margin-bottom:4px">Current Price</div>
+      <div style="font-size:18px;font-weight:bold;color:#1a1a2e">—</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:10px;text-align:center">
+      <div style="font-size:9px;text-transform:uppercase;color:#2d3748;margin-bottom:4px">Business Quality</div>
+      <span style="display:inline-block;background:#fff3cd;color:#856404;padding:4px 14px;border-radius:4px;font-weight:bold;font-size:16px">C</span>
+    </div>
+  </div>
+
+  <!-- Score bars -->
+  <div style="margin-bottom:14px">
+    
+<div style="margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+    <span style="font-size:11px;color:#2d3748;font-weight:500">Financial Strength</span>
+    <span style="font-size:11px;color:#1a1a2e;font-weight:bold">45/100</span>
+  </div>
+  <div style="background:#e2e8f0;border-radius:4px;height:8px;width:100%">
+    <div style="background:#1a1a2e;height:8px;border-radius:4px;width:45%"></div>
+  </div>
+</div>
+    
+<div style="margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+    <span style="font-size:11px;color:#2d3748;font-weight:500">Growth Quality</span>
+    <span style="font-size:11px;color:#1a1a2e;font-weight:bold">50/100</span>
+  </div>
+  <div style="background:#e2e8f0;border-radius:4px;height:8px;width:100%">
+    <div style="background:#1a1a2e;height:8px;border-radius:4px;width:50%"></div>
+  </div>
+</div>
+    
+<div style="margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+    <span style="font-size:11px;color:#2d3748;font-weight:500">Valuation Attractiveness</span>
+    <span style="font-size:11px;color:#1a1a2e;font-weight:bold">50/100</span>
+  </div>
+  <div style="background:#e2e8f0;border-radius:4px;height:8px;width:100%">
+    <div style="background:#1a1a2e;height:8px;border-radius:4px;width:50%"></div>
+  </div>
+</div>
+    
+<div style="margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+    <span style="font-size:11px;color:#2d3748;font-weight:500">Risk Score (higher = safer)</span>
+    <span style="font-size:11px;color:#1a1a2e;font-weight:bold">45/100</span>
+  </div>
+  <div style="background:#e2e8f0;border-radius:4px;height:8px;width:100%">
+    <div style="background:#1a1a2e;height:8px;border-radius:4px;width:45%"></div>
+  </div>
+</div>
+    
+<div style="margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+    <span style="font-size:11px;color:#2d3748;font-weight:500">Market Positioning</span>
+    <span style="font-size:11px;color:#1a1a2e;font-weight:bold">50/100</span>
+  </div>
+  <div style="background:#e2e8f0;border-radius:4px;height:8px;width:100%">
+    <div style="background:#1a1a2e;height:8px;border-radius:4px;width:50%"></div>
+  </div>
+</div>
+  </div>
+
+  <!-- Financial Highlights -->
+  <div class="section-header">Financial Highlights</div>
+  
+<table style="width:100%;border-collapse:collapse;font-family:Arial">
+  <thead>
+    <tr>
+      <th style="background:#1a1a2e;color:white;padding:6px 10px;font-size:10px;text-align:left">Metric</th>
+      <th style="background:#1a1a2e;color:white;padding:6px 10px;font-size:10px;text-align:right">2025</th><th style="background:#1a1a2e;color:white;padding:6px 10px;font-size:10px;text-align:right">2024</th><th style="background:#1a1a2e;color:white;padding:6px 10px;font-size:10px;text-align:right">2023</th>
+    </tr>
+  </thead>
+  <tbody><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">Revenue (₹ Cr)</td><td style="text-align:right;padding:5px 10px;font-size:10px;font-weight:bold">964,693.0 Cr</td><td style="text-align:right;padding:5px 10px;font-size:10px">901,064.0 Cr</td><td style="text-align:right;padding:5px 10px;font-size:10px">877,835.0 Cr</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">EBITDA (₹ Cr)</td><td style="text-align:right;padding:5px 10px;font-size:10px;font-weight:bold">181,274.0 Cr</td><td style="text-align:right;padding:5px 10px;font-size:10px">176,944.0 Cr</td><td style="text-align:right;padding:5px 10px;font-size:10px">153,307.0 Cr</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">Net Income (₹ Cr)</td><td style="text-align:right;padding:5px 10px;font-size:10px;font-weight:bold">69,648.0 Cr</td><td style="text-align:right;padding:5px 10px;font-size:10px">69,621.0 Cr</td><td style="text-align:right;padding:5px 10px;font-size:10px">66,702.0 Cr</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">Free Cash Flow (₹ Cr)</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">EBITDA Margin</td><td style="text-align:right;padding:5px 10px;font-size:10px">18.8%</td><td style="text-align:right;padding:5px 10px;font-size:10px;font-weight:bold">19.6%</td><td style="text-align:right;padding:5px 10px;font-size:10px">17.5%</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">Net Margin</td><td style="text-align:right;padding:5px 10px;font-size:10px">7.2%</td><td style="text-align:right;padding:5px 10px;font-size:10px;font-weight:bold">7.7%</td><td style="text-align:right;padding:5px 10px;font-size:10px">7.6%</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">Revenue Growth YoY</td><td style="text-align:right;padding:5px 10px;font-size:10px;font-weight:bold">7.1%</td><td style="text-align:right;padding:5px 10px;font-size:10px">2.6%</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td></tr><tr><td style="padding:5px 10px;font-size:10px;font-weight:500;background:#f8f9fa">Net Debt / EBITDA</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td><td style="text-align:right;padding:5px 10px;font-size:10px">—</td></tr></tbody>
+</table>
+
+  <!-- SWOT -->
+  <div class="section-header">SWOT Analysis</div>
+  
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+  
+<div style="background:#d4edda;border:1px solid #155724;border-radius:4px;padding:10px">
+  <div style="font-weight:bold;font-size:11px;color:#155724;margin-bottom:6px;
+              text-transform:uppercase;letter-spacing:0.5px">Strengths</div>
+  <div style="font-size:10px;color:#aaa;font-style:italic">—</div>
+</div>
+  
+<div style="background:#f8d7da;border:1px solid #721c24;border-radius:4px;padding:10px">
+  <div style="font-weight:bold;font-size:11px;color:#721c24;margin-bottom:6px;
+              text-transform:uppercase;letter-spacing:0.5px">Weaknesses</div>
+  <div style="font-size:10px;margin-bottom:5px;color:#155724">● EBITDA margin -0.8% below sector average (18.0%) — cost pressure or pricing weakness</div><div style="font-size:10px;margin-bottom:5px;color:#856404">◐ Limited public data available — key financial metrics rely on estimated assumptions</div>
+</div>
+  
+<div style="background:#d1ecf1;border:1px solid #0c5460;border-radius:4px;padding:10px">
+  <div style="font-weight:bold;font-size:11px;color:#0c5460;margin-bottom:6px;
+              text-transform:uppercase;letter-spacing:0.5px">Opportunities</div>
+  <div style="font-size:10px;margin-bottom:5px;color:#0c5460">○ Sector growth tailwinds may benefit the company as macro conditions normalise</div>
+</div>
+  
+<div style="background:#fff3cd;border:1px solid #856404;border-radius:4px;padding:10px">
+  <div style="font-weight:bold;font-size:11px;color:#856404;margin-bottom:6px;
+              text-transform:uppercase;letter-spacing:0.5px">Threats</div>
+  <div style="font-size:10px;margin-bottom:5px;color:#856404">◐ Guardrail breach(es) on wacc, equity_risk_premium, cost_of_debt — model at boundary conditions; assumptions need review</div><div style="font-size:10px;margin-bottom:5px;color:#0c5460">○ Macro headwinds (rates, inflation, FX) could compress valuations across the sector</div>
+</div>
+</div>
+
+  <!-- Risk Signals -->
+  <div class="section-header">Risk Signals</div>
+  <div style="font-size:10px;color:#155724">No high-severity risk signals detected.</div>
+
+</div>
+<div class="page">
+
+  <!-- Header bar -->
+  <div style="background:#1a1a2e;color:white;padding:8px 14px;border-radius:4px;
+              display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-size:14px;font-weight:bold">RELIANCE — Valuation &amp; Investment Thesis</span>
+    <span style="font-size:10px;opacity:0.7">20 Apr 2026, 07:11 UTC</span>
+  </div>
+
+  <!-- Investment Thesis -->
+  <div class="section-header">Investment Thesis</div>
+  <div style="background:#f8f9fa;border-left:3px solid #1a1a2e;padding:8px 12px;
+              border-radius:0 4px 4px 0;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:bold;margin-bottom:3px">Hypothesis</div>
+    <div style="font-size:10px">RELIANCE undervalued — GRM recovery not priced in</div>
+  </div>
+  <div style="background:#fff3cd;border-left:3px solid #856404;padding:8px 12px;border-radius:0 4px 4px 0;margin-bottom:8px"><div style="font-size:11px;font-weight:bold;color:#856404;margin-bottom:3px">Variant View (vs Consensus)</div><div style="font-size:10px">Consensus uses $6/bbl GRM; we model $9/bbl recovery</div></div>
+  <div style="margin-bottom:8px">
+    <div style="font-size:11px;font-weight:bold;margin-bottom:4px">Model Rationale</div>
+    <div style="font-size:10px;margin-bottom:3px;color:#155724">✓ No high-severity signals detected</div>
+  </div>
+  <div>
+    <div style="font-size:11px;font-weight:bold;margin-bottom:4px">Catalysts</div>
+    <div style="font-size:10px;margin-bottom:4px">⚡ Q1 FY27 results  ·  2026-07-15  ·  Earnings</div>
+  </div>
+
+  <!-- DCF Valuation -->
+  <div class="section-header">DCF Valuation — Bull / Base / Bear</div>
+  <div style="display:flex;margin-bottom:12px">
+
+<div style="flex:1;background:#d4edda;border:1px solid #155724;border-radius:6px;
+            padding:12px;margin:0 4px">
+  <div style="font-weight:bold;font-size:12px;color:#155724;margin-bottom:6px">🐂 Bull Case</div>
+  <div style="font-size:22px;font-weight:bold;color:#155724">₹0.0</div>
+  <div style="font-size:12px;color:#155724;margin-top:2px">— upside &nbsp;·&nbsp; HOLD</div>
+  <div style="font-size:10px;color:#2d3748;margin-top:8px;font-style:italic">4.1% revenue growth + 1.2% EBITDA margin driving value</div>
+</div>
+<div style="flex:1;background:#fff3cd;border:1px solid #856404;border-radius:6px;
+            padding:12px;margin:0 4px">
+  <div style="font-weight:bold;font-size:12px;color:#856404;margin-bottom:6px">📊 Base Case</div>
+  <div style="font-size:22px;font-weight:bold;color:#856404">₹0.0</div>
+  <div style="font-size:12px;color:#856404;margin-top:2px">— upside &nbsp;·&nbsp; HOLD</div>
+  <div style="font-size:10px;color:#2d3748;margin-top:8px;font-style:italic">Base case: 1.1% growth, -0.8% margin, 7.0% WACC</div>
+</div>
+<div style="flex:1;background:#f8d7da;border:1px solid #721c24;border-radius:6px;
+            padding:12px;margin:0 4px">
+  <div style="font-weight:bold;font-size:12px;color:#721c24;margin-bottom:6px">🐻 Bear Case</div>
+  <div style="font-size:22px;font-weight:bold;color:#721c24">₹0.0</div>
+  <div style="font-size:12px;color:#721c24;margin-top:2px">— upside &nbsp;·&nbsp; HOLD</div>
+  <div style="font-size:10px;color:#2d3748;margin-top:8px;font-style:italic">Downside risk: -2.9% growth, -3.8% margin, 7.0% WACC</div>
+</div>
+</div>
+
+  <!-- Sensitivity Table -->
+  <div style="margin-bottom:10px">
+    <div style="font-size:10px;font-weight:bold;margin-bottom:5px">
+      Sensitivity Table — Upside % (WACC × Terminal Growth Rate)
+    </div>
+    
+<table style="width:100%;border-collapse:collapse;font-family:Arial">
+  <thead><tr>
+    <th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px">WACC \ TG</th>
+    <th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 0.8%</th><th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 1.3%</th><th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 1.8%</th><th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 2.3%</th><th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 2.8%</th><th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 3.3%</th><th style="background:#1a1a2e;color:white;padding:4px 8px;font-size:9px;text-align:center">TG 3.8%</th>
+  </tr></thead>
+  <tbody><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 0.5%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 1.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 1.5%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 2.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 2.5%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 3.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr><tr><td style="background:#f8f9fa;font-size:9px;font-weight:500;padding:4px 8px">WACC 3.5%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#fff3cd;color:#856404;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">0.0%</td><td style="background:#e2e8f0;color:#2d3748;;text-align:center;padding:5px 8px;font-size:10px;font-weight:normal">—</td></tr></tbody>
+</table>
+<div style="font-size:9px;color:#2d3748;margin-top:4px">
+  ● Bold border = base case &nbsp;
+  <span style="color:#155724">■</span> >20% upside &nbsp;
+  <span style="color:#856404">■</span> 0-20% &nbsp;
+  <span style="color:#721c24">■</span> negative
+</div>
+  </div>
+
+  <!-- Reverse DCF -->
+  <div class="section-header">Reverse DCF</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:8px;text-align:center">
+      <div style="font-size:9px;color:#2d3748;margin-bottom:2px">Implied Growth Rate</div>
+      <div style="font-size:16px;font-weight:bold;color:#1a1a2e">—</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:8px;text-align:center">
+      <div style="font-size:9px;color:#2d3748;margin-bottom:2px">Implied EBITDA Margin</div>
+      <div style="font-size:16px;font-weight:bold;color:#1a1a2e">—</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:4px;padding:8px;text-align:center">
+      <div style="font-size:9px;color:#2d3748;margin-bottom:2px">Assessment</div>
+      <div style="font-size:12px;font-weight:bold;color:#1a1a2e">—</div>
+    </div>
+  </div>
+
+  <!-- Signal Summary -->
+  <div class="section-header">Signal Summary (Top 5)</div>
+  <p style="font-size:10px;color:#856404">No signals detected. Run signal scan first.</p>
+
+  <!-- Porter's Five Forces -->
+  <div class="section-header">Porter's Five Forces</div>
+  
+<table style="width:100%;border-collapse:collapse;font-family:Arial">
+  <thead><tr>
+    <th style="background:#1a1a2e;color:white;padding:6px 8px;font-size:10px;text-align:left">Force</th>
+    <th style="background:#1a1a2e;color:white;padding:6px 8px;font-size:10px;text-align:center">Rating</th>
+    <th style="background:#1a1a2e;color:white;padding:6px 8px;font-size:10px;text-align:left">Rationale</th>
+    <th style="background:#1a1a2e;color:white;padding:6px 8px;font-size:10px;text-align:center">Source</th>
+  </tr></thead>
+  <tbody>
+<tr>
+  <td style="padding:5px 8px;font-size:10px;font-weight:500;background:#f8f9fa">Competitive Rivalry</td>
+  <td style="padding:5px 8px;text-align:center"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:bold">Medium</span></td>
+  <td style="padding:5px 8px;font-size:10px;color:#2d3748">Competitive intensity typical for other sector based on sector framework.</td>
+  <td style="padding:5px 8px;font-size:9px;color:#0c5460;text-align:center">ASSUMPTION</td>
+</tr>
+<tr>
+  <td style="padding:5px 8px;font-size:10px;font-weight:500;background:#f8f9fa">Supplier Power</td>
+  <td style="padding:5px 8px;text-align:center"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:bold">Medium</span></td>
+  <td style="padding:5px 8px;font-size:10px;color:#2d3748">Supplier concentration in other sector implies medium bargaining power.</td>
+  <td style="padding:5px 8px;font-size:9px;color:#0c5460;text-align:center">ASSUMPTION</td>
+</tr>
+<tr>
+  <td style="padding:5px 8px;font-size:10px;font-weight:500;background:#f8f9fa">Buyer Power</td>
+  <td style="padding:5px 8px;text-align:center"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:bold">Medium</span></td>
+  <td style="padding:5px 8px;font-size:10px;color:#2d3748">Buyer concentration in other sector implies medium buyer power.</td>
+  <td style="padding:5px 8px;font-size:9px;color:#0c5460;text-align:center">ASSUMPTION</td>
+</tr>
+<tr>
+  <td style="padding:5px 8px;font-size:10px;font-weight:500;background:#f8f9fa">Threat of Substitutes</td>
+  <td style="padding:5px 8px;text-align:center"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:bold">Medium</span></td>
+  <td style="padding:5px 8px;font-size:10px;color:#2d3748">Substitution risk is medium for other based on sector analysis.</td>
+  <td style="padding:5px 8px;font-size:9px;color:#0c5460;text-align:center">ASSUMPTION</td>
+</tr>
+<tr>
+  <td style="padding:5px 8px;font-size:10px;font-weight:500;background:#f8f9fa">Threat of New Entrants</td>
+  <td style="padding:5px 8px;text-align:center"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:bold">Medium</span></td>
+  <td style="padding:5px 8px;font-size:10px;color:#2d3748">Entry barriers in other are medium based on regulatory and capital requirements.</td>
+  <td style="padding:5px 8px;font-size:9px;color:#0c5460;text-align:center">ASSUMPTION</td>
+</tr></tbody>
+</table>
+
+  <!-- Footer -->
+  <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:6px;
+              display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:9px;color:#2d3748">
+      Generated by Unified Financial Intelligence System &nbsp;·&nbsp;
+      Session: RELIANCE_20260420_124107
+    </span>
+    <span style="font-size:9px;color:#e94560;font-style:italic">
+      This is not investment advice
+    </span>
+    <span style="font-size:9px;color:#2d3748">20 Apr 2026, 07:11 UTC</span>
+  </div>
+
+</div></body></html>

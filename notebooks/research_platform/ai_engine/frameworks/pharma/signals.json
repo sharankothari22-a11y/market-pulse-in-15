@@ -1,0 +1,95 @@
+{
+  "_sector": "Pharma",
+  "_priority": 4,
+  "_valuation": "DCF + P/E",
+  "key_drivers": [
+    "fda_approvals",
+    "api_prices",
+    "us_generic_pricing",
+    "r_and_d_pipeline"
+  ],
+  "signals": [
+    {
+      "id": "fda_action",
+      "name": "FDA Action",
+      "keywords": [
+        "fda",
+        "anda",
+        "nda",
+        "approval",
+        "warning letter",
+        "import alert",
+        "483"
+      ],
+      "factors": [
+        "revenue_growth",
+        "equity_risk_premium"
+      ],
+      "transmission": "ANDA approval opens US market. Warning letter halts exports. Binary event.",
+      "direction_map": {
+        "approval": "positive_high",
+        "warning letter": "negative_high"
+      },
+      "indicator_type": "leading"
+    },
+    {
+      "id": "api_price_move",
+      "name": "API Price Movement",
+      "keywords": [
+        "api",
+        "active pharmaceutical",
+        "raw material",
+        "china api"
+      ],
+      "factors": [
+        "gross_margin",
+        "ebitda_margin"
+      ],
+      "transmission": "API 30-50% of COGS. +10% \u2192 gross margin -3-5%",
+      "lag_quarters": 1,
+      "indicator_type": "leading"
+    },
+    {
+      "id": "us_generic_pricing",
+      "name": "US Generic Price Erosion",
+      "keywords": [
+        "price erosion",
+        "generic pricing",
+        "us market",
+        "competition"
+      ],
+      "factors": [
+        "revenue_growth",
+        "ebitda_margin"
+      ],
+      "transmission": "5-10% annual erosion normal; acceleration from new entrants compresses faster",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "plant_inspection",
+      "name": "USFDA Plant Inspection",
+      "keywords": [
+        "usfda inspection",
+        "eir",
+        "vai",
+        "oai"
+      ],
+      "factors": [
+        "revenue_growth",
+        "equity_risk_premium"
+      ],
+      "transmission": "OAI blocks US approvals from that plant",
+      "direction_map": {
+        "oai": "negative_high",
+        "vai": "positive_low"
+      },
+      "indicator_type": "leading"
+    }
+  ],
+  "default_assumptions": {
+    "us_price_erosion_pct": -7,
+    "r_and_d_pct_of_revenue": 8,
+    "domestic_growth_pct": 10,
+    "terminal_growth_rate": 4.5
+  }
+}

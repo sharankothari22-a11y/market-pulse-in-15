@@ -1,0 +1,37 @@
+# Core
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
+
+# Scheduling
+apscheduler==3.10.4
+
+# Caching
+diskcache==5.6.3
+
+# Logging
+loguru==0.7.3
+
+# HTTP
+httpx==0.28.1
+requests==2.32.3
+feedparser==6.0.11
+
+# Data
+pandas==2.2.3
+pyyaml==6.0.2
+
+# Financial data clients
+fredapi==0.5.2
+pycoingecko==3.1.0
+
+# Validation
+pydantic==2.10.4
+
+# CLI
+click==8.1.8
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.2

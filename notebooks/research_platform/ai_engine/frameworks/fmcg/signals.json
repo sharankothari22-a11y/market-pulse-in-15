@@ -1,0 +1,87 @@
+{
+  "_sector": "FMCG / Retail",
+  "_priority": 3,
+  "_valuation": "DCF + EV/EBITDA",
+  "key_drivers": [
+    "volume_growth",
+    "input_costs",
+    "distribution_reach",
+    "pricing_power"
+  ],
+  "signals": [
+    {
+      "id": "volume_growth",
+      "name": "Volume Growth",
+      "keywords": [
+        "volume growth",
+        "offtake",
+        "sellout",
+        "category growth"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "FMCG revenue = volume \u00d7 price",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "input_cost_change",
+      "name": "Input Cost Movement",
+      "keywords": [
+        "palm oil",
+        "wheat",
+        "sugar",
+        "packaging",
+        "plastics"
+      ],
+      "factors": [
+        "gross_margin",
+        "ebitda_margin"
+      ],
+      "transmission": "Input 40-60% of revenue. Spike hits GM in 1-2Q; pricing restores in 2-4Q",
+      "lag_quarters": 2,
+      "indicator_type": "leading"
+    },
+    {
+      "id": "rural_demand",
+      "name": "Rural Demand Signal",
+      "keywords": [
+        "rural",
+        "monsoon",
+        "msp",
+        "village",
+        "bharat"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "Rural = ~40% of FMCG demand. Good monsoon \u2192 rural recovery",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "distribution",
+      "name": "Distribution Expansion",
+      "keywords": [
+        "direct reach",
+        "distribution",
+        "outlets",
+        "expansion"
+      ],
+      "factors": [
+        "revenue_growth",
+        "terminal_growth_rate"
+      ],
+      "transmission": "Wider distribution unlocks new markets",
+      "indicator_type": "leading"
+    }
+  ],
+  "default_assumptions": {
+    "volume_growth_pct": 6,
+    "price_growth_pct": 3,
+    "ebitda_margin_range": [
+      18,
+      24
+    ],
+    "terminal_growth_rate": 5.5
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "_sector": "Auto",
+  "_priority": 7,
+  "_valuation": "EV/EBITDA + DCF",
+  "key_drivers": [
+    "volume",
+    "ev_transition",
+    "commodity_costs",
+    "export_mix"
+  ],
+  "signals": [
+    {
+      "id": "monthly_volume",
+      "name": "Monthly Volume",
+      "keywords": [
+        "wholesale",
+        "retail",
+        "dispatches",
+        "units",
+        "volume growth",
+        "market share"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "Monthly volume is high-frequency leading indicator",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "ev_transition",
+      "name": "EV Transition Speed",
+      "keywords": [
+        "ev",
+        "electric vehicle",
+        "bev",
+        "hybrid",
+        "ev penetration"
+      ],
+      "factors": [
+        "capex",
+        "terminal_growth_rate",
+        "ebitda_margin"
+      ],
+      "transmission": "Heavy capex near-term; structurally necessary. 3-5 year horizon.",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "commodity_cost",
+      "name": "Steel / Commodity Cost",
+      "keywords": [
+        "steel",
+        "aluminium",
+        "copper",
+        "rm cost"
+      ],
+      "factors": [
+        "gross_margin",
+        "ebitda_margin"
+      ],
+      "transmission": "Commodity = 60-70% of COGS. Steel +10% \u2192 EBITDA margin -150-200bps. 2Q lag.",
+      "lag_quarters": 2,
+      "indicator_type": "leading"
+    },
+    {
+      "id": "chip_supply",
+      "name": "Semiconductor Supply",
+      "keywords": [
+        "semiconductor",
+        "chip",
+        "supply chain",
+        "shortage"
+      ],
+      "factors": [
+        "revenue_growth",
+        "capex"
+      ],
+      "transmission": "Chip shortage limits production regardless of demand",
+      "indicator_type": "leading"
+    }
+  ],
+  "default_assumptions": {
+    "volume_growth_pct": 8,
+    "ebitda_margin_range": [
+      12,
+      16
+    ],
+    "commodity_pct_of_cogs": 65,
+    "terminal_growth_rate": 3.5
+  }
+}
