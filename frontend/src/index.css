@@ -44,9 +44,9 @@
 /* ── NEW DESIGN TOKENS — Beaver Intelligence navy+white (bi-* prefix) ─── */
 :root {
   /* Neutrals */
-  --bi-bg-page:       #F5F7FA;
+  --bi-bg-page:       #F3EEE0;
   --bi-bg-card:       #F3EEE0;
-  --bi-bg-subtle:     #EEF1F6;
+  --bi-bg-subtle:     #F3EEE0;
   --bi-border-subtle: #E1E6EE;
   --bi-border-strong: #C9D1DE;
 
