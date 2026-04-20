@@ -39,3 +39,6 @@ notebooks/DCF_Output_*.xlsm
 notebooks/DCF_Output_*.xlsx
 notebooks/DCF_Output_*.summary.json
 notebooks/DCF_Output_*.debug.json
+
+# Research platform runtime-generated sessions
+notebooks/research_platform/ai_engine/sessions/
