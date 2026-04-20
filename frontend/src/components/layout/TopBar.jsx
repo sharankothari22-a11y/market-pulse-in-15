@@ -3,14 +3,13 @@ import { apiGet, API_ENDPOINTS } from '@/services/api';
 
 const BEAVER_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/tqw73ol3_Screenshot%202026-04-16%20at%206.20.25%E2%80%AFPM.png';
 
-const findIndicator = (arr, id) => (arr || []).find(i => i.id === id);
-
-const IndexChip = ({ label, data }) => {
+const IndexChip = ({ label, value, changePct }) => {
   const val =
-    data && typeof data.raw_value === 'number'
-      ? data.raw_value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-      : data?.value ?? '—';
-  const isPos = data?.changeType === 'positive';
+    typeof value === 'number'
+      ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+      : '—';
+  const hasChange = typeof changePct === 'number';
+  const isPos = hasChange && changePct >= 0;
   return (
     <div
       className="flex items-center gap-2 px-3 py-1 rounded-md tabular-nums"
@@ -20,9 +19,9 @@ const IndexChip = ({ label, data }) => {
         {label}
       </span>
       <span style={{ color: '#FFFFFF', fontSize: 12.5, fontWeight: 600 }}>{val}</span>
-      {data?.change && (
+      {hasChange && (
         <span style={{ color: isPos ? '#6FD19B' : '#F1867F', fontSize: 11, fontWeight: 600 }}>
-          {isPos ? '▲' : '▼'} {data.change}
+          {isPos ? '▲' : '▼'} {Math.abs(changePct).toFixed(2)}%
         </span>
       )}
     </div>
@@ -32,7 +31,10 @@ const IndexChip = ({ label, data }) => {
 export const TopBar = ({ currentPage, onNavigate }) => {
   const [time, setTime] = useState(new Date());
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [indices, setIndices] = useState({ nifty: null, sensex: null });
+  const [indices, setIndices] = useState({
+    niftyValue: null, niftyChangePct: null,
+    sensexValue: null, sensexChangePct: null,
+  });
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -40,19 +42,25 @@ export const TopBar = ({ currentPage, onNavigate }) => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchIdx = async () => {
       try {
-        const data = await apiGet(API_ENDPOINTS.macro);
+        const data = await apiGet(API_ENDPOINTS.marketOverview);
+        if (cancelled) return;
+        const nifty = data?.nifty || data?.nifty50 || data?.NIFTY50 || {};
+        const sensex = data?.sensex || data?.SENSEX || {};
         setIndices({
-          nifty: findIndicator(data?.indicators, '^NSEI'),
-          sensex: findIndicator(data?.indicators, '^BSESN'),
+          niftyValue: data?.nifty_value ?? nifty.value ?? null,
+          niftyChangePct: data?.nifty_change_percent ?? nifty.change_percent ?? null,
+          sensexValue: data?.sensex_value ?? sensex.value ?? null,
+          sensexChangePct: data?.sensex_change_percent ?? sensex.change_percent ?? null,
         });
         setLastRefresh(new Date());
       } catch (e) { /* silent */ }
     };
     fetchIdx();
     const t = setInterval(fetchIdx, 60000);
-    return () => clearInterval(t);
+    return () => { cancelled = true; clearInterval(t); };
   }, []);
 
   const formatIST = (date) =>
@@ -129,8 +137,8 @@ export const TopBar = ({ currentPage, onNavigate }) => {
 
       {/* Center: index chips */}
       <div className="flex items-center gap-3">
-        <IndexChip label="NIFTY 50" data={indices.nifty} />
-        <IndexChip label="SENSEX"   data={indices.sensex} />
+        <IndexChip label="NIFTY 50" value={indices.niftyValue} changePct={indices.niftyChangePct} />
+        <IndexChip label="SENSEX"   value={indices.sensexValue} changePct={indices.sensexChangePct} />
       </div>
 
       {/* Right: clock + refresh + pulse */}
