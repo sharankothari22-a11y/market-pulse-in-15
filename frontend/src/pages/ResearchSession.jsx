@@ -540,7 +540,6 @@ const ForecastPanel = ({ researchData, dcfData }) => {
           <tr>
             <th style={{ ...head, textAlign: 'left' }}>Year</th>
             <th style={head}>Revenue</th>
-            <th style={head}>EBIT</th>
             <th style={head}>FCFF</th>
             <th style={head}>Growth</th>
           </tr>
@@ -553,9 +552,6 @@ const ForecastPanel = ({ researchData, dcfData }) => {
               </td>
               <td style={{ ...cell, textAlign: 'right', color: 'var(--bi-text-primary, #0F2540)' }}>
                 {r.revenue != null ? Number(r.revenue).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
-              </td>
-              <td style={{ ...cell, textAlign: 'right', color: 'var(--bi-text-primary, #0F2540)' }}>
-                {r.ebit != null ? Number(r.ebit).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
               </td>
               <td style={{ ...cell, textAlign: 'right', color: 'var(--bi-text-primary, #0F2540)' }}>
                 {r.fcff != null ? Number(r.fcff).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
