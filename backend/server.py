@@ -1161,13 +1161,37 @@ async def analyze(request: Request):
     try:
         _val = ((response.get("dcf_summary") or {}).get("valuation") or {})
         _fv = _val.get("fair_value_per_share")
-        if _fv and float(_fv) > 0 and current_price:
+        _cur = _val.get("current_price") or current_price
+
+        _dcf_accepted = False
+        _reject_reason = None
+        if _fv is None:
+            _reject_reason = "fair_value_per_share is None"
+        elif float(_fv) <= 0:
+            _reject_reason = f"fair_value_per_share is non-positive ({_fv})"
+        elif _cur and float(_cur) > 0:
+            _dev = abs((float(_fv) - float(_cur)) / float(_cur))
+            if _dev > 0.80:
+                _reject_reason = (
+                    f"fair_value_per_share {float(_fv):.2f} deviates "
+                    f"{_dev*100:.0f}% from current price {float(_cur):.2f} "
+                    f"— likely bad DCF assumptions"
+                )
+            else:
+                _dcf_accepted = True
+        else:
+            _dcf_accepted = True
+
+        _scen = response.get("scenarios") or {}
+        _base = dict(_scen.get("base") or {})
+        _old = _base.get("price_per_share") or _base.get("per_share")
+
+        if _dcf_accepted:
             _fv = float(_fv)
-            _scen = response.get("scenarios") or {}
-            _base = dict(_scen.get("base") or {})
-            _old = _base.get("price_per_share") or _base.get("per_share")
-            _ups = ((_fv - current_price) / current_price) * 100.0
-            if _ups > 15:
+            _ups = ((_fv - _cur) / _cur) * 100.0 if _cur else None
+            if _ups is None:
+                _rating = _base.get("rating") or "HOLD"
+            elif _ups > 15:
                 _rating = "BUY"
             elif _ups > -15:
                 _rating = "HOLD"
@@ -1175,14 +1199,24 @@ async def analyze(request: Request):
                 _rating = "SELL"
             _base["price_per_share"] = round(_fv, 2)
             _base["per_share"] = round(_fv, 2)
-            _base["upside_pct"] = round(_ups, 2)
+            if _ups is not None:
+                _base["upside_pct"] = round(_ups, 2)
             _base["rating"] = _rating
             _base["_source"] = "dcf_notebook"
             _scen["base"] = _base
             response["scenarios"] = _scen
             logger.info(
                 f"[analyze] {ticker}: {_old} → {_fv:.2f} "
-                f"(upside {_ups:.1f}%, rating {_rating})"
+                f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, "
+                f"rating {_rating}) — DCF notebook value accepted"
+            )
+        else:
+            _base["_source"] = "scenario_engine_fallback"
+            _scen["base"] = _base
+            response["scenarios"] = _scen
+            logger.warning(
+                f"[analyze] {ticker}: DCF notebook value rejected — "
+                f"{_reject_reason}. Falling back to scenario engine value {_old}"
             )
     except Exception as _e:
         logger.warning(f"[analyze] DCF base swap failed: {_e}")
