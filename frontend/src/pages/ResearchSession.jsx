@@ -68,7 +68,7 @@ const ratingStyle = (rating) => {
 
 // ─── shared panel shell ────────────────────────────────────────────────────
 const panelStyle = {
-  backgroundColor: 'var(--bi-bg-card, #ffffff)',
+  backgroundColor: 'var(--bi-bg-card, #F3EEE0)',
   border: '1px solid var(--bi-border-subtle, #E2E7EF)',
   borderRadius: 10,
   padding: 14,
@@ -918,7 +918,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const hasSession = researchData && researchData.status !== 'not_found';
 
   return (
-    <div className="page-content overflow-y-auto" style={{ padding: 24, backgroundColor: '#ffffff' }}
+    <div className="page-content overflow-y-auto" style={{ padding: 24, backgroundColor: '#F3EEE0' }}
          data-testid="research-session-page">
 
       {/* New Session Modal */}

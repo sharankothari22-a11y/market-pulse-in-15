@@ -71,8 +71,8 @@ export const TopBar = ({ currentPage, onNavigate }) => {
       className="flex items-center justify-between px-5"
       style={{
         height: 64,
-        backgroundColor: 'var(--bi-navy-900)',
-        borderBottom: '1px solid var(--bi-navy-700)',
+        backgroundColor: '#0F3D2E',
+        borderBottom: '1px solid #0F3D2E',
       }}
       data-testid="top-bar"
     >

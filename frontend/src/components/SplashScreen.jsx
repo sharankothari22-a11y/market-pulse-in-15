@@ -33,7 +33,7 @@ export const SplashScreen = ({ onDone }) => {
       className="fixed inset-0 flex flex-col items-center justify-center"
       style={{
         zIndex: 9999,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F3EEE0',
         opacity: fadingOut ? 0 : 1,
         transition: `opacity ${FADE_MS}ms ease-out`,
         pointerEvents: fadingOut ? 'none' : 'auto',
@@ -48,7 +48,7 @@ export const SplashScreen = ({ onDone }) => {
             height: 240,
             borderRadius: '50%',
             overflow: 'hidden',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: '#F3EEE0',
             filter: 'drop-shadow(0 12px 28px rgba(15,37,64,0.18))',
           }}
         >
