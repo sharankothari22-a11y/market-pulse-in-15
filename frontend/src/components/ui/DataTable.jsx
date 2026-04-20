@@ -10,7 +10,7 @@ export const DataTable = ({ columns, rows, maxHeight = 320 }) => {
       <table className="w-full text-sm tabular-nums">
         <thead
           className="sticky top-0 z-10"
-          style={{ backgroundColor: '#F3EEE0' }}
+          style={{ backgroundColor: '#FFFFFF' }}
         >
           <tr>
             {columns.map((col, idx) => (

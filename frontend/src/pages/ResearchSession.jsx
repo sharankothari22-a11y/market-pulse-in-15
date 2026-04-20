@@ -68,7 +68,7 @@ const ratingStyle = (rating) => {
 
 // ─── shared panel shell ────────────────────────────────────────────────────
 const panelStyle = {
-  backgroundColor: 'var(--bi-bg-card, #F3EEE0)',
+  backgroundColor: 'var(--bi-bg-card, #FFFFFF)',
   border: '1px solid var(--bi-border-subtle, #E2E7EF)',
   borderRadius: 10,
   padding: 14,

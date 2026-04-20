@@ -9,7 +9,7 @@
 :root {
   --bg-primary: #F5F0E8;        /* cream main background */
   --bg-surface: #EDE8DC;         /* slightly darker cream */
-  --bg-card: #F3EEE0;            /* cream cards */
+  --bg-card: #FFFFFF;            /* white cards */
   --bg-card-hover: #FBF8F2;      /* warm-white hover */
   --bg-elev: #FAF6EE;
 
@@ -45,7 +45,7 @@
 :root {
   /* Neutrals */
   --bi-bg-page:       #F3EEE0;
-  --bi-bg-card:       #F3EEE0;
+  --bi-bg-card:       #FFFFFF;
   --bi-bg-subtle:     #F3EEE0;
   --bi-border-subtle: #E1E6EE;
   --bi-border-strong: #C9D1DE;
