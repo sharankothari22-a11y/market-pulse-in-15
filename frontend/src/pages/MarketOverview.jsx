@@ -67,8 +67,8 @@ const transformFiiDii = (fiiDii = []) => {
     const fiiRaw = latest.fii_net ?? latest.fii ?? latest.FII;
     const diiRaw = latest.dii_net ?? latest.dii ?? latest.DII;
     return {
-      fiiCr: typeof fiiRaw === 'number' ? fiiRaw / 100 : null,
-      diiCr: typeof diiRaw === 'number' ? diiRaw / 100 : null,
+      fiiCr: typeof fiiRaw === 'number' ? fiiRaw : null,
+      diiCr: typeof diiRaw === 'number' ? diiRaw : null,
       date: latest.date || latest.trade_date || '',
     };
   }
@@ -88,8 +88,8 @@ const transformFiiDiiChart = (fiiDii = []) => {
     } catch (_) {}
     return {
       date: short,
-      FII: typeof fii === 'number' ? +(fii / 100).toFixed(0) : 0,
-      DII: typeof dii === 'number' ? +(dii / 100).toFixed(0) : 0,
+      FII: typeof fii === 'number' ? +fii.toFixed(0) : 0,
+      DII: typeof dii === 'number' ? +dii.toFixed(0) : 0,
     };
   });
 };

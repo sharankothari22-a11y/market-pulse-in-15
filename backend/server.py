@@ -553,14 +553,100 @@ def _between(s: str, start: str, end: str) -> str:
     except ValueError:
         return ""
 
-# ---- FII/DII (stub — plug your existing collector if you have one) ----
+# ---- FII/DII ----
+# Fetches daily FII/DII net flows from NSE (JSON) with cookie bootstrap.
+# Maintains a 14-day rolling history in cache so the chart has real history
+# even though the NSE endpoint only returns the latest trading day.
+#
+# Units: fii_net / dii_net are in ₹ Crore (NSE's native unit).
+
+_NSE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/122.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.nseindia.com/reports/fii-dii",
+}
+
+async def _fetch_fii_dii_nse_latest() -> Optional[dict]:
+    """Hit NSE fiidiiTradeReact. Returns {date, fii_net, dii_net} in Cr, or None."""
+    if not HTTPX_AVAILABLE:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=8.0, headers=_NSE_HEADERS, follow_redirects=True) as client:
+            # Bootstrap cookies
+            await client.get("https://www.nseindia.com/reports/fii-dii")
+            r = await client.get("https://www.nseindia.com/api/fiidiiTradeReact")
+            if r.status_code != 200:
+                logger.warning(f"NSE fii/dii HTTP {r.status_code}")
+                return None
+            rows = r.json()
+            if not isinstance(rows, list) or not rows:
+                return None
+            fii_net = None
+            dii_net = None
+            trade_date = None
+            for row in rows:
+                cat = (row.get("category") or "").upper()
+                net = row.get("netValue")
+                if isinstance(net, str):
+                    try:
+                        net = float(net.replace(",", ""))
+                    except ValueError:
+                        net = None
+                if net is None:
+                    continue
+                if "FII" in cat or "FPI" in cat:
+                    fii_net = float(net)
+                elif "DII" in cat:
+                    dii_net = float(net)
+                if not trade_date:
+                    trade_date = row.get("date")
+            if fii_net is None and dii_net is None:
+                return None
+            # Normalize date to ISO
+            iso_date = None
+            if trade_date:
+                for fmt in ("%d-%b-%Y", "%d %b %Y", "%Y-%m-%d"):
+                    try:
+                        iso_date = datetime.strptime(trade_date, fmt).date().isoformat()
+                        break
+                    except ValueError:
+                        continue
+            if not iso_date:
+                iso_date = datetime.now(timezone.utc).date().isoformat()
+            return {
+                "date": iso_date,
+                "fii_net": round(fii_net or 0.0, 2),
+                "dii_net": round(dii_net or 0.0, 2),
+                "nifty_close": 0,
+            }
+    except Exception as e:
+        logger.warning(f"NSE fii/dii fetch failed: {e}")
+        return None
 
 async def fetch_fii_dii_safe() -> list[dict]:
-    """Return recent FII/DII flows. Uses cache if live fetch unavailable."""
-    cached, _ = await cache_get("fii_dii")
-    if cached:
-        return cached
-    # Safe default: last 7 days with zeros
+    """Return recent FII/DII flows as list (latest first), in ₹ Crore."""
+    # Load rolling history from cache
+    history_raw, _ = await cache_get("fii_dii_history", max_age_seconds=86400 * 30)
+    history: list[dict] = history_raw if isinstance(history_raw, list) else []
+
+    # Try live fetch; merge if new date
+    latest = await _fetch_fii_dii_nse_latest()
+    if latest:
+        existing_dates = {row.get("date") for row in history}
+        if latest["date"] not in existing_dates:
+            history = [latest] + history
+        else:
+            # update in place (values may have been revised)
+            history = [latest if row.get("date") == latest["date"] else row for row in history]
+        history = sorted(history, key=lambda r: r.get("date", ""), reverse=True)[:14]
+        await cache_set("fii_dii_history", history)
+
+    if history:
+        return history
+
+    # No live data and no cache — return zero-filled skeleton so chart renders empty state
     today = datetime.now(timezone.utc).date()
     return [
         {"date": (today - timedelta(days=i)).isoformat(), "fii_net": 0, "dii_net": 0, "nifty_close": 0}
