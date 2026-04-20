@@ -49,11 +49,19 @@ export const TopBar = ({ currentPage, onNavigate }) => {
         if (cancelled) return;
         const nifty = data?.nifty || data?.nifty50 || data?.NIFTY50 || {};
         const sensex = data?.sensex || data?.SENSEX || {};
+        const num = (v) => {
+          if (typeof v === 'number' && !isNaN(v)) return v;
+          if (typeof v === 'string') {
+            const p = parseFloat(v.replace(/,/g, ''));
+            return isNaN(p) ? null : p;
+          }
+          return null;
+        };
         setIndices({
-          niftyValue: data?.nifty_value ?? nifty.value ?? null,
-          niftyChangePct: data?.nifty_change_percent ?? nifty.change_percent ?? null,
-          sensexValue: data?.sensex_value ?? sensex.value ?? null,
-          sensexChangePct: data?.sensex_change_percent ?? sensex.change_percent ?? null,
+          niftyValue: num(nifty.raw_value) ?? num(nifty.price) ?? num(data?.nifty_value) ?? num(nifty.value),
+          niftyChangePct: num(data?.nifty_change_percent) ?? num(nifty.change_percent) ?? num(nifty.change_pct),
+          sensexValue: num(sensex.raw_value) ?? num(sensex.price) ?? num(data?.sensex_value) ?? num(sensex.value),
+          sensexChangePct: num(data?.sensex_change_percent) ?? num(sensex.change_percent) ?? num(sensex.change_pct),
         });
         setLastRefresh(new Date());
       } catch (e) { /* silent */ }

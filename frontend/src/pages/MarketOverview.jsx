@@ -29,14 +29,16 @@ const transformCommodities = (commodities = []) =>
     const currency = item.currency === 'INR' ? '₹' : '$';
     const price = parseFloat(item.price ?? item.current_price);
     const pct = parseFloat(item.change_24h ?? item.change_pct ?? item.change_percent);
+    const hasPrice = !isNaN(price) && price > 0;
     return {
       id: symbol || idx,
       name: known?.name || symbol,
       venue: known?.venue || '',
       symbol,
-      value: isNaN(price) ? 'N/A'
-        : `${currency}${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: isNaN(pct) ? null : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
+      value: hasPrice
+        ? `${currency}${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '—',
+      change: hasPrice && !isNaN(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : null,
       positive: !isNaN(pct) && pct >= 0,
     };
   });
@@ -294,8 +296,9 @@ const StatusStrip = ({ lastRefresh }) => {
 
 // ─── FX card (compact) ──────────────────────────────────────────────────────
 const FxCard = ({ label, value, changeNum }) => {
-  const hasChange = changeNum != null && changeNum !== 0;
+  const hasChange = changeNum != null && !isNaN(changeNum);
   const pos = (changeNum ?? 0) >= 0;
+  const isZero = hasChange && changeNum === 0;
   return (
     <div style={{
       backgroundColor: 'var(--bi-bg-card)',
@@ -320,9 +323,12 @@ const FxCard = ({ label, value, changeNum }) => {
       <div style={{ marginTop: 6, fontSize: 12 }}>
         {hasChange ? (
           <span className="tabular-nums" style={{
-            color: pos ? 'var(--bi-success-fg)' : 'var(--bi-danger-fg)', fontWeight: 600,
+            color: isZero
+              ? 'var(--bi-text-tertiary)'
+              : pos ? 'var(--bi-success-fg)' : 'var(--bi-danger-fg)',
+            fontWeight: 600,
           }}>
-            {pos ? '▲' : '▼'} {`${pos ? '+' : ''}${changeNum.toFixed(2)}%`}
+            {isZero ? '' : (pos ? '▲ ' : '▼ ')}{`${pos ? '+' : ''}${changeNum.toFixed(2)}%`}
           </span>
         ) : (
           <span style={{ color: 'var(--bi-text-tertiary)' }}>—</span>
