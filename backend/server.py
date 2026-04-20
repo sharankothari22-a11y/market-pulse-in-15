@@ -1137,12 +1137,55 @@ async def analyze(request: Request):
         },
     }
 
+    # ── Run DCF notebook synchronously and swap in real fair value ────
+    try:
+        loop = asyncio.get_event_loop()
+        nb_result = await asyncio.wait_for(
+            loop.run_in_executor(
+                None, _execute_notebook_blocking, session_id, ticker, 30
+            ),
+            timeout=30,
+        )
+        logger.info(f"[analyze] notebook status={nb_result.get('status')} elapsed={nb_result.get('elapsed')}s")
+    except Exception as _e:
+        logger.warning(f"[analyze] DCF notebook run failed/timed out: {_e}")
+
     # Attach DCF summary JSON (papermill output) if available
     try:
         response["dcf_summary"] = _load_dcf_summary(ticker)
     except Exception as _e:
         logger.debug(f"dcf_summary attach failed: {_e}")
         response["dcf_summary"] = None
+
+    # Overwrite scenario engine base with real DCF fair_value_per_share
+    try:
+        _val = ((response.get("dcf_summary") or {}).get("valuation") or {})
+        _fv = _val.get("fair_value_per_share")
+        if _fv and float(_fv) > 0 and current_price:
+            _fv = float(_fv)
+            _scen = response.get("scenarios") or {}
+            _base = dict(_scen.get("base") or {})
+            _old = _base.get("price_per_share") or _base.get("per_share")
+            _ups = ((_fv - current_price) / current_price) * 100.0
+            if _ups > 15:
+                _rating = "BUY"
+            elif _ups > -15:
+                _rating = "HOLD"
+            else:
+                _rating = "SELL"
+            _base["price_per_share"] = round(_fv, 2)
+            _base["per_share"] = round(_fv, 2)
+            _base["upside_pct"] = round(_ups, 2)
+            _base["rating"] = _rating
+            _base["_source"] = "dcf_notebook"
+            _scen["base"] = _base
+            response["scenarios"] = _scen
+            logger.info(
+                f"[analyze] {ticker}: {_old} → {_fv:.2f} "
+                f"(upside {_ups:.1f}%, rating {_rating})"
+            )
+    except Exception as _e:
+        logger.warning(f"[analyze] DCF base swap failed: {_e}")
 
     # Cache for next time yfinance fails
     await cache_set(cache_key, response)
@@ -2650,24 +2693,21 @@ async def report_download_html(session_id: str):
 
             # ── Key Financials: revenue row + FY labels from DCF summary ──
             try:
-                _dcf_sum = _load_dcf_summary(ticker)
+                _dcf_sum = (session or {}).get("dcf_summary") or _load_dcf_summary(ticker)
                 _fcast = (_dcf_sum or {}).get("forecast") or []
+                logger.info(f"[report] forecast wiring: ticker={ticker} rows={len(_fcast)} source={'session' if (session or {}).get('dcf_summary') else 'disk'}")
                 if _fcast:
                     years4 = _fcast[:4]
                     fy_labels = [f"FY{str(int(r['year']))[-2:]}E" for r in years4]
-                    # pad if fewer than 4
                     while len(fy_labels) < 4:
                         fy_labels.append("—")
-                    header_old = (
-                        '<th class="num">FY23</th>\n'
-                        '              <th class="num">FY24</th>\n'
-                        '              <th class="num">FY25E</th>\n'
-                        '              <th class="num">FY26E</th>'
+                    # Whitespace-tolerant FY header replacement
+                    html = re.sub(
+                        r'<th class="num">FY23</th>\s*<th class="num">FY24</th>\s*'
+                        r'<th class="num">FY25E</th>\s*<th class="num">FY26E</th>',
+                        "\n              ".join(f'<th class="num">{l}</th>' for l in fy_labels),
+                        html, count=1,
                     )
-                    header_new = "\n              ".join(
-                        [f'<th class="num">{l}</th>' for l in fy_labels]
-                    )
-                    html = html.replace(header_old, header_new, 1)
 
                     # Revenue row — convert millions → crores (÷10)
                     rev_cells = []
@@ -2675,24 +2715,23 @@ async def report_download_html(session_id: str):
                         if i < len(years4) and years4[i].get("revenue") is not None:
                             try:
                                 rev_cr = int(float(years4[i]["revenue"]) / 10)
-                                rev_cells.append(
-                                    f'<td class="num">{rev_cr:,}</td>'
-                                )
+                                rev_cells.append(f'<td class="num">{rev_cr:,}</td>')
                             except Exception:
                                 rev_cells.append('<td class="num">—</td>')
                         else:
                             rev_cells.append('<td class="num">—</td>')
-                    rev_row_old = (
-                        '<tr><td class="label-cell">Revenue</td>'
-                        '<td class="num">[X,XXX]</td><td class="num">[X,XXX]</td>'
-                        '<td class="num">[X,XXX]</td><td class="num">[X,XXX]</td></tr>'
-                    )
                     rev_row_new = (
                         '<tr><td class="label-cell">Revenue</td>'
                         + "".join(rev_cells) + "</tr>"
                     )
-                    html = html.replace(rev_row_old, rev_row_new, 1)
-                    logger.info(f"[report] wired {len(years4)}y forecast revenue row for {ticker}")
+                    # Whitespace-tolerant Revenue row replacement
+                    html, _n = re.subn(
+                        r'<tr>\s*<td class="label-cell">Revenue</td>\s*'
+                        r'(?:<td class="num">\[X,XXX\]</td>\s*){4}</tr>',
+                        rev_row_new.replace("\\", r"\\"),
+                        html, count=1,
+                    )
+                    logger.info(f"[report] wired {len(years4)}y forecast revenue row for {ticker} (matches={_n})")
             except Exception as _e:
                 logger.warning(f"[report] forecast wiring failed: {_e}")
 
