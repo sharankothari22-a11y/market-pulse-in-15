@@ -1,0 +1,75 @@
+[
+  {
+    "event": "initialized",
+    "assumptions": {
+      "crude_price_usd_bbl": 80,
+      "grm_usd_bbl": 8,
+      "refinery_utilization_pct": 90,
+      "terminal_growth_rate": 2.3,
+      "ticker": "RELIANCE",
+      "exchange": "NSE",
+      "data_date": "2026-04-20",
+      "usd_inr": 92.82,
+      "india_gdp_growth": 2.79300127716779,
+      "india_cpi": 2.94952520485207,
+      "us_fed_funds": 3.64,
+      "risk_free_rate": 4.0,
+      "_sector": "petroleum",
+      "_built_at": "2026-04-20",
+      "_initialized_at": "2026-04-20T08:10:36.241166+00:00",
+      "_session_id": "RELIANCE_20260420_134036",
+      "_ticker": "RELIANCE"
+    },
+    "timestamp": "2026-04-20T08:10:36.241595+00:00"
+  },
+  {
+    "metric": "revenue_growth",
+    "old_value": null,
+    "new_value": 1.1429,
+    "reason": "Consolidated from 5 signals: Upward guidance revision signals management confidence in revenue acceleration; Regulatory constraints may limit operations; OPEC supply cuts support crude price in 1-3 months",
+    "source": "news",
+    "confidence": "medium",
+    "triggered_by": "guidance_change",
+    "timestamp": "2026-04-20T08:10:36.258398+00:00"
+  },
+  {
+    "metric": "ebitda_margin",
+    "old_value": null,
+    "new_value": -0.75,
+    "reason": "Consolidated from 4 signals: Positive guidance often implies operating leverage; Input cost spike compresses EBITDA margin with 1-2 quarter lag; Beat suggests operating leverage better than modelled",
+    "source": "reddit",
+    "confidence": "medium",
+    "triggered_by": "margin_pressure",
+    "timestamp": "2026-04-20T08:10:36.258878+00:00"
+  },
+  {
+    "metric": "cost_of_debt",
+    "old_value": null,
+    "new_value": 2.0,
+    "reason": "Rating downgrade directly raises cost of new debt",
+    "source": "news",
+    "confidence": "medium",
+    "triggered_by": "debt_rating_change",
+    "timestamp": "2026-04-20T08:10:36.259412+00:00"
+  },
+  {
+    "metric": "wacc",
+    "old_value": null,
+    "new_value": 2.0,
+    "reason": "Higher cost of debt flows into WACC",
+    "source": "news",
+    "confidence": "medium",
+    "triggered_by": "debt_rating_change",
+    "timestamp": "2026-04-20T08:10:36.259931+00:00"
+  },
+  {
+    "metric": "equity_risk_premium",
+    "old_value": null,
+    "new_value": 2.0,
+    "reason": "Consolidated from 3 signals: Regulatory penalty signals governance risk; Promoter pledging or selling signals financial stress; Leadership uncertainty increases risk premium by 50-75 bps temporarily",
+    "source": "sebi_pms",
+    "confidence": "high",
+    "triggered_by": "regulatory_action",
+    "timestamp": "2026-04-20T08:10:36.260419+00:00"
+  }
+]

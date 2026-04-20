@@ -555,23 +555,26 @@ export const MarketOverview = ({ onAnalyzeTicker }) => {
   const [lastRefresh, setLastRefresh] = useState(null);
 
   useEffect(() => {
-    const fetchAll = async () => {
+    let cancelled = false;
+    const fetchAll = async (isInitial) => {
       try {
-        setLoading(true);
+        if (isInitial) setLoading(true);
         const market = await apiGet(API_ENDPOINTS.marketOverview);
+        if (cancelled) return;
         setMarketData(market);
         setLastRefresh(new Date());
         setError(null);
       } catch (err) {
+        if (cancelled) return;
         setError(err.message);
         console.error('Failed to fetch market data:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled && isInitial) setLoading(false);
       }
     };
-    fetchAll();
-    const interval = setInterval(fetchAll, 30000);
-    return () => clearInterval(interval);
+    fetchAll(true);
+    const interval = setInterval(() => fetchAll(false), 60000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   if (loading && !marketData) {

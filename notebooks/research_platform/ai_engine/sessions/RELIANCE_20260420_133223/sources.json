@@ -1,0 +1,37 @@
+[
+  {
+    "source_type": "signal",
+    "name": "guidance_change",
+    "url_or_path": null,
+    "description": "Event: 'Angel One shares drop 2% as JM Financial downgraded the stock following Q4 resul' \u2192 Signal: Guidance Change \u2192 Factor: ['downgraded'] \u2192 Assumption: revenue_growth +2.00",
+    "timestamp": "2026-04-20T08:02:23.347262+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "margin_pressure",
+    "url_or_path": null,
+    "description": "Event: '[r/investing] With the stock market near all-time highs while an impending resou' \u2192 Signal: Input Cost / Margin Pressure \u2192 Factor: ['inflation'] \u2192 Assumption: ebitda_margin -1.50",
+    "timestamp": "2026-04-20T08:02:23.347880+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "debt_rating_change",
+    "url_or_path": null,
+    "description": "Event: 'Angel One shares drop 2% as JM Financial downgraded the stock following Q4 resul' \u2192 Signal: Credit Rating Action \u2192 Factor: ['downgraded'] \u2192 Assumption: cost_of_debt +4.00",
+    "timestamp": "2026-04-20T08:02:23.348661+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "debt_rating_change",
+    "url_or_path": null,
+    "description": "Event: 'Angel One shares drop 2% as JM Financial downgraded the stock following Q4 resul' \u2192 Signal: Credit Rating Action \u2192 Factor: ['downgraded'] \u2192 Assumption: wacc +6.00",
+    "timestamp": "2026-04-20T08:02:23.349364+00:00"
+  },
+  {
+    "source_type": "signal",
+    "name": "regulatory_action",
+    "url_or_path": null,
+    "description": "Event: '[SEBI PMS] Bharat Ka Share Bazaar @ INDIA INTERNATIONAL TRADE FAIR \u2013 2025' \u2192 Signal: Regulatory Action \u2192 Factor: ['sebi'] \u2192 Assumption: equity_risk_premium +4.00",
+    "timestamp": "2026-04-20T08:02:23.350103+00:00"
+  }
+]

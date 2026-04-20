@@ -1,0 +1,23 @@
+[
+  {
+    "metric": "cost_of_debt",
+    "attempted_value": 4.0,
+    "capped_value": 2.0,
+    "rule": "max_single_change (4.00 > 2.0)",
+    "timestamp": "2026-04-20T08:10:36.259183+00:00"
+  },
+  {
+    "metric": "wacc",
+    "attempted_value": 6.0,
+    "capped_value": 2.0,
+    "rule": "max_single_change (6.00 > 2.0)",
+    "timestamp": "2026-04-20T08:10:36.259687+00:00"
+  },
+  {
+    "metric": "equity_risk_premium",
+    "attempted_value": 4.0,
+    "capped_value": 2.0,
+    "rule": "max_single_change (4.00 > 2.0)",
+    "timestamp": "2026-04-20T08:10:36.260210+00:00"
+  }
+]
