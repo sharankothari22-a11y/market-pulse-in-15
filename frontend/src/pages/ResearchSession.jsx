@@ -399,6 +399,8 @@ const SensitivityPanel = ({ researchData, currentPrice }) => {
   const wacc = sens?.wacc_grid || sens?.wacc_range;
   const growth = sens?.growth_grid || sens?.terminal_growth_range;
   const matrix = sens?.matrix || sens?.grid;
+  const metric = sens?.metric || 'equity_value';
+  const isPctMetric = metric === 'upside_pct';
   const valid = Array.isArray(wacc) && Array.isArray(growth) && Array.isArray(matrix)
     && matrix.length === growth.length
     && matrix.every((r) => Array.isArray(r) && r.length === wacc.length);
@@ -419,16 +421,29 @@ const SensitivityPanel = ({ researchData, currentPrice }) => {
 
   const cellBg = (v) => {
     if (typeof v !== 'number' || Number.isNaN(v)) return 'transparent';
+    if (isPctMetric) {
+      // grid values are already upside % vs current price
+      const t = Math.min(1, Math.abs(v) / 35); // saturate at ±35%
+      if (v >= 0) return `rgba(15,122,62,${0.05 + t * 0.22})`;
+      return `rgba(199,55,47,${0.05 + t * 0.22})`;
+    }
     if (cp != null) {
       const diff = v - cp;
       const pct = cp > 0 ? diff / cp : 0;
-      const t = Math.min(1, Math.abs(pct) / 0.35); // saturate at ±35%
+      const t = Math.min(1, Math.abs(pct) / 0.35);
       if (diff >= 0) return `rgba(15,122,62,${0.05 + t * 0.22})`;
       return `rgba(199,55,47,${0.05 + t * 0.22})`;
     }
-    // fallback: navy ramp
     const t = (v - minV) / Math.max(1e-9, maxV - minV);
     return `rgba(27,58,107,${0.05 + t * 0.25})`;
+  };
+
+  const fmtCell = (v) => {
+    if (typeof v !== 'number' || Number.isNaN(v)) return '—';
+    if (isPctMetric) {
+      return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+    }
+    return Math.round(v).toLocaleString('en-IN');
   };
 
   // base cell = center (or middle if even length)
@@ -483,7 +498,7 @@ const SensitivityPanel = ({ researchData, currentPrice }) => {
                       color: 'var(--bi-text-primary, #0F2540)',
                       fontSize: 10.5,
                     }}>
-                      {typeof v === 'number' ? Math.round(v).toLocaleString('en-IN') : '—'}
+                      {fmtCell(v)}
                     </td>
                   );
                 })}
