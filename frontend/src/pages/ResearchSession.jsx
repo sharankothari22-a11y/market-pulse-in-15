@@ -891,18 +891,21 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   };
 
   const getScenarios = () => {
-    const src = (dcfData?.scenarios && Object.keys(dcfData.scenarios).length > 0)
-      ? dcfData.scenarios
-      : researchData?.scenarios;
-    if (!src) return [];
-    return SCENARIO_KEYS
-      .filter((key) => src[key] != null)
-      .map((key) => ({
+    const dcfSrc = dcfData?.scenarios || {};
+    const rsSrc = researchData?.scenarios || {};
+    const out = [];
+    for (const key of SCENARIO_KEYS) {
+      const merged = { ...(rsSrc[key] || {}), ...(dcfSrc[key] || {}) };
+      const price = merged.per_share ?? merged.price_per_share;
+      if (Object.keys(merged).length === 0 && price == null) continue;
+      out.push({
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1),
-        ...src[key],
-        price_per_share: src[key]?.per_share ?? src[key]?.price_per_share,
-      }));
+        ...merged,
+        price_per_share: price,
+      });
+    }
+    return out;
   };
 
   const livePrice = researchData?.price ?? researchData?.ltp ?? researchData?.last_price
