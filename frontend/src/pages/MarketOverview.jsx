@@ -161,7 +161,7 @@ const TickerHero = ({ onAnalyze }) => {
       <div style={{ marginTop: 12, maxWidth: 560 }}>
         <span style={{
           display: 'block',
-          fontSize: 16, lineHeight: 1.5, color: 'var(--bi-text-secondary)',
+          fontSize: 16, lineHeight: 1.5, color: '#0F3D2E',
         }}>
           Type any Indian stock.
         </span>
@@ -169,7 +169,7 @@ const TickerHero = ({ onAnalyze }) => {
           display: 'block',
           marginTop: 6,
           fontSize: 14, letterSpacing: '0.02em',
-          color: 'var(--bi-text-tertiary)',
+          color: '#0F3D2E',
         }}>
           DCF valuation · Scoring · SWOT · Porter's analysis
         </span>
@@ -208,7 +208,7 @@ const TickerHero = ({ onAnalyze }) => {
           style={{
             height: 56, padding: '0 24px',
             borderRadius: 8,
-            backgroundColor: 'var(--bi-navy-700)',
+            backgroundColor: '#0F3D2E',
             color: 'var(--bi-text-inverse)',
             fontSize: 16, fontWeight: 600,
             opacity: value.trim() && !analyzing ? 1 : 0.5,

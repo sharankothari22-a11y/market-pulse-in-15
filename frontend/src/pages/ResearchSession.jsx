@@ -163,9 +163,9 @@ const CompanyHeader = ({
             className="flex items-center gap-1.5 disabled:opacity-50"
             style={{
               height: 36, padding: '0 16px', borderRadius: 6,
-              backgroundColor: 'var(--bi-navy-700, #1B3A6B)',
+              backgroundColor: '#0F3D2E',
               color: '#ffffff', fontSize: 13, fontWeight: 500,
-              border: '1px solid var(--bi-navy-700, #1B3A6B)',
+              border: '1px solid #0F3D2E',
             }}
             data-testid="header-download-excel"
           >
@@ -180,9 +180,9 @@ const CompanyHeader = ({
             className="flex items-center gap-1.5 disabled:opacity-50"
             style={{
               height: 36, padding: '0 16px', borderRadius: 6,
-              backgroundColor: 'var(--bi-navy-700, #1B3A6B)',
+              backgroundColor: '#0F3D2E',
               color: '#ffffff', fontSize: 13, fontWeight: 500,
-              border: '1px solid var(--bi-navy-700, #1B3A6B)',
+              border: '1px solid #0F3D2E',
             }}
             data-testid="header-download-pdf"
           >
@@ -1057,8 +1057,8 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
                 className={cn(
                   'px-3 py-1 text-xs rounded-full border transition-colors',
                   (s.session_id || s._id) === sessionId
-                    ? 'bg-[#2563eb] text-white border-[#2563eb]'
-                    : 'bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#2563eb] hover:text-[#2563eb]'
+                    ? 'bg-[#0F3D2E] text-white border-[#0F3D2E]'
+                    : 'bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#0F3D2E] hover:text-[#0F3D2E]'
                 )}
               >{s.ticker}</button>
             ))}
