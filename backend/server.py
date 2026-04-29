@@ -3277,6 +3277,37 @@ async def report_download_csv(session_id: str):
         return Response(content="Field,Value\nerror," + str(e), media_type="text/csv", status_code=200)
 
 
+@api_router.get("/research/{session_id}/audit")
+async def audit_trail(session_id: str):
+    rp_ses = _find_rp_session(session_id)
+    sources = []
+    audit_log = []
+    if rp_ses is not None:
+        # sources.json if it exists
+        raw_sources = _read_rp_session_file(rp_ses, "sources.json")
+        if isinstance(raw_sources, list):
+            sources = raw_sources
+        elif isinstance(raw_sources, dict):
+            sources = raw_sources.get("sources", [])
+        # Fall back to session_meta for data source info
+        if not sources:
+            meta = _read_rp_session_file(rp_ses, "session_meta.json")
+            asm = _read_rp_session_file(rp_ses, "assumptions.json")
+            data_src = asm.get("_data_source", meta.get("data_source", "yfinance"))
+            sources = [{"api_name": data_src, "endpoint": "yfinance.Ticker", "fetched_at": meta.get("created_at", ""), "status": "ok"}]
+        # audit_log.json if it exists, else assumptions_history
+        raw_audit = _read_rp_session_file(rp_ses, "audit_log.json")
+        if isinstance(raw_audit, list):
+            audit_log = raw_audit
+        else:
+            hist = _read_rp_session_file(rp_ses, "assumptions_history.json")
+            if isinstance(hist, list):
+                for entry in hist:
+                    evt = entry.get("event", "update")
+                    ts = (entry.get("assumptions") or {}).get("_initialized_at", "")
+                    audit_log.append({"timestamp": ts, "event": evt, "fields_changed": list(entry.get("delta", {}).keys())})
+    return {"sources": sources, "audit_log": audit_log}
+
 @api_router.get("/macro")
 @safe_endpoint(lambda: {"indicators": []})
 async def macro():

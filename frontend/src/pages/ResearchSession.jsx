@@ -737,6 +737,72 @@ const RiskFlagsPanel = ({ researchData }) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // Main page
 // ═══════════════════════════════════════════════════════════════════════════
+// ─── Audit Trail panel ─────────────────────────────────────────────────────
+const AuditPanel = ({ sessionId }) => {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !isValidSessionId(sessionId) || data) return;
+    setLoading(true);
+    apiGet(`/api/research/${sessionId}/audit`)
+      .then(setData)
+      .catch(() => setData({ sources: [], audit_log: [] }))
+      .finally(() => setLoading(false));
+  }, [open, sessionId, data]);
+
+  return (
+    <Panel title={
+      <button onClick={() => setOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', cursor: 'pointer', color: 'inherit' }}>
+        Audit Trail · Data Provenance
+        <span style={{ fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)' }}>{open ? '▲' : '▼'}</span>
+      </button>
+    } testId="panel-audit">
+      {!open ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
+      ) : loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !data ? (
+        <div style={emptyStyle}>Audit data not available for this session</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--bi-text-secondary, #4B5A75)', marginBottom: 6 }}>Sources used</div>
+            {(data.sources || []).length === 0
+              ? <div style={emptyStyle}>No source data</div>
+              : (data.sources || []).map((s, i) => (
+                <div key={i} style={{ fontSize: 11, fontFamily: 'monospace', padding: '3px 0',
+                                       borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)',
+                                       color: 'var(--bi-text-primary, #0F2540)' }}>
+                  <span style={{ fontWeight: 600 }}>{s.api_name}</span>
+                  {s.endpoint && <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> · {s.endpoint}</span>}
+                  {s.fetched_at && <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> · {new Date(s.fetched_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>}
+                  {s.status && <span style={{ marginLeft: 6, color: s.status === 'ok' ? '#0F7A3E' : '#C7372F' }}>● {s.status}</span>}
+                </div>
+              ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--bi-text-secondary, #4B5A75)', marginBottom: 6 }}>Change log</div>
+            {(data.audit_log || []).length === 0
+              ? <div style={emptyStyle}>No changes recorded</div>
+              : (data.audit_log || []).map((e, i) => (
+                <div key={i} style={{ fontSize: 11, fontFamily: 'monospace', padding: '3px 0',
+                                       borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)',
+                                       color: 'var(--bi-text-primary, #0F2540)' }}>
+                  {e.timestamp && <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}>{new Date(e.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} · </span>}
+                  <span style={{ fontWeight: 600 }}>{e.event}</span>
+                  {e.fields_changed?.length > 0 && <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> [{e.fields_changed.join(', ')}]</span>}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+};
+
 export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [ticker, setTicker] = useState('');
   const [sessionId, setSessionId] = useState(null);
@@ -1214,6 +1280,11 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           {/* Row 6 — Porter's Five Forces */}
           <div style={{ gridColumn: 'span 12' }}>
             <PorterPanel porterData={porterData} loading={porterLoading} />
+          </div>
+
+          {/* Row 7 — Audit Trail */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <AuditPanel sessionId={sessionId} />
           </div>
         </div>
       ) : (
