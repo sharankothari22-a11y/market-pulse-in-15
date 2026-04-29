@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { validateTicker } from '@/lib/ticker';
 import {
   Search, Loader2, Plus, X, AlertTriangle, CheckCircle2,
@@ -1036,7 +1036,7 @@ const FactorScoresPanel = ({ sessionId, scoring }) => {
   const [loading, setLoading] = useState(false);
 
   // Derive 4-bucket factor scores from the scoring object passed via props
-  const derivedFactors = React.useMemo(() => {
+  const derivedFactors = useMemo(() => {
     if (!scoring) return null;
     const fs  = parseFloat(scoring.financial_strength      ?? 50) || 50;
     const gq  = parseFloat(scoring.growth_quality          ?? 50) || 50;
