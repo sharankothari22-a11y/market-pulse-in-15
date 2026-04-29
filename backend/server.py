@@ -3617,34 +3617,55 @@ async def assumption_history(session_id: str):
 
 
 @api_router.get("/macro")
-@safe_endpoint(lambda: {"indicators": []})
+@safe_endpoint(lambda: {"indicators": [], "globalEvents": [], "macroMicro": []})
 async def macro():
-    # Try cache first
-    cached, _ = await cache_get("macro")
-    if cached:
-        return {"indicators": cached}
-    # Read from MacroIndicator table
     indicators = []
+    global_events = []
     try:
-        from sqlalchemy import select, desc, text
+        from sqlalchemy import select, desc
         from research_platform.database.connection import get_session as _rp_dbs
-        from research_platform.database.models import MacroIndicator as _MI
+        from research_platform.database.models import MacroIndicator as _MI, FxRate as _FX, Event as _Ev
         with _rp_dbs() as db:
-            rows = db.scalars(
-                select(_MI).order_by(desc(_MI.date)).limit(200)
-            ).all()
-            for r in rows:
+            mi_rows = db.scalars(select(_MI).order_by(desc(_MI.date)).limit(200)).all()
+            for r in mi_rows:
                 indicators.append({
-                    "indicator": r.indicator,
-                    "date": str(r.date),
-                    "value": float(r.value) if r.value is not None else None,
-                    "source": r.source or "",
+                    "id": r.indicator,
+                    "title": r.indicator,
+                    "value": f"{float(r.value):.2f}" if r.value is not None else "—",
+                    "raw_value": float(r.value) if r.value is not None else None,
+                    "changeType": "neutral",
+                    "change": "—",
+                    "subtitle": f"{r.source or 'FRED'} · {r.date}",
+                })
+            # Fall back to FX rates when macro_indicators table is empty
+            if not indicators:
+                fx_rows = db.scalars(select(_FX).order_by(desc(_FX.date)).limit(20)).all()
+                seen_pairs: set = set()
+                for r in fx_rows:
+                    if r.pair not in seen_pairs:
+                        seen_pairs.add(r.pair)
+                        indicators.append({
+                            "id": r.pair,
+                            "title": r.pair,
+                            "value": f"{float(r.rate):.4f}",
+                            "raw_value": float(r.rate),
+                            "changeType": "neutral",
+                            "change": "—",
+                            "subtitle": f"{r.source or 'Frankfurter'} · {r.date}",
+                        })
+            ev_rows = db.scalars(
+                select(_Ev).where(_Ev.type == "regulatory").order_by(desc(_Ev.date)).limit(8)
+            ).all()
+            for r in ev_rows:
+                global_events.append({
+                    "id": r.id,
+                    "event": r.title,
+                    "region": "India",
+                    "impact": "Neutral",
                 })
     except Exception as exc:
         logger.debug(f"[macro] DB read failed: {exc}")
-    if indicators:
-        await cache_set("macro", indicators)
-    return {"indicators": indicators}
+    return {"indicators": indicators, "globalEvents": global_events, "macroMicro": []}
 
 @api_router.get("/signals")
 @safe_endpoint(lambda: {"signals": []})
@@ -3657,17 +3678,29 @@ async def signals():
         with _rp_dbs() as db:
             rows = db.scalars(
                 select(_Ev)
-                .where(_Ev.type.in_(["signal", "news", "regulatory", "earnings"]))
+                .where(_Ev.type.in_(["signal", "regulatory"]))
                 .order_by(desc(_Ev.date))
                 .limit(100)
             ).all()
             for r in rows:
+                et = r.entity_type or ""
+                parts = et.split(":") if et else []
+                sector = parts[0] if parts else ""
+                direction = parts[1] if len(parts) > 1 else "neutral"
+                score = r.impact_score or 0.0
+                if direction == "positive":
+                    sev = "positive"
+                elif direction == "negative":
+                    sev = "danger" if score >= 1.0 else "negative"
+                else:
+                    sev = "warning" if score >= 1.0 else "info"
                 signals_out.append({
                     "id": r.id,
-                    "type": r.type,
                     "title": r.title,
-                    "date": str(r.date) if r.date else "",
-                    "impact_score": r.impact_score,
+                    "timestamp": str(r.date) if r.date else "",
+                    "severity": sev,
+                    "sector": sector,
+                    "signalType": r.type.capitalize(),
                     "source_url": r.source_url or "",
                 })
     except Exception as exc:
