@@ -1031,18 +1031,36 @@ const PeerComparisonPanel = ({ sessionId }) => {
 };
 
 // ─── Factor Scores panel (Feature 16) ──────────────────────────────────────
-const FactorScoresPanel = ({ sessionId }) => {
+const FactorScoresPanel = ({ sessionId, scoring }) => {
   const [factors, setFactors] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Derive 4-bucket factor scores from the scoring object passed via props
+  const derivedFactors = React.useMemo(() => {
+    if (!scoring) return null;
+    const fs  = parseFloat(scoring.financial_strength      ?? 50) || 50;
+    const gq  = parseFloat(scoring.growth_quality          ?? 50) || 50;
+    const va  = parseFloat(scoring.valuation_attractiveness?? 50) || 50;
+    const risk= parseFloat(scoring.risk_score              ?? 50) || 50;
+    const mp  = parseFloat(scoring.market_positioning      ?? 50) || 50;
+    return {
+      momentum: Math.round(Math.min(100, Math.max(0, gq  * 0.6 + mp * 0.4))),
+      value:    Math.round(Math.min(100, Math.max(0, va))),
+      quality:  Math.round(Math.min(100, Math.max(0, fs  * 0.6 + mp * 0.4))),
+      macro:    Math.round(Math.min(100, Math.max(0, 100 - risk))),
+    };
+  }, [scoring]);
+
   useEffect(() => {
+    // Skip network fetch if we already have live scores from the analyze response
+    if (derivedFactors) return;
     if (!isValidSessionId(sessionId)) return;
     setLoading(true);
     apiGet(`/api/research/${sessionId}/factors`)
       .then(r => setFactors(r.factors || null))
       .catch(() => setFactors(null))
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [sessionId, derivedFactors]);
 
   const barColor = (v) => {
     if (v == null) return '#64748b';
@@ -1058,16 +1076,18 @@ const FactorScoresPanel = ({ sessionId }) => {
     { key: 'macro',    label: 'Macro' },
   ];
 
+  const displayFactors = derivedFactors || factors;
+
   return (
     <Panel title="Factor Scores" testId="panel-factor-scores">
-      {loading ? (
+      {loading && !displayFactors ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
-      ) : !factors ? (
+      ) : !displayFactors ? (
         <div style={emptyStyle}>Factor analysis pending</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {FACTOR_LABELS.map(({ key, label }) => {
-            const v = factors[key];
+            const v = displayFactors[key];
             const color = barColor(v);
             return (
               <div key={key}>
@@ -1605,7 +1625,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <ScorePanel researchData={researchData} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <FactorScoresPanel sessionId={sessionId} />
+            <FactorScoresPanel sessionId={sessionId} scoring={researchData?.scoring} />
           </div>
 
           {/* Row 3 — Sensitivity / Forecast / Peer Comparison */}
