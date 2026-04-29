@@ -120,6 +120,7 @@ export const TopBar = ({ currentPage, onNavigate }) => {
           {[
             { label: 'MARKET', path: '/' },
             { label: 'RESEARCH', path: '/research' },
+            { label: 'SIGNALS', path: '/signals' },
           ].map((item) => {
             const active = currentPage === item.path;
             return (
