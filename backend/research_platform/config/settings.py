@@ -12,8 +12,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env if present (no-op if missing — env vars already set)
-load_dotenv(dotenv_path=Path(__file__).parents[1] / ".env")
+# Load .env — override=True so research_platform/.env wins over parent .env
+load_dotenv(dotenv_path=Path(__file__).parents[1] / ".env", override=True)
 
 
 def _require(key: str) -> str:
