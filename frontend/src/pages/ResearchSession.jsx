@@ -99,6 +99,7 @@ const Panel = ({ title, children, className, testId, minH }) => (
 const CompanyHeader = ({
   researchData, livePrice, liveChangePct,
   onDownloadExcel, xlsmState, onDownloadPdf, reportLoading,
+  sessionId,
 }) => {
   const ticker = researchData?.ticker || '—';
   const name = researchData?.long_name || researchData?.name || researchData?.company_name || '';
@@ -191,6 +192,19 @@ const CompanyHeader = ({
           >
             {reportLoading && <Loader2 className="w-3 h-3 animate-spin" />}
             {reportLoading ? 'Loading…' : 'Download Report'}
+          </button>
+          <button
+            onClick={() => { window.location.href = `/api/research/${sessionId}/report/markdown`; }}
+            className="flex items-center gap-1.5"
+            style={{
+              height: 36, padding: '0 16px', borderRadius: 6,
+              backgroundColor: '#0F3D2E',
+              color: '#ffffff', fontSize: 13, fontWeight: 500,
+              border: '1px solid #0F3D2E',
+            }}
+            data-testid="header-download-md"
+          >
+            Download MD
           </button>
         </div>
       </div>
@@ -1237,6 +1251,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
               xlsmState={xlsmState}
               onDownloadPdf={downloadReport}
               reportLoading={reportLoading}
+              sessionId={sessionId}
             />
           </div>
 

@@ -3277,6 +3277,39 @@ async def report_download_csv(session_id: str):
         return Response(content="Field,Value\nerror," + str(e), media_type="text/csv", status_code=200)
 
 
+@api_router.get("/research/{session_id}/report/markdown")
+async def report_download_markdown(session_id: str):
+    """Return summary.md as a download attachment."""
+    from fastapi.responses import Response
+    try:
+        rp_ses = _find_rp_session(session_id)
+        sdir = None
+        if rp_ses is not None:
+            sdir = (getattr(rp_ses, "session_dir", None)
+                    or getattr(rp_ses, "path", None)
+                    or getattr(rp_ses, "dir", None))
+        if sdir:
+            sfp = Path(sdir) / "summary.md"
+            if sfp.exists():
+                session = await _load_session_for_report(session_id)
+                ticker = (session.get("ticker") or "report").upper()
+                content = sfp.read_text(encoding="utf-8")
+                return Response(
+                    content=content,
+                    media_type="text/markdown",
+                    headers={"Content-Disposition": f'attachment; filename="{ticker}_summary.md"'},
+                )
+        return Response(
+            content="# Summary not available\n\nRun a full DCF analysis to generate the markdown summary.",
+            media_type="text/markdown",
+            status_code=404,
+            headers={"Content-Disposition": f'attachment; filename="summary.md"'},
+        )
+    except Exception as e:
+        logger.error(f"report_markdown failed: {e}")
+        return Response(content=f"# Error\n\n{e}", media_type="text/markdown", status_code=500)
+
+
 @api_router.get("/research/{session_id}/audit")
 async def audit_trail(session_id: str):
     rp_ses = _find_rp_session(session_id)
