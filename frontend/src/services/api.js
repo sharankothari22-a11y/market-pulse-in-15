@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
   // Signals & Alerts
   signals: '/api/signals',
   alerts: '/api/alerts',
+  news: '/api/news',
 
   // Research
   researchAnalyze: '/api/research/analyze',       // one-shot: creates session + runs analysis + returns price

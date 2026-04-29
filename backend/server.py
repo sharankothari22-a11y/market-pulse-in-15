@@ -3291,6 +3291,14 @@ async def signals():
 async def alerts():
     return {"alerts": []}
 
+@api_router.get("/news")
+async def news_feed(limit: int = 10):
+    try:
+        items = await fetch_news_safe()
+        return {"news": items[:limit]}
+    except Exception:
+        return {"news": []}
+
 @api_router.get("/prices/{ticker}")
 @safe_endpoint(lambda: {"price": None, "error": "unavailable"})
 async def prices(ticker: str):

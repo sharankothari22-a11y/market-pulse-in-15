@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
 import { Loader2, Search, BarChart2 } from 'lucide-react';
 import { validateTicker } from '@/lib/ticker';
+import { NewsFeed } from '@/components/ui/NewsFeed';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, ReferenceLine,
@@ -705,6 +706,8 @@ export const MarketOverview = ({ onAnalyzeTicker }) => {
             )}
           </div>
         </section>
+
+        <NewsFeed />
       </div>
     </div>
   );
