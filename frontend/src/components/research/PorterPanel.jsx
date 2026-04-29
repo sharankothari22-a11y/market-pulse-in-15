@@ -50,7 +50,7 @@ const PorterPanel = ({ porterData, loading }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr>
-              {['Force', 'Rating', 'Rationale'].map((h) => (
+              {['Force', 'Rating', 'Basis', 'Rationale'].map((h) => (
                 <th key={h} style={{
                   textAlign: 'left', padding: '4px 8px',
                   fontSize: 10, fontWeight: 600, letterSpacing: '0.05em',
@@ -70,6 +70,17 @@ const PorterPanel = ({ porterData, loading }) => {
                 </td>
                 <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                   <RatingChip rating={f.rating} />
+                </td>
+                <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                  {f.tag && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 600, letterSpacing: '0.05em',
+                      textTransform: 'uppercase', padding: '1px 5px', borderRadius: 4,
+                      background: 'rgba(100,116,139,0.10)', color: '#64748B',
+                    }}>
+                      {f.tag}
+                    </span>
+                  )}
                 </td>
                 <td style={{ padding: '6px 8px', color: 'var(--bi-text-primary, #0F2540)', lineHeight: 1.5 }}>
                   {f.rationale}
