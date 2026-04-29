@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from '@/lib/utils';
+import SWOTPanel from '@/components/research/SWOTPanel';
+import PorterPanel from '@/components/research/PorterPanel';
 
 const SCENARIO_KEYS = ['bull', 'base', 'bear'];
 
@@ -692,6 +694,10 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [sessionId, setSessionId] = useState(null);
   const [researchData, setResearchData] = useState(null);
   const [dcfData, setDcfData] = useState(null);
+  const [swotData, setSwotData] = useState(null);
+  const [swotLoading, setSwotLoading] = useState(false);
+  const [porterData, setPorterData] = useState(null);
+  const [porterLoading, setPorterLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [xlsmState, setXlsmState] = useState('idle');
   const [sessions, setSessions] = useState([]);
@@ -762,6 +768,34 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       finally { setLoading(false); }
     };
     fetchResearchData();
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!isValidSessionId(sessionId)) return;
+    const fetchSwot = async () => {
+      setSwotLoading(true);
+      try {
+        const data = await apiGet(API_ENDPOINTS.researchSwot(sessionId));
+        setSwotData(data);
+      } catch (err) {
+        setSwotData({ strengths: [], weaknesses: [], opportunities: [], threats: [], error: err.message });
+      } finally { setSwotLoading(false); }
+    };
+    fetchSwot();
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!isValidSessionId(sessionId)) return;
+    const fetchPorter = async () => {
+      setPorterLoading(true);
+      try {
+        const data = await apiGet(API_ENDPOINTS.researchPorter(sessionId));
+        setPorterData(data);
+      } catch (err) {
+        setPorterData({ forces: [], error: err.message });
+      } finally { setPorterLoading(false); }
+    };
+    fetchPorter();
   }, [sessionId]);
 
   const handleAnalyze = async (overrideTicker) => {
@@ -1117,6 +1151,16 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           </div>
           <div style={{ gridColumn: 'span 6' }}>
             <RiskFlagsPanel researchData={researchData} />
+          </div>
+
+          {/* Row 5 — SWOT */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <SWOTPanel swotData={swotData} loading={swotLoading} />
+          </div>
+
+          {/* Row 6 — Porter's Five Forces */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <PorterPanel porterData={porterData} loading={porterLoading} />
           </div>
         </div>
       ) : (

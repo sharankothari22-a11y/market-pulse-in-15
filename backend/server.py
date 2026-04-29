@@ -133,6 +133,22 @@ except Exception as e:
     rp_export_excel = rp_export_html = None
     _rp_errors.append(f"audit_export: {e}")
 
+try:
+    from ai_engine.swot import generate_swot as rp_generate_swot
+    RP_SWOT = True
+except Exception as e:
+    RP_SWOT = False
+    rp_generate_swot = None
+    _rp_errors.append(f"swot: {e}")
+
+try:
+    from ai_engine.porter import generate_porter as rp_generate_porter
+    RP_PORTER = True
+except Exception as e:
+    RP_PORTER = False
+    rp_generate_porter = None
+    _rp_errors.append(f"porter: {e}")
+
 RP_AVAILABLE = RP_SESSION_MGR and RP_SCENARIOS and RP_SCORING
 if RP_AVAILABLE:
     print(f"[startup] ✓ research_platform loaded (scenarios, scoring, sessions)")
@@ -1541,6 +1557,83 @@ async def get_session(session_id: str):
     except Exception:
         pass
     return doc
+
+
+@api_router.get("/research/{session_id}/swot")
+async def get_swot(session_id: str):
+    _empty = {"strengths": [], "weaknesses": [], "opportunities": [], "threats": []}
+    try:
+        if not RP_SWOT or rp_generate_swot is None:
+            return {**_empty, "error": "SWOT engine unavailable"}
+        rp_ses = _find_rp_session(session_id)
+        if rp_ses is None:
+            db = _get_db()
+            if db is not None:
+                try:
+                    doc = await db.sessions.find_one({"_id": session_id})
+                    if doc and doc.get("ticker"):
+                        rp_ses = _find_rp_session_by_ticker(doc["ticker"])
+                except Exception:
+                    pass
+        if rp_ses is None:
+            return {**_empty, "error": "Session not found"}
+        sector = "other"
+        try:
+            meta = rp_ses.get_meta() if hasattr(rp_ses, "get_meta") else {}
+            sector = meta.get("sector") or _detect_sector_simple(getattr(rp_ses, "ticker", "")) or "other"
+        except Exception:
+            pass
+        return rp_generate_swot(rp_ses, None, sector=sector)
+    except Exception as exc:
+        logger.warning(f"[swot] {session_id}: {exc}")
+        return {**_empty, "error": str(exc)}
+
+
+@api_router.get("/research/{session_id}/porter")
+async def get_porter(session_id: str):
+    _empty = {"forces": []}
+    try:
+        if not RP_PORTER or rp_generate_porter is None:
+            return {**_empty, "error": "Porter engine unavailable"}
+        rp_ses = _find_rp_session(session_id)
+        if rp_ses is None:
+            db = _get_db()
+            if db is not None:
+                try:
+                    doc = await db.sessions.find_one({"_id": session_id})
+                    if doc and doc.get("ticker"):
+                        rp_ses = _find_rp_session_by_ticker(doc["ticker"])
+                except Exception:
+                    pass
+        if rp_ses is None:
+            return {**_empty, "error": "Session not found"}
+        sector = "other"
+        try:
+            meta = rp_ses.get_meta() if hasattr(rp_ses, "get_meta") else {}
+            sector = meta.get("sector") or _detect_sector_simple(getattr(rp_ses, "ticker", "")) or "other"
+        except Exception:
+            pass
+        raw = rp_generate_porter(rp_ses, sector=sector)
+        if isinstance(raw, list):
+            return {"forces": raw}
+        if isinstance(raw, dict):
+            _name_map = {
+                "competitive_rivalry":    "Competitive Rivalry",
+                "supplier_power":         "Supplier Power",
+                "buyer_power":            "Buyer Power",
+                "threat_of_substitutes":  "Threat of Substitutes",
+                "threat_of_new_entrants": "Threat of New Entrants",
+            }
+            forces = [
+                {"name": _name_map.get(k, k.replace("_", " ").title()), **v}
+                for k, v in raw.items()
+            ]
+            return {"forces": forces}
+        return _empty
+    except Exception as exc:
+        logger.warning(f"[porter] {session_id}: {exc}")
+        return {**_empty, "error": str(exc)}
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DCF NOTEBOOK EXECUTION — async, papermill-based

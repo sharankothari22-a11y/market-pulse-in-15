@@ -28,6 +28,8 @@ export const API_ENDPOINTS = {
   researchCatalyst: (sessionId) => `/api/research/${sessionId}/catalyst`,
   researchThesis: (sessionId) => `/api/research/${sessionId}/thesis`,
   researchDcf: (sessionId) => `/api/research/${sessionId}/dcf`,
+  researchSwot: (sessionId) => `/api/research/${sessionId}/swot`,
+  researchPorter: (sessionId) => `/api/research/${sessionId}/porter`,
   sessions: '/api/sessions',
 
   // Chat
