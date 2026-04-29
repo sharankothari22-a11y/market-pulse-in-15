@@ -729,7 +729,29 @@ def safe_endpoint(fallback_factory):
 # APP + ROUTER
 # =====================================================================
 
-app = FastAPI(title="Market Pulse — Hardened Backend", version=VERSION)
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def _lifespan(app):
+    # Start APScheduler in background thread on startup
+    _sched = None
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).parent / "research_platform"))
+        from scheduler.runner import build_scheduler as _build_scheduler
+        _sched = _build_scheduler()
+        _sched.start()
+        logger.info(f"Scheduler started with {len(_sched.get_jobs())} jobs")
+    except Exception as _se:
+        logger.warning(f"Scheduler start failed (non-fatal): {_se}")
+    yield
+    if _sched is not None:
+        try:
+            _sched.shutdown(wait=False)
+        except Exception:
+            pass
+
+app = FastAPI(title="Market Pulse — Hardened Backend", version=VERSION, lifespan=_lifespan)
 
 # CORS as early as possible
 app.add_middleware(

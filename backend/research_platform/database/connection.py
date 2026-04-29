@@ -22,20 +22,36 @@ from sqlalchemy.orm import Session, sessionmaker
 from config.settings import DATABASE_URL
 from database.models import Base, COUNTRY_SEED, Country, CollectionLog
 
-engine: Engine = create_engine(
-    DATABASE_URL,
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,
-    echo=False,
-)
+_engine: Engine | None = None
 
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
+
+def _get_engine() -> Engine:
+    global _engine
+    if _engine is None:
+        _engine = create_engine(
+            DATABASE_URL,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+            echo=False,
+        )
+    return _engine
+
+
+# Keep module-level name for compatibility — resolved lazily
+engine: Engine = None  # type: ignore[assignment]
+
+SessionLocal = None  # initialised on first use
 
 
 @contextmanager
 def get_session() -> Generator[Session, None, None]:
     """Yield a transactional session, rolling back on error."""
+    global SessionLocal
+    if SessionLocal is None:
+        SessionLocal = sessionmaker(
+            bind=_get_engine(), autocommit=False, autoflush=False, expire_on_commit=False
+        )
     session = SessionLocal()
     try:
         yield session
@@ -51,7 +67,7 @@ def get_session() -> Generator[Session, None, None]:
 def create_all_tables() -> None:
     """Create all ORM-mapped tables if they don't exist."""
     logger.info("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=_get_engine())
     logger.info("Tables created successfully.")
 
 
@@ -65,7 +81,7 @@ def create_hypertables() -> None:
         ("fx_rates",         "date"),
         ("fund_nav",         "date"),
     ]
-    with engine.connect() as conn:
+    with _get_engine().connect() as conn:
         result = conn.execute(
             text("SELECT count(*) FROM pg_extension WHERE extname = 'timescaledb'")
         )
@@ -124,7 +140,7 @@ def create_pgvector_indexes() -> None:
     Requires: CREATE EXTENSION IF NOT EXISTS vector; in PostgreSQL.
     Safe to call even if pgvector is not installed — skips gracefully.
     """
-    with engine.connect() as conn:
+    with _get_engine().connect() as conn:
         try:
             # Check if pgvector extension is available
             result = conn.execute(text("SELECT count(*) FROM pg_extension WHERE extname = 'vector'"))
@@ -164,7 +180,7 @@ def full_setup() -> None:
 def check_connection() -> bool:
     """Return True if database is reachable."""
     try:
-        with engine.connect() as conn:
+        with _get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
     except Exception as exc:

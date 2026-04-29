@@ -3,45 +3,121 @@ scheduler/runner.py
 ────────────────────
 APScheduler — Phase 1 + Phase 2 + Phase 3 + Paid + v4 additions.
 Total: 53 jobs across 5 frequency tiers.
+
+Graceful degradation: if collector/DB imports fail, the scheduler still
+starts and logs a warning rather than crashing the whole backend.
 """
 from __future__ import annotations
-from apscheduler.schedulers.blocking import BlockingScheduler
+
+import logging
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from loguru import logger
-from config.settings import SCHEDULER_TIMEZONE
-from scheduler.jobs import (
-    # Real-time
-    job_realtime_prices, job_realtime_fno,
-    # Daily 06:00
-    job_daily_nse, job_daily_amfi, job_daily_rss, job_daily_coingecko,
-    job_daily_frankfurter, job_daily_metals, job_daily_opec,
-    job_daily_insider, job_daily_reddit, job_daily_wikipedia,
-    job_daily_weather, job_daily_india_budget, job_daily_sebi_pms,
-    # Daily 08:00 + 09:00
-    job_daily_failure_digest, job_daily_sentiment,
-    # Weekly
-    job_weekly_fred, job_weekly_world_bank, job_weekly_eia,
-    job_weekly_baltic_dry, job_weekly_imf, job_weekly_credit_ratings,
-    job_weekly_screener, job_weekly_sec_edgar, job_weekly_patents,
-    job_weekly_politician, job_weekly_cleanup_logs,
-    # Quarterly
-    job_quarterly_sebi, job_quarterly_mca,
-    job_quarterly_earnings, job_quarterly_youtube, job_quarterly_jobs,
-    # Phase 3 + Paid
-    job_daily_twitter, job_daily_app_ratings, job_daily_short_interest,
-    job_daily_bloomberg, job_daily_refinitiv,
-    job_weekly_sebi_analysts, job_weekly_linkedin, job_weekly_industry_assoc,
-    job_weekly_gst, job_weekly_un_comtrade, job_weekly_pli,
-    job_weekly_aif, job_weekly_vc_funding, job_weekly_ace_equity,
-    job_monthly_beneficial,
-    # v4 additions
-    job_daily_binance, job_daily_playwright, job_weekly_data_market,
-)
+
+logger = logging.getLogger(__name__)
+
+try:
+    from config.settings import SCHEDULER_TIMEZONE
+except Exception:
+    SCHEDULER_TIMEZONE = "Asia/Kolkata"
+
+# Try to import all jobs; fall back to stubs if the collector chain is broken.
+_JOBS_AVAILABLE = False
+try:
+    from scheduler.jobs import (
+        # Real-time
+        job_realtime_prices, job_realtime_fno,
+        # Daily 06:00
+        job_daily_nse, job_daily_amfi, job_daily_rss, job_daily_coingecko,
+        job_daily_frankfurter, job_daily_metals, job_daily_opec,
+        job_daily_insider, job_daily_reddit, job_daily_wikipedia,
+        job_daily_weather, job_daily_india_budget, job_daily_sebi_pms,
+        # Daily 08:00 + 09:00
+        job_daily_failure_digest, job_daily_sentiment,
+        # Weekly
+        job_weekly_fred, job_weekly_world_bank, job_weekly_eia,
+        job_weekly_baltic_dry, job_weekly_imf, job_weekly_credit_ratings,
+        job_weekly_screener, job_weekly_sec_edgar, job_weekly_patents,
+        job_weekly_politician, job_weekly_cleanup_logs,
+        # Quarterly
+        job_quarterly_sebi, job_quarterly_mca,
+        job_quarterly_earnings, job_quarterly_youtube, job_quarterly_jobs,
+        # Phase 3 + Paid
+        job_daily_twitter, job_daily_app_ratings, job_daily_short_interest,
+        job_daily_bloomberg, job_daily_refinitiv,
+        job_weekly_sebi_analysts, job_weekly_linkedin, job_weekly_industry_assoc,
+        job_weekly_gst, job_weekly_un_comtrade, job_weekly_pli,
+        job_weekly_aif, job_weekly_vc_funding, job_weekly_ace_equity,
+        job_monthly_beneficial,
+        # v4 additions
+        job_daily_binance, job_daily_playwright, job_weekly_data_market,
+    )
+    _JOBS_AVAILABLE = True
+except Exception as _import_err:
+    logger.warning(f"[scheduler] collector imports failed — starting with 0 collector jobs: {_import_err}")
+
+    # Stubs so the scheduler can still be created without crashing
+    def _noop(name: str):
+        def _fn():
+            logger.debug(f"[scheduler/{name}] stub — collector unavailable")
+        _fn.__name__ = name
+        return _fn
+
+    job_realtime_prices = _noop("realtime_prices")
+    job_realtime_fno = _noop("realtime_fno")
+    job_daily_nse = _noop("daily_nse")
+    job_daily_amfi = _noop("daily_amfi")
+    job_daily_rss = _noop("daily_rss")
+    job_daily_coingecko = _noop("daily_coingecko")
+    job_daily_frankfurter = _noop("daily_frankfurter")
+    job_daily_metals = _noop("daily_metals")
+    job_daily_opec = _noop("daily_opec")
+    job_daily_insider = _noop("daily_insider")
+    job_daily_reddit = _noop("daily_reddit")
+    job_daily_wikipedia = _noop("daily_wikipedia")
+    job_daily_weather = _noop("daily_weather")
+    job_daily_india_budget = _noop("daily_india_budget")
+    job_daily_sebi_pms = _noop("daily_sebi_pms")
+    job_daily_failure_digest = _noop("daily_failure_digest")
+    job_daily_sentiment = _noop("daily_sentiment")
+    job_weekly_fred = _noop("weekly_fred")
+    job_weekly_world_bank = _noop("weekly_world_bank")
+    job_weekly_eia = _noop("weekly_eia")
+    job_weekly_baltic_dry = _noop("weekly_baltic_dry")
+    job_weekly_imf = _noop("weekly_imf")
+    job_weekly_credit_ratings = _noop("weekly_credit_ratings")
+    job_weekly_screener = _noop("weekly_screener")
+    job_weekly_sec_edgar = _noop("weekly_sec_edgar")
+    job_weekly_patents = _noop("weekly_patents")
+    job_weekly_politician = _noop("weekly_politician")
+    job_weekly_cleanup_logs = _noop("weekly_cleanup_logs")
+    job_quarterly_sebi = _noop("quarterly_sebi")
+    job_quarterly_mca = _noop("quarterly_mca")
+    job_quarterly_earnings = _noop("quarterly_earnings")
+    job_quarterly_youtube = _noop("quarterly_youtube")
+    job_quarterly_jobs = _noop("quarterly_jobs")
+    job_daily_twitter = _noop("daily_twitter")
+    job_daily_app_ratings = _noop("daily_app_ratings")
+    job_daily_short_interest = _noop("daily_short_interest")
+    job_daily_bloomberg = _noop("daily_bloomberg")
+    job_daily_refinitiv = _noop("daily_refinitiv")
+    job_weekly_sebi_analysts = _noop("weekly_sebi_analysts")
+    job_weekly_linkedin = _noop("weekly_linkedin")
+    job_weekly_industry_assoc = _noop("weekly_industry_assoc")
+    job_weekly_gst = _noop("weekly_gst")
+    job_weekly_un_comtrade = _noop("weekly_un_comtrade")
+    job_weekly_pli = _noop("weekly_pli")
+    job_weekly_aif = _noop("weekly_aif")
+    job_weekly_vc_funding = _noop("weekly_vc_funding")
+    job_weekly_ace_equity = _noop("weekly_ace_equity")
+    job_monthly_beneficial = _noop("monthly_beneficial")
+    job_daily_binance = _noop("daily_binance")
+    job_daily_playwright = _noop("daily_playwright")
+    job_weekly_data_market = _noop("weekly_data_market")
 
 
-def build_scheduler() -> BlockingScheduler:
-    s = BlockingScheduler(timezone=SCHEDULER_TIMEZONE)
+def build_scheduler() -> BackgroundScheduler:
+    s = BackgroundScheduler(timezone=SCHEDULER_TIMEZONE)
 
     # ── Real-time (market hours) ──────────────────────────────────────────────
     s.add_job(job_realtime_prices, IntervalTrigger(minutes=5),
