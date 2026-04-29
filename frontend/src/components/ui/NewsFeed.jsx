@@ -10,18 +10,31 @@ const SOURCE_COLORS = {
 
 const defaultColor = { bg: '#F1F5F9', fg: '#475569' };
 
+const _parseDate = (s) => {
+  if (!s) return null;
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+  // Mint uses "DD Mon YYYY HH:MM:SS +0530" or similar non-standard formats
+  const cleaned = s.replace(/([+-]\d{2}):?(\d{2})$/, (_, h, m) => `${h}${m}`);
+  const d2 = new Date(cleaned);
+  if (!isNaN(d2.getTime())) return d2;
+  return null;
+};
+
 const formatAge = (published) => {
   if (!published) return '';
   try {
-    const d = new Date(published);
+    const d = _parseDate(published);
+    if (!d) return 'Recent';
     const diffMs = Date.now() - d.getTime();
+    if (isNaN(diffMs)) return 'Recent';
     const diffMin = Math.floor(diffMs / 60000);
     if (diffMin < 60) return `${diffMin}m ago`;
     const diffHr = Math.floor(diffMin / 60);
     if (diffHr < 24) return `${diffHr}h ago`;
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   } catch {
-    return '';
+    return 'Recent';
   }
 };
 

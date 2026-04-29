@@ -1331,13 +1331,14 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       {sessions.length > 0 && (() => {
         const seen = new Set();
         const unique = sessions.filter((s) => {
-          if (!s.ticker || seen.has(s.ticker)) return false;
-          seen.add(s.ticker); return true;
+          const key = (s.ticker || '').toUpperCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key); return true;
         });
         return (
           <section className="flex items-center gap-2 flex-wrap mb-4">
             <span className="text-xs text-[#94a3b8]">Recent:</span>
-            {unique.slice(0, 8).map((s) => (
+            {unique.slice(0, 6).map((s) => (
               <button
                 key={s.session_id || s._id}
                 onClick={() => { setSessionId(s.session_id); setTicker(s.ticker || ''); }}
