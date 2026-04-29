@@ -3781,11 +3781,63 @@ async def derivatives(ticker: str):
             "sentiment": sentiment,
         }
     except Exception as e:
-        logger.debug(f"[derivatives] {ticker_up} fetch failed: {e}")
-        return {
-            "pcr_oi": None, "pcr_volume": None, "max_oi_strike": None,
-            "total_oi": None, "oi_change_pct": None, "sentiment": None,
-        }
+        logger.debug(f"[derivatives] {ticker_up} NSE failed ({e}), trying yfinance fallback")
+
+    # yfinance fallback — options chain for Indian stocks via .NS suffix
+    if YF_AVAILABLE:
+        try:
+            import asyncio as _asyncio
+            loop = _asyncio.get_event_loop()
+            def _yf_options():
+                ns_ticker = ticker_up if ticker_up.endswith(".NS") else f"{ticker_up}.NS"
+                tk = yf.Ticker(ns_ticker)
+                expirations = tk.options
+                if not expirations:
+                    return None
+                chain = tk.option_chain(expirations[0])
+                calls = chain.calls
+                puts  = chain.puts
+                total_call_oi = int(calls["openInterest"].fillna(0).sum())
+                total_put_oi  = int(puts["openInterest"].fillna(0).sum())
+                total_call_vol = int(calls["volume"].fillna(0).sum())
+                total_put_vol  = int(puts["volume"].fillna(0).sum())
+                pcr_oi  = round(total_put_oi / total_call_oi, 2) if total_call_oi else None
+                pcr_vol = round(total_put_vol / total_call_vol, 2) if total_call_vol else None
+                # Max OI strike from combined chain
+                all_oi = (
+                    calls[["strike", "openInterest"]].rename(columns={"openInterest": "oi"})
+                    .append(puts[["strike", "openInterest"]].rename(columns={"openInterest": "oi"}),
+                            ignore_index=True)
+                )
+                max_oi_strike = None
+                if not all_oi.empty:
+                    max_oi_strike = float(all_oi.loc[all_oi["oi"].idxmax(), "strike"])
+                sentiment = (
+                    "bullish" if pcr_oi and pcr_oi > 1.2 else
+                    "bearish" if pcr_oi and pcr_oi < 0.7 else
+                    "neutral" if pcr_oi else None
+                )
+                return {
+                    "pcr_oi": pcr_oi,
+                    "pcr_volume": pcr_vol,
+                    "max_oi_strike": max_oi_strike,
+                    "total_oi": total_call_oi + total_put_oi,
+                    "oi_change_pct": None,
+                    "sentiment": sentiment,
+                    "expiry": expirations[0],
+                    "source": "yfinance",
+                }
+            result = await loop.run_in_executor(None, _yf_options)
+            if result:
+                logger.debug(f"[derivatives] {ticker_up} yfinance fallback OK PCR={result.get('pcr_oi')}")
+                return result
+        except Exception as _yfe:
+            logger.debug(f"[derivatives] {ticker_up} yfinance fallback failed: {_yfe}")
+
+    return {
+        "pcr_oi": None, "pcr_volume": None, "max_oi_strike": None,
+        "total_oi": None, "oi_change_pct": None, "sentiment": None,
+    }
 
 
 @api_router.get("/insider-trades")
