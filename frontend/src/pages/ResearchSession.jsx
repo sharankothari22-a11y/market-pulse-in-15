@@ -310,23 +310,33 @@ const ReverseDcfPanel = ({ researchData }) => {
 };
 
 // ─── Panel 4 — Composite score ─────────────────────────────────────────────
-const DEFAULT_DIMS = ['quality', 'growth', 'valuation', 'momentum', 'sentiment'];
+const SCORE_DIMS = [
+  { key: 'financial_strength',       label: 'Financial Strength',    weight: 25 },
+  { key: 'growth_quality',           label: 'Growth Quality',         weight: 25 },
+  { key: 'valuation_attractiveness', label: 'Valuation',              weight: 25 },
+  { key: 'risk_score',               label: 'Risk',                   weight: 15 },
+  { key: 'market_positioning',       label: 'Market Position',        weight: 10 },
+];
 
 const pickDimensionScores = (scoring) => {
   if (!scoring) return [];
-  // Try a few plausible shapes.
   const src = scoring.dimensions || scoring.scores || scoring.pillars || scoring;
   const out = [];
-  for (const key of DEFAULT_DIMS) {
-    const v = src?.[key] ?? scoring?.[`${key}_score`] ?? scoring?.[key];
+  for (const dim of SCORE_DIMS) {
+    const v = src?.[dim.key] ?? scoring?.[dim.key];
     const num = typeof v === 'number' ? v
       : typeof v === 'object' && v != null ? (v.score ?? v.value ?? v.pct) : null;
     if (typeof num === 'number' && !Number.isNaN(num)) {
-      out.push({ key, label: key.charAt(0).toUpperCase() + key.slice(1),
-                 score: Math.max(0, Math.min(100, num)) });
+      out.push({ ...dim, score: Math.max(0, Math.min(100, num)) });
     }
   }
   return out;
+};
+
+const dimBarColor = (score) => {
+  if (score >= 80) return '#0F7A3E';
+  if (score >= 60) return '#B45309';
+  return '#C7372F';
 };
 
 const ScorePanel = ({ researchData }) => {
@@ -371,21 +381,28 @@ const ScorePanel = ({ researchData }) => {
           Dimension breakdown unavailable
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {dims.map((d) => (
-            <div key={d.key} className="flex items-center gap-2">
+            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: 'var(--bi-text-secondary, #4B5A75)',
-                             width: 66, flexShrink: 0 }}>
+                             width: 96, flexShrink: 0 }}>
                 {d.label}
               </span>
-              <div style={{ flex: 1, height: 4, borderRadius: 2,
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 999,
+                             backgroundColor: 'var(--bi-bg-subtle, #EEF1F6)',
+                             color: 'var(--bi-text-tertiary, #8593AB)', flexShrink: 0 }}>
+                {d.weight}%
+              </span>
+              <div style={{ flex: 1, height: 5, borderRadius: 3,
                             backgroundColor: 'var(--bi-bg-subtle, #EEF1F6)', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${d.score}%`,
-                              backgroundColor: 'var(--bi-navy-700, #1B3A6B)' }} />
+                              backgroundColor: dimBarColor(d.score),
+                              borderRadius: 3, transition: 'width 0.4s ease' }} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--bi-text-primary, #0F2540)',
-                             width: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {Math.round(d.score)}
+              <span style={{ fontSize: 11, fontWeight: 600, color: dimBarColor(d.score),
+                             width: 42, textAlign: 'right', flexShrink: 0,
+                             fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(d.score)}/100
               </span>
             </div>
           ))}
