@@ -3411,6 +3411,76 @@ async def sector_framework(sector_name: str):
         "valuation_focus": _SECTOR_VALUATION_FOCUS.get(sector_name, "DCF + Comps"),
     }
 
+@api_router.get("/insider-trades")
+async def insider_trades(ticker: str = "", limit: int = 20):
+    """Return insider/bulk deals for a ticker from the research_platform event table."""
+    from datetime import date as _date, timedelta as _td
+    results = []
+    try:
+        from database.connection import get_session as _get_rp_session
+        from database.models import Event
+        from sqlalchemy import select as _select, and_ as _and, func as _func
+        ticker_upper = ticker.strip().upper()
+        cutoff = _date.today() - _td(days=90)
+        with _get_rp_session() as s:
+            stmt = (
+                _select(Event)
+                .where(
+                    _and(
+                        Event.entity_type == "insider_trade",
+                        Event.date >= cutoff,
+                    )
+                )
+                .order_by(Event.date.desc())
+                .limit(200)
+            )
+            rows = s.execute(stmt).scalars().all()
+        for ev in rows:
+            title = ev.title or ""
+            # Title format: "Bulk Deal: TICKER — Person BUY qty @ ₹price (₹xCr)"
+            # or "BSE Bulk Deal: TICKER — ..."
+            if ticker_upper and ticker_upper not in title.upper():
+                continue
+            # Parse person/action/qty from title
+            person, action, qty_str, value_inr = "—", "—", "—", None
+            trade_type = "BULK"
+            try:
+                import re as _re
+                m = _re.search(r"(?:Bulk Deal|BSE Bulk Deal):\s*\S+\s*[—–-]\s*(.+?)\s+(BUY|SELL|B|S)\s+([\d,]+)\s*@\s*[₹]?([\d.]+)", title, _re.I)
+                if m:
+                    person = m.group(1).strip()
+                    raw_act = m.group(2).upper()
+                    action = "BUY" if raw_act in ("BUY", "B") else "SELL"
+                    qty_str = m.group(3).replace(",", "")
+                    price_str = m.group(4)
+                    try:
+                        qty_i = int(qty_str)
+                        price_f = float(price_str)
+                        value_inr = round(qty_i * price_f)
+                    except Exception:
+                        pass
+                else:
+                    parts = title.split("—", 1)
+                    if len(parts) > 1:
+                        rest = parts[1].strip()
+                        person = rest[:80]
+            except Exception:
+                pass
+            results.append({
+                "date": str(ev.date) if ev.date else "",
+                "person": person,
+                "action": action,
+                "quantity": qty_str,
+                "value_inr": value_inr,
+                "type": trade_type,
+            })
+            if len(results) >= limit:
+                break
+    except Exception as e:
+        logger.debug(f"[insider-trades] DB unavailable: {e}")
+    return {"trades": results}
+
+
 @api_router.get("/news")
 async def news_feed(limit: int = 10):
     try:

@@ -817,6 +817,66 @@ const AuditPanel = ({ sessionId }) => {
   );
 };
 
+// ─── Insider Trades panel ───────────────────────────────────────────────────
+const InsiderTradesPanel = ({ ticker }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!ticker) return;
+    setLoading(true);
+    apiGet(`/api/insider-trades?ticker=${encodeURIComponent(ticker)}&limit=20`)
+      .then(r => setData(r.trades || []))
+      .catch(() => setData([]))
+      .finally(() => setLoading(false));
+  }, [ticker]);
+
+  const actionStyle = (action) => ({
+    display: 'inline-block', padding: '1px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+    backgroundColor: action === 'BUY' ? 'rgba(15,122,62,0.10)' : 'rgba(199,55,47,0.10)',
+    color: action === 'BUY' ? '#0F7A3E' : '#C7372F',
+  });
+
+  const fmtVal = (v) => {
+    if (v == null) return '—';
+    if (v >= 1e7) return `₹${(v / 1e7).toFixed(1)}Cr`;
+    if (v >= 1e5) return `₹${(v / 1e5).toFixed(1)}L`;
+    return `₹${v.toLocaleString('en-IN')}`;
+  };
+
+  return (
+    <Panel title="Insider Activity · Last 90 days" testId="panel-insider-trades">
+      {loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !data || data.length === 0 ? (
+        <div style={emptyStyle}>No insider trades in last 90 days</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)' }}>
+              {['Date', 'Person', 'Action', 'Qty', 'Value'].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 600,
+                                     fontSize: 11, color: 'var(--bi-text-secondary, #4B5A75)' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)' }}>
+                <td style={{ padding: '5px 8px', color: 'var(--bi-text-tertiary, #8593AB)', whiteSpace: 'nowrap' }}>{row.date || '—'}</td>
+                <td style={{ padding: '5px 8px', color: 'var(--bi-text-primary, #0F2540)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.person || '—'}</td>
+                <td style={{ padding: '5px 8px' }}><span style={actionStyle(row.action)}>{row.action || '—'}</span></td>
+                <td style={{ padding: '5px 8px', fontVariantNumeric: 'tabular-nums', color: 'var(--bi-text-primary, #0F2540)' }}>{row.quantity ? Number(row.quantity).toLocaleString('en-IN') : '—'}</td>
+                <td style={{ padding: '5px 8px', fontVariantNumeric: 'tabular-nums', color: 'var(--bi-text-primary, #0F2540)' }}>{fmtVal(row.value_inr)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
+};
+
 export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [ticker, setTicker] = useState('');
   const [sessionId, setSessionId] = useState(null);
@@ -1300,6 +1360,11 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           {/* Row 7 — Audit Trail */}
           <div style={{ gridColumn: 'span 12' }}>
             <AuditPanel sessionId={sessionId} />
+          </div>
+
+          {/* Row 8 — Insider Trades */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <InsiderTradesPanel ticker={researchData?.ticker} />
           </div>
         </div>
       ) : (
