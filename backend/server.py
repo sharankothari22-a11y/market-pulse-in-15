@@ -1246,13 +1246,130 @@ async def analyze(request: Request):
                 except Exception as _e:
                     logger.warning(f"[analyze] generate_porter failed: {_e}")
 
-            # ── 5. Audit trail (reads what session logged above) ──
+            # ── 5. Write audit events + persist audit_log.json ──
             try:
+                rp_ses.audit("session_created", f"Research session opened for {ticker}")
+                if rp_scoring_data:
+                    rp_ses.audit("scoring_complete",
+                        f"Composite score {rp_scoring_data.get('composite_score')} — "
+                        f"{rp_scoring_data.get('recommendation')}")
+                if rp_signals:
+                    rp_ses.audit("signals_detected", f"{len(rp_signals)} signals detected")
+                if rp_factor_deltas:
+                    rp_ses.audit("factors_mapped", f"{len(rp_factor_deltas)} factor deltas")
+                if rp_swot_data:
+                    rp_ses.audit("swot_generated", "SWOT analysis complete")
+                if rp_porter_data:
+                    rp_ses.audit("porter_generated", "Porter Five Forces analysis complete")
+                rp_ses.audit("pipeline_complete", f"Full analyze pipeline finished for {ticker}")
                 from ai_engine.audit_export import get_full_audit as _get_full_audit
                 rp_audit_entries = _get_full_audit(rp_ses) or []
-                logger.info(f"[analyze] {ticker}: audit {len(rp_audit_entries)} entries")
+                logger.info(f"[analyze] {ticker}: audit {len(rp_audit_entries)} entries persisted")
             except Exception as _e:
-                logger.warning(f"[analyze] get_full_audit failed: {_e}")
+                logger.warning(f"[analyze] audit persist failed: {_e}")
+
+            # ── 6. Build and persist summary.md ──
+            try:
+                _swot = rp_swot_data or {}
+                _porter = rp_porter_data or {}
+                _sc = rp_scoring_data or {}
+                _scenarios = (rp_scenarios or {}).get("scenarios") or {}
+                _hypothesis = body.get("hypothesis") or f"Analysis session for {ticker}"
+
+                def _swot_rows(items):
+                    return "\n".join(f"- {i}" for i in (items or [])) or "- N/A"
+
+                _md_lines = [
+                    f"# {ticker} — Research Summary",
+                    f"",
+                    f"**Session:** {rp_ses.session_id}  ",
+                    f"**Sector:** {rp_sector}  ",
+                    f"**Recommendation:** {_sc.get('recommendation', 'N/A')}  ",
+                    f"**Composite Score:** {_sc.get('composite_score', 'N/A')}  ",
+                    f"",
+                    f"## Investment Thesis",
+                    f"",
+                    f"{_hypothesis}",
+                    f"",
+                    f"## Scoring",
+                    f"",
+                    f"| Dimension | Score |",
+                    f"|---|---|",
+                    f"| Business Quality | {_sc.get('business_quality', 'N/A')} |",
+                    f"| Financial Strength | {_sc.get('financial_strength', 'N/A')} |",
+                    f"| Growth Quality | {_sc.get('growth_quality', 'N/A')} |",
+                    f"| Valuation Attractiveness | {_sc.get('valuation_attractiveness', 'N/A')} |",
+                    f"| Risk Score | {_sc.get('risk_score', 'N/A')} |",
+                    f"| Market Positioning | {_sc.get('market_positioning', 'N/A')} |",
+                    f"",
+                ]
+                if _swot:
+                    _md_lines += [
+                        f"## SWOT Analysis",
+                        f"",
+                        f"### Strengths",
+                        _swot_rows(_swot.get("strengths")),
+                        f"",
+                        f"### Weaknesses",
+                        _swot_rows(_swot.get("weaknesses")),
+                        f"",
+                        f"### Opportunities",
+                        _swot_rows(_swot.get("opportunities")),
+                        f"",
+                        f"### Threats",
+                        _swot_rows(_swot.get("threats")),
+                        f"",
+                    ]
+                if _porter:
+                    _md_lines += [
+                        f"## Porter's Five Forces",
+                        f"",
+                        f"| Force | Rating | Comment |",
+                        f"|---|---|---|",
+                    ]
+                    for _force, _val in _porter.items():
+                        if isinstance(_val, dict):
+                            _md_lines.append(
+                                f"| {_force.replace('_', ' ').title()} "
+                                f"| {_val.get('rating', '')} "
+                                f"| {_val.get('comment', '')} |"
+                            )
+                    _md_lines.append("")
+                if rp_signals:
+                    _md_lines += [
+                        f"## Signals ({len(rp_signals)})",
+                        f"",
+                    ]
+                    for _sig in rp_signals[:10]:
+                        _sig_d = _sig if isinstance(_sig, dict) else getattr(_sig, '__dict__', {})
+                        _md_lines.append(
+                            f"- **{_sig_d.get('signal_type', '')}** "
+                            f"({_sig_d.get('direction', '')}): "
+                            f"{_sig_d.get('description', _sig_d.get('detail', ''))}"
+                        )
+                    _md_lines.append("")
+                if _scenarios:
+                    _md_lines += [f"## Scenarios", f""]
+                    for _label in ("bull", "base", "bear"):
+                        _sc_item = _scenarios.get(_label)
+                        if _sc_item:
+                            _md_lines.append(
+                                f"- **{_label.title()}**: "
+                                f"Fair value ₹{_sc_item.get('fair_value', 'N/A')} "
+                                f"(upside {_sc_item.get('upside_pct', 'N/A')}%)"
+                            )
+                    _md_lines.append("")
+                _md_lines += [
+                    f"## Rationale",
+                    f"",
+                ]
+                for _r in (_sc.get("rationale") or []):
+                    _md_lines.append(f"- {_r}")
+                _md_lines.append("")
+                rp_ses.write_summary("\n".join(_md_lines))
+                logger.info(f"[analyze] {ticker}: summary.md written")
+            except Exception as _e:
+                logger.warning(f"[analyze] write_summary failed: {_e}")
 
         except Exception as e:
             logger.error(f"[analyze] RP integration failed, falling back: {e}")
