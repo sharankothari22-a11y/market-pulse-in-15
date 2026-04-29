@@ -7,6 +7,7 @@ import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from '@/lib/utils';
 import SWOTPanel from '@/components/research/SWOTPanel';
 import PorterPanel from '@/components/research/PorterPanel';
+import SectorCallout from '@/components/research/SectorCallout';
 
 const SCENARIO_KEYS = ['bull', 'base', 'bear'];
 
@@ -1171,6 +1172,11 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
               onDownloadPdf={downloadReport}
               reportLoading={reportLoading}
             />
+          </div>
+
+          {/* Sector framework strip */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <SectorCallout sector={researchData?.sector} />
           </div>
 
           {/* Row 2 — Valuation / Reverse DCF / Score */}

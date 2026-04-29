@@ -3293,6 +3293,60 @@ async def signals():
 async def alerts():
     return {"alerts": []}
 
+_SECTOR_DISPLAY = {
+    "petroleum_energy": "Petroleum & Energy",
+    "banking_nbfc":     "Banking & NBFC",
+    "it_tech":          "IT & Technology",
+    "pharma":           "Pharma & Healthcare",
+    "fmcg_retail":      "FMCG & Retail",
+    "real_estate":      "Real Estate",
+    "auto":             "Automobile",
+    "other":            "Universal",
+}
+
+_SECTOR_VALUATION_FOCUS = {
+    "petroleum_energy": "EV/EBITDA + DCF",
+    "banking_nbfc":     "P/B + P/E + DDM",
+    "it_tech":          "P/E + DCF + EV/EBITDA",
+    "pharma":           "P/E + EV/EBITDA",
+    "fmcg_retail":      "P/E + DCF",
+    "real_estate":      "NAV + EV/EBITDA",
+    "auto":             "EV/EBITDA + P/E",
+    "other":            "DCF + Comps",
+}
+
+_SECTOR_DIR_MAP = {
+    "petroleum_energy": "petroleum",
+    "banking_nbfc":     "banking",
+    "it_tech":          "it",
+    "pharma":           "pharma",
+    "fmcg_retail":      "fmcg",
+    "real_estate":      "real_estate",
+    "auto":             "auto",
+}
+
+@api_router.get("/research/sector/{sector_name}")
+async def sector_framework(sector_name: str):
+    dir_name = _SECTOR_DIR_MAP.get(sector_name, sector_name)
+    sector_file = Path("/app/backend/research_platform/ai_engine/frameworks") / dir_name / "signals.json"
+    key_drivers = []
+    key_metrics = []
+    if sector_file.exists():
+        try:
+            import json as _json
+            data = _json.loads(sector_file.read_text())
+            key_drivers = data.get("key_drivers", [])
+            key_metrics = data.get("key_metrics", data.get("metrics", []))
+        except Exception:
+            pass
+    return {
+        "name": sector_name,
+        "display_name": _SECTOR_DISPLAY.get(sector_name, sector_name.replace("_", " ").title()),
+        "key_drivers": key_drivers[:6],
+        "key_metrics": key_metrics[:6],
+        "valuation_focus": _SECTOR_VALUATION_FOCUS.get(sector_name, "DCF + Comps"),
+    }
+
 @api_router.get("/news")
 async def news_feed(limit: int = 10):
     try:
