@@ -817,6 +817,71 @@ const AuditPanel = ({ sessionId }) => {
   );
 };
 
+// ─── F&O Pulse strip ───────────────────────────────────────────────────────
+const FnoPulseStrip = ({ ticker }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!ticker) return;
+    setLoading(true);
+    apiGet(`/api/derivatives/${encodeURIComponent(ticker)}`)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [ticker]);
+
+  const sentimentStyle = (s) => {
+    if (!s) return {};
+    const map = {
+      bullish: { bg: 'rgba(15,122,62,0.10)', fg: '#0F7A3E' },
+      bearish: { bg: 'rgba(199,55,47,0.10)', fg: '#C7372F' },
+      neutral: { bg: 'rgba(75,90,117,0.10)', fg: '#4B5A75' },
+    };
+    const m = map[s.toLowerCase()] || map.neutral;
+    return { display: 'inline-block', padding: '1px 8px', borderRadius: 999,
+             fontSize: 11, fontWeight: 600, backgroundColor: m.bg, color: m.fg };
+  };
+
+  const hasData = data && (data.pcr_oi != null || data.max_oi_strike != null);
+
+  return (
+    <Panel title="F&O Pulse" testId="panel-fno-pulse">
+      {loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !hasData ? (
+        <div style={emptyStyle}>F&O data not available</div>
+      ) : (
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
+          {data.pcr_oi != null && (
+            <span style={{ color: 'var(--bi-text-primary, #0F2540)' }}>
+              <span style={{ fontWeight: 600 }}>PCR: </span>{data.pcr_oi}
+            </span>
+          )}
+          {data.max_oi_strike != null && (
+            <span style={{ color: 'var(--bi-text-primary, #0F2540)' }}>
+              <span style={{ fontWeight: 600 }}>Max OI: </span>₹{data.max_oi_strike?.toLocaleString('en-IN')}
+            </span>
+          )}
+          {data.oi_change_pct != null && (
+            <span style={{ color: 'var(--bi-text-primary, #0F2540)' }}>
+              <span style={{ fontWeight: 600 }}>OI Change: </span>
+              <span style={{ color: data.oi_change_pct >= 0 ? '#0F7A3E' : '#C7372F' }}>
+                {data.oi_change_pct >= 0 ? '+' : ''}{data.oi_change_pct}%
+              </span>
+            </span>
+          )}
+          {data.sentiment && (
+            <span><span style={{ fontWeight: 600 }}>Sentiment: </span>
+              <span style={sentimentStyle(data.sentiment)}>{data.sentiment.charAt(0).toUpperCase() + data.sentiment.slice(1)}</span>
+            </span>
+          )}
+        </div>
+      )}
+    </Panel>
+  );
+};
+
 // ─── Insider Trades panel ───────────────────────────────────────────────────
 const InsiderTradesPanel = ({ ticker }) => {
   const [data, setData] = useState(null);
@@ -1362,7 +1427,12 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <AuditPanel sessionId={sessionId} />
           </div>
 
-          {/* Row 8 — Insider Trades */}
+          {/* Row 8 — F&O Pulse */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <FnoPulseStrip ticker={researchData?.ticker} />
+          </div>
+
+          {/* Row 9 — Insider Trades */}
           <div style={{ gridColumn: 'span 12' }}>
             <InsiderTradesPanel ticker={researchData?.ticker} />
           </div>

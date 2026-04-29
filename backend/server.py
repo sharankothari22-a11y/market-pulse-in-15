@@ -3411,6 +3411,78 @@ async def sector_framework(sector_name: str):
         "valuation_focus": _SECTOR_VALUATION_FOCUS.get(sector_name, "DCF + Comps"),
     }
 
+@api_router.get("/derivatives/{ticker}")
+async def derivatives(ticker: str):
+    """Return live F&O data for a ticker from NSE option chain."""
+    import httpx
+    ticker_up = ticker.strip().upper()
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept": "application/json",
+            "Referer": "https://www.nseindia.com/",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            await client.get("https://www.nseindia.com/", headers=headers)
+            url = f"https://www.nseindia.com/api/option-chain-equities?symbol={ticker_up}"
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+
+        filtered = data.get("filtered") or {}
+        chain = filtered.get("data") or []
+
+        total_ce_oi = sum(d.get("CE", {}).get("openInterest", 0) for d in chain if d.get("CE"))
+        total_pe_oi = sum(d.get("PE", {}).get("openInterest", 0) for d in chain if d.get("PE"))
+        total_ce_vol = sum(d.get("CE", {}).get("totalTradedVolume", 0) for d in chain if d.get("CE"))
+        total_pe_vol = sum(d.get("PE", {}).get("totalTradedVolume", 0) for d in chain if d.get("PE"))
+
+        pcr_oi = round(total_pe_oi / total_ce_oi, 2) if total_ce_oi > 0 else None
+        pcr_vol = round(total_pe_vol / total_ce_vol, 2) if total_ce_vol > 0 else None
+        total_oi = total_ce_oi + total_pe_oi
+
+        # Max OI strike
+        max_oi_strike = None
+        max_oi_val = 0
+        for d in chain:
+            for side in ("CE", "PE"):
+                if d.get(side) and d[side].get("openInterest", 0) > max_oi_val:
+                    max_oi_val = d[side]["openInterest"]
+                    max_oi_strike = d.get("strikePrice")
+
+        oi_change_pct = None
+        try:
+            ce_oi_chg = sum(d["CE"].get("changeinOpenInterest", 0) for d in chain if d.get("CE"))
+            pe_oi_chg = sum(d["PE"].get("changeinOpenInterest", 0) for d in chain if d.get("PE"))
+            base_oi = total_oi - (ce_oi_chg + pe_oi_chg)
+            if base_oi > 0:
+                oi_change_pct = round((ce_oi_chg + pe_oi_chg) / base_oi * 100, 1)
+        except Exception:
+            pass
+
+        sentiment = (
+            "bullish" if pcr_oi and pcr_oi > 1.2 else
+            "bearish" if pcr_oi and pcr_oi < 0.7 else
+            "neutral" if pcr_oi else None
+        )
+
+        return {
+            "pcr_oi": pcr_oi,
+            "pcr_volume": pcr_vol,
+            "max_oi_strike": max_oi_strike,
+            "total_oi": total_oi,
+            "oi_change_pct": oi_change_pct,
+            "sentiment": sentiment,
+        }
+    except Exception as e:
+        logger.debug(f"[derivatives] {ticker_up} fetch failed: {e}")
+        return {
+            "pcr_oi": None, "pcr_volume": None, "max_oi_strike": None,
+            "total_oi": None, "oi_change_pct": None, "sentiment": None,
+        }
+
+
 @api_router.get("/insider-trades")
 async def insider_trades(ticker: str = "", limit: int = 20):
     """Return insider/bulk deals for a ticker from the research_platform event table."""
