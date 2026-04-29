@@ -882,6 +882,214 @@ const FnoPulseStrip = ({ ticker }) => {
   );
 };
 
+// ─── Financial Charts panel (Feature 14) ───────────────────────────────────
+const FinancialChartsPanel = ({ sessionId }) => {
+  const [charts, setCharts] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isValidSessionId(sessionId)) return;
+    setLoading(true);
+    apiGet(`/api/research/${sessionId}/charts`)
+      .then(r => setCharts(r.charts || []))
+      .catch(() => setCharts([]))
+      .finally(() => setLoading(false));
+  }, [sessionId]);
+
+  return (
+    <Panel title="Financial Charts" testId="panel-financial-charts">
+      {loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading charts…</div>
+      ) : !charts || charts.length === 0 ? (
+        <div style={emptyStyle}>Charts will be available after analysis completes</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {charts.map((c, i) => (
+            <div key={i} style={{
+              background: 'var(--bi-surface-raised, #F7F9FC)',
+              borderRadius: 8,
+              border: '1px solid var(--bi-border-subtle, #E3E8EF)',
+              overflow: 'hidden',
+            }}>
+              <img
+                src={`data:image/png;base64,${c.image_base64}`}
+                alt={c.name}
+                style={{ width: '100%', display: 'block' }}
+              />
+              <div style={{ padding: '4px 8px 6px', fontSize: 11, fontWeight: 600,
+                            color: 'var(--bi-text-secondary, #4B5A75)', textAlign: 'center' }}>
+                {c.name}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+};
+
+// ─── Peer Comparison panel (Feature 15) ────────────────────────────────────
+const PeerComparisonPanel = ({ sessionId }) => {
+  const [peers, setPeers] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isValidSessionId(sessionId)) return;
+    setLoading(true);
+    apiGet(`/api/research/${sessionId}/peers`)
+      .then(r => setPeers(Array.isArray(r) ? r : []))
+      .catch(() => setPeers([]))
+      .finally(() => setLoading(false));
+  }, [sessionId]);
+
+  const fmtNum = (v, suffix = '') => v != null ? `${v}${suffix}` : '—';
+
+  const calcAvg = (key) => {
+    if (!peers || peers.length < 2) return null;
+    const vals = peers.slice(1).map(p => p[key]).filter(v => v != null);
+    if (!vals.length) return null;
+    return +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+  };
+
+  const calcPremDisc = (key) => {
+    if (!peers || peers.length < 2) return null;
+    const sub = peers[0]?.[key];
+    const avg = calcAvg(key);
+    if (sub == null || avg == null || avg === 0) return null;
+    return +(((sub - avg) / avg) * 100).toFixed(1);
+  };
+
+  return (
+    <Panel title="Peer Comparison" testId="panel-peer-comparison">
+      {loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !peers || peers.length === 0 ? (
+        <div style={emptyStyle}>Peer data updating</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--bi-border-subtle, #E3E8EF)' }}>
+              {['Company', 'P/E', 'EV/EBITDA', 'ROE (%)'].map((h, i) => (
+                <th key={h} style={{ textAlign: i === 0 ? 'left' : 'right', padding: '4px 8px',
+                                     fontWeight: 600, fontSize: 11, color: 'var(--bi-text-secondary, #4B5A75)' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {peers.map((p, i) => (
+              <tr key={i} style={{
+                borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)',
+                background: i === 0 ? 'rgba(99,102,241,0.05)' : 'transparent',
+              }}>
+                <td style={{ padding: '5px 8px', fontWeight: i === 0 ? 700 : 400,
+                             color: 'var(--bi-text-primary, #0F2540)' }}>
+                  {p.name || p.ticker}
+                  {i === 0 && <span style={{ marginLeft: 6, fontSize: 10, color: '#6366f1' }}>★</span>}
+                </td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                             color: 'var(--bi-text-primary, #0F2540)' }}>{fmtNum(p.pe_fy25e, 'x')}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                             color: 'var(--bi-text-primary, #0F2540)' }}>{fmtNum(p.ev_ebitda, 'x')}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                             color: 'var(--bi-text-primary, #0F2540)' }}>{fmtNum(p.roe, '%')}</td>
+              </tr>
+            ))}
+            {peers.length > 1 && (
+              <>
+                <tr style={{ borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)',
+                             background: 'rgba(75,90,117,0.04)' }}>
+                  <td style={{ padding: '5px 8px', fontWeight: 600, fontSize: 11,
+                               color: 'var(--bi-text-secondary, #4B5A75)' }}>Peer Average</td>
+                  {['pe_fy25e','ev_ebitda','roe'].map(k => (
+                    <td key={k} style={{ padding: '5px 8px', textAlign: 'right', fontSize: 11,
+                                        color: 'var(--bi-text-secondary, #4B5A75)', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtNum(calcAvg(k), k === 'roe' ? '%' : 'x')}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <td style={{ padding: '5px 8px', fontWeight: 600, fontSize: 11,
+                               color: 'var(--bi-text-secondary, #4B5A75)' }}>Premium/(Discount)</td>
+                  {['pe_fy25e','ev_ebitda','roe'].map(k => {
+                    const pd = calcPremDisc(k);
+                    return (
+                      <td key={k} style={{ padding: '5px 8px', textAlign: 'right', fontSize: 11,
+                                          fontVariantNumeric: 'tabular-nums',
+                                          color: pd == null ? 'var(--bi-text-tertiary)' : pd > 0 ? '#0F7A3E' : '#C7372F' }}>
+                        {pd != null ? `${pd > 0 ? '+' : ''}${pd}%` : '—'}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
+};
+
+// ─── Factor Scores panel (Feature 16) ──────────────────────────────────────
+const FactorScoresPanel = ({ sessionId }) => {
+  const [factors, setFactors] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isValidSessionId(sessionId)) return;
+    setLoading(true);
+    apiGet(`/api/research/${sessionId}/factors`)
+      .then(r => setFactors(r.factors || null))
+      .catch(() => setFactors(null))
+      .finally(() => setLoading(false));
+  }, [sessionId]);
+
+  const barColor = (v) => {
+    if (v == null) return '#64748b';
+    if (v >= 65) return '#10b981';
+    if (v >= 40) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const FACTOR_LABELS = [
+    { key: 'momentum', label: 'Momentum' },
+    { key: 'value',    label: 'Value' },
+    { key: 'quality',  label: 'Quality' },
+    { key: 'macro',    label: 'Macro' },
+  ];
+
+  return (
+    <Panel title="Factor Scores" testId="panel-factor-scores">
+      {loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !factors ? (
+        <div style={emptyStyle}>Factor analysis pending</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {FACTOR_LABELS.map(({ key, label }) => {
+            const v = factors[key];
+            const color = barColor(v);
+            return (
+              <div key={key}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 11 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--bi-text-secondary, #4B5A75)' }}>{label}</span>
+                  <span style={{ fontWeight: 700, color }}>{v != null ? Math.round(v) : '—'}</span>
+                </div>
+                <div style={{ height: 8, background: 'var(--bi-surface-raised, #F0F3FA)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', width: `${v || 0}%`, borderRadius: 4,
+                    background: color, transition: 'width 0.4s ease',
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
+  );
+};
+
 // ─── Insider Trades panel ───────────────────────────────────────────────────
 const InsiderTradesPanel = ({ ticker }) => {
   const [data, setData] = useState(null);
@@ -1386,23 +1594,29 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <SectorCallout sector={researchData?.sector} />
           </div>
 
-          {/* Row 2 — Valuation / Reverse DCF / Score */}
+          {/* Row 2 — Valuation / Reverse DCF / Score / Factor Scores */}
           <div style={{ gridColumn: 'span 4' }}>
             <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} />
           </div>
           <div style={{ gridColumn: 'span 4' }}>
             <ReverseDcfPanel researchData={researchData} />
           </div>
-          <div style={{ gridColumn: 'span 4' }}>
+          <div style={{ gridColumn: 'span 2' }}>
             <ScorePanel researchData={researchData} />
           </div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <FactorScoresPanel sessionId={sessionId} />
+          </div>
 
-          {/* Row 3 — Sensitivity / Forecast */}
-          <div style={{ gridColumn: 'span 6' }}>
+          {/* Row 3 — Sensitivity / Forecast / Peer Comparison */}
+          <div style={{ gridColumn: 'span 4' }}>
             <SensitivityPanel researchData={researchData} currentPrice={livePrice} />
           </div>
-          <div style={{ gridColumn: 'span 6' }}>
+          <div style={{ gridColumn: 'span 4' }}>
             <ForecastPanel researchData={researchData} dcfData={dcfData} />
+          </div>
+          <div style={{ gridColumn: 'span 4' }}>
+            <PeerComparisonPanel sessionId={sessionId} />
           </div>
 
           {/* Row 4 — History / Risk flags */}
@@ -1423,17 +1637,22 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <PorterPanel porterData={porterData} loading={porterLoading} />
           </div>
 
-          {/* Row 7 — Audit Trail */}
+          {/* Row 7 — Financial Charts */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <FinancialChartsPanel sessionId={sessionId} />
+          </div>
+
+          {/* Row 8 — Audit Trail */}
           <div style={{ gridColumn: 'span 12' }}>
             <AuditPanel sessionId={sessionId} />
           </div>
 
-          {/* Row 8 — F&O Pulse */}
+          {/* Row 9 — F&O Pulse */}
           <div style={{ gridColumn: 'span 12' }}>
             <FnoPulseStrip ticker={researchData?.ticker} />
           </div>
 
-          {/* Row 9 — Insider Trades */}
+          {/* Row 10 — Insider Trades */}
           <div style={{ gridColumn: 'span 12' }}>
             <InsiderTradesPanel ticker={researchData?.ticker} />
           </div>
