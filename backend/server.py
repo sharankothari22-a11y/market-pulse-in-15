@@ -3282,6 +3282,8 @@ async def report_download_markdown(session_id: str):
     """Return summary.md as a download attachment."""
     from fastapi.responses import Response
     try:
+        session = await _load_session_for_report(session_id)
+        ticker = (session.get("ticker") or "report").upper()
         rp_ses = _find_rp_session(session_id)
         sdir = None
         if rp_ses is not None:
@@ -3291,23 +3293,36 @@ async def report_download_markdown(session_id: str):
         if sdir:
             sfp = Path(sdir) / "summary.md"
             if sfp.exists():
-                session = await _load_session_for_report(session_id)
-                ticker = (session.get("ticker") or "report").upper()
                 content = sfp.read_text(encoding="utf-8")
                 return Response(
-                    content=content,
-                    media_type="text/markdown",
+                    content=content.encode("utf-8"),
+                    media_type="text/markdown; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{ticker}_summary.md"'},
                 )
+        # Fallback: generate minimal markdown from session data so the download always works
+        thesis = session.get("thesis") or session.get("hypothesis") or "Analysis pending."
+        scoring = session.get("scoring") or {}
+        rec = scoring.get("recommendation", "N/A")
+        score = scoring.get("composite_score", "N/A")
+        fallback_md = (
+            f"# {ticker} — Research Summary\n\n"
+            f"**Recommendation:** {rec}  \n"
+            f"**Composite Score:** {score}  \n\n"
+            f"## Investment Thesis\n\n{thesis}\n\n"
+            f"*Full markdown summary available after DCF analysis completes.*\n"
+        )
         return Response(
-            content="# Summary not available\n\nRun a full DCF analysis to generate the markdown summary.",
-            media_type="text/markdown",
-            status_code=404,
-            headers={"Content-Disposition": f'attachment; filename="summary.md"'},
+            content=fallback_md.encode("utf-8"),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{ticker}_summary.md"'},
         )
     except Exception as e:
         logger.error(f"report_markdown failed: {e}")
-        return Response(content=f"# Error\n\n{e}", media_type="text/markdown", status_code=500)
+        return Response(
+            content=f"# Error\n\n{e}".encode("utf-8"),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="error.md"'},
+        )
 
 
 @api_router.get("/research/{session_id}/audit")
@@ -3344,13 +3359,60 @@ async def audit_trail(session_id: str):
 @api_router.get("/macro")
 @safe_endpoint(lambda: {"indicators": []})
 async def macro():
+    # Try cache first
     cached, _ = await cache_get("macro")
-    return {"indicators": cached or []}
+    if cached:
+        return {"indicators": cached}
+    # Read from MacroIndicator table
+    indicators = []
+    try:
+        from sqlalchemy import select, desc, text
+        from research_platform.database.connection import get_session as _rp_dbs
+        from research_platform.database.models import MacroIndicator as _MI
+        with _rp_dbs() as db:
+            rows = db.scalars(
+                select(_MI).order_by(desc(_MI.date)).limit(200)
+            ).all()
+            for r in rows:
+                indicators.append({
+                    "indicator": r.indicator,
+                    "date": str(r.date),
+                    "value": float(r.value) if r.value is not None else None,
+                    "source": r.source or "",
+                })
+    except Exception as exc:
+        logger.debug(f"[macro] DB read failed: {exc}")
+    if indicators:
+        await cache_set("macro", indicators)
+    return {"indicators": indicators}
 
 @api_router.get("/signals")
 @safe_endpoint(lambda: {"signals": []})
 async def signals():
-    return {"signals": []}
+    signals_out = []
+    try:
+        from sqlalchemy import select, desc
+        from research_platform.database.connection import get_session as _rp_dbs
+        from research_platform.database.models import Event as _Ev
+        with _rp_dbs() as db:
+            rows = db.scalars(
+                select(_Ev)
+                .where(_Ev.type.in_(["signal", "news", "regulatory", "earnings"]))
+                .order_by(desc(_Ev.date))
+                .limit(100)
+            ).all()
+            for r in rows:
+                signals_out.append({
+                    "id": r.id,
+                    "type": r.type,
+                    "title": r.title,
+                    "date": str(r.date) if r.date else "",
+                    "impact_score": r.impact_score,
+                    "source_url": r.source_url or "",
+                })
+    except Exception as exc:
+        logger.debug(f"[signals] DB read failed: {exc}")
+    return {"signals": signals_out}
 
 @api_router.get("/alerts")
 @safe_endpoint(lambda: {"alerts": []})
@@ -3647,6 +3709,288 @@ async def chat_message(request: Request):
             status_code=500,
             content={"error": "Couldn't get a response, try again"},
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEATURE 14 — Financial Charts
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _generate_charts(ticker: str) -> list[dict]:
+    """Generate 6 financial charts as base64 PNGs using yfinance + matplotlib."""
+    import io, base64
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import yfinance as yf
+    import numpy as np
+
+    charts = []
+
+    def _b64(fig) -> str:
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=90, bbox_inches="tight", facecolor=fig.get_facecolor())
+        buf.seek(0)
+        plt.close(fig)
+        return base64.b64encode(buf.read()).decode()
+
+    ticker_yf = ticker if (ticker.endswith(".NS") or ticker.endswith(".BO")) else ticker + ".NS"
+    t = yf.Ticker(ticker_yf)
+
+    # ── Chart 1: Price History (1Y) ──────────────────────────────────────────
+    try:
+        hist = t.history(period="1y")
+        if not hist.empty:
+            fig, ax = plt.subplots(figsize=(6, 3), facecolor="#0f172a")
+            ax.set_facecolor("#1e293b")
+            ax.plot(hist.index, hist["Close"], color="#22d3ee", linewidth=1.5)
+            ax.fill_between(hist.index, hist["Close"], alpha=0.15, color="#22d3ee")
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
+            ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+            ax.tick_params(colors="#94a3b8", labelsize=8)
+            ax.spines[:].set_color("#334155")
+            ax.yaxis.tick_right()
+            ax.set_title("Price History (1Y)", color="#e2e8f0", fontsize=9, pad=6)
+            plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
+            charts.append({"name": "Price History (1Y)", "type": "line", "image_base64": _b64(fig)})
+    except Exception as e:
+        logger.debug(f"[charts] price history failed: {e}")
+
+    # ── Chart 2: Revenue (3Y) ────────────────────────────────────────────────
+    try:
+        fin = t.financials
+        if fin is not None and not fin.empty and "Total Revenue" in fin.index:
+            rev_row = fin.loc["Total Revenue"].dropna()
+            years = [str(c)[:4] for c in rev_row.index[:4]][::-1]
+            vals = [float(v) / 1e7 for v in rev_row.values[:4]][::-1]  # ₹ Cr
+            fig, ax = plt.subplots(figsize=(6, 3), facecolor="#0f172a")
+            ax.set_facecolor("#1e293b")
+            bars = ax.bar(years, vals, color="#6366f1", alpha=0.85, width=0.55)
+            ax.tick_params(colors="#94a3b8", labelsize=8)
+            ax.spines[:].set_color("#334155")
+            ax.set_title("Revenue (₹ Cr)", color="#e2e8f0", fontsize=9, pad=6)
+            for bar, v in zip(bars, vals):
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(vals)*0.01,
+                        f"{v:,.0f}", ha="center", va="bottom", color="#94a3b8", fontsize=7)
+            charts.append({"name": "Revenue", "type": "bar", "image_base64": _b64(fig)})
+    except Exception as e:
+        logger.debug(f"[charts] revenue failed: {e}")
+
+    # ── Chart 3: EBITDA Margin ───────────────────────────────────────────────
+    try:
+        fin = t.financials
+        if fin is not None and not fin.empty:
+            ebit_row = fin.loc["EBITDA"].dropna() if "EBITDA" in fin.index else None
+            rev_row  = fin.loc["Total Revenue"].dropna() if "Total Revenue" in fin.index else None
+            if ebit_row is not None and rev_row is not None:
+                common = sorted(set(ebit_row.index) & set(rev_row.index), reverse=True)[:4]
+                years = [str(c)[:4] for c in common][::-1]
+                margins = [float(ebit_row[c]) / float(rev_row[c]) * 100 for c in common][::-1]
+                fig, ax = plt.subplots(figsize=(6, 3), facecolor="#0f172a")
+                ax.set_facecolor("#1e293b")
+                ax.plot(years, margins, color="#10b981", marker="o", linewidth=2, markersize=5)
+                ax.fill_between(years, margins, alpha=0.12, color="#10b981")
+                ax.tick_params(colors="#94a3b8", labelsize=8)
+                ax.spines[:].set_color("#334155")
+                ax.set_title("EBITDA Margin (%)", color="#e2e8f0", fontsize=9, pad=6)
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.1f}%"))
+                charts.append({"name": "EBITDA Margin", "type": "line", "image_base64": _b64(fig)})
+    except Exception as e:
+        logger.debug(f"[charts] ebitda margin failed: {e}")
+
+    # ── Chart 4: Net Margin ──────────────────────────────────────────────────
+    try:
+        fin = t.financials
+        if fin is not None and not fin.empty:
+            ni_row  = fin.loc["Net Income"].dropna() if "Net Income" in fin.index else None
+            rev_row = fin.loc["Total Revenue"].dropna() if "Total Revenue" in fin.index else None
+            if ni_row is not None and rev_row is not None:
+                common = sorted(set(ni_row.index) & set(rev_row.index), reverse=True)[:4]
+                years = [str(c)[:4] for c in common][::-1]
+                margins = [float(ni_row[c]) / float(rev_row[c]) * 100 for c in common][::-1]
+                fig, ax = plt.subplots(figsize=(6, 3), facecolor="#0f172a")
+                ax.set_facecolor("#1e293b")
+                colors = ["#ef4444" if m < 0 else "#f59e0b" for m in margins]
+                ax.bar(years, margins, color=colors, alpha=0.85, width=0.55)
+                ax.axhline(0, color="#475569", linewidth=0.8)
+                ax.tick_params(colors="#94a3b8", labelsize=8)
+                ax.spines[:].set_color("#334155")
+                ax.set_title("Net Margin (%)", color="#e2e8f0", fontsize=9, pad=6)
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.1f}%"))
+                charts.append({"name": "Net Margin", "type": "bar", "image_base64": _b64(fig)})
+    except Exception as e:
+        logger.debug(f"[charts] net margin failed: {e}")
+
+    # ── Chart 5: Revenue Growth YoY ──────────────────────────────────────────
+    try:
+        fin = t.financials
+        if fin is not None and not fin.empty and "Total Revenue" in fin.index:
+            rev_row = fin.loc["Total Revenue"].dropna()
+            cols = sorted(rev_row.index, reverse=True)[:5]
+            if len(cols) >= 2:
+                years = [str(c)[:4] for c in cols][::-1]
+                revs  = [float(rev_row[c]) for c in cols][::-1]
+                growths = [None] + [
+                    (revs[i] - revs[i-1]) / abs(revs[i-1]) * 100 if revs[i-1] else 0
+                    for i in range(1, len(revs))
+                ]
+                g_years = years[1:]
+                g_vals  = growths[1:]
+                fig, ax = plt.subplots(figsize=(6, 3), facecolor="#0f172a")
+                ax.set_facecolor("#1e293b")
+                clrs = ["#ef4444" if v < 0 else "#22d3ee" for v in g_vals]
+                ax.bar(g_years, g_vals, color=clrs, alpha=0.85, width=0.55)
+                ax.axhline(0, color="#475569", linewidth=0.8)
+                ax.tick_params(colors="#94a3b8", labelsize=8)
+                ax.spines[:].set_color("#334155")
+                ax.set_title("Revenue Growth YoY (%)", color="#e2e8f0", fontsize=9, pad=6)
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.1f}%"))
+                charts.append({"name": "Revenue Growth YoY", "type": "bar", "image_base64": _b64(fig)})
+    except Exception as e:
+        logger.debug(f"[charts] rev growth failed: {e}")
+
+    # ── Chart 6: Volume (3M) ─────────────────────────────────────────────────
+    try:
+        hist = t.history(period="3mo")
+        if not hist.empty and "Volume" in hist.columns:
+            fig, ax = plt.subplots(figsize=(6, 3), facecolor="#0f172a")
+            ax.set_facecolor("#1e293b")
+            vol_m = hist["Volume"] / 1e6
+            avg   = vol_m.rolling(20).mean()
+            ax.bar(hist.index, vol_m, color="#6366f1", alpha=0.5, width=1.0)
+            ax.plot(hist.index, avg, color="#f59e0b", linewidth=1.5, label="20-day avg")
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
+            ax.tick_params(colors="#94a3b8", labelsize=8)
+            ax.spines[:].set_color("#334155")
+            ax.set_title("Volume (M shares, 3M)", color="#e2e8f0", fontsize=9, pad=6)
+            ax.legend(fontsize=7, facecolor="#1e293b", labelcolor="#94a3b8", framealpha=0.6)
+            plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
+            charts.append({"name": "Volume (3M)", "type": "bar", "image_base64": _b64(fig)})
+    except Exception as e:
+        logger.debug(f"[charts] volume failed: {e}")
+
+    return charts
+
+
+_charts_cache: dict = {}
+
+@api_router.get("/research/{session_id}/charts")
+async def research_charts(session_id: str):
+    """Return 6 financial charts as base64 PNGs."""
+    try:
+        session = await _load_session_for_report(session_id)
+        ticker = (session.get("ticker") or "").upper()
+        if not ticker:
+            return {"charts": []}
+        # 30-min cache per ticker
+        import time as _time
+        now = _time.time()
+        cached = _charts_cache.get(ticker)
+        if cached and now - cached[0] < 1800:
+            return {"charts": cached[1]}
+        import asyncio
+        loop = asyncio.get_event_loop()
+        charts = await loop.run_in_executor(None, _generate_charts, ticker)
+        _charts_cache[ticker] = (now, charts)
+        return {"charts": charts}
+    except Exception as e:
+        logger.error(f"[charts] {session_id}: {e}")
+        return {"charts": []}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEATURE 15 — Peer Comparison (live data)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fetch_peer_metrics(tickers: list[str]) -> list[dict]:
+    """Fetch P/E, EV/EBITDA, ROE for a list of tickers via yfinance."""
+    import yfinance as yf
+    rows = []
+    for tk in tickers:
+        try:
+            ticker_yf = tk if (tk.endswith(".NS") or tk.endswith(".BO")) else tk + ".NS"
+            info = yf.Ticker(ticker_yf).info or {}
+            pe     = info.get("trailingPE") or info.get("forwardPE")
+            ev_rev = info.get("enterpriseToEbitda")
+            roe    = info.get("returnOnEquity")
+            name   = info.get("shortName") or info.get("longName") or tk
+            rows.append({
+                "ticker":     tk,
+                "name":       name[:25] if name else tk,
+                "pe_fy25e":   round(float(pe), 1) if pe else None,
+                "ev_ebitda":  round(float(ev_rev), 1) if ev_rev else None,
+                "roe":        round(float(roe) * 100, 1) if roe else None,
+            })
+        except Exception as ex:
+            logger.debug(f"[peers] {tk} failed: {ex}")
+            rows.append({"ticker": tk, "name": tk, "pe_fy25e": None, "ev_ebitda": None, "roe": None})
+    return rows
+
+
+_peers_cache: dict = {}
+
+@api_router.get("/research/{session_id}/peers")
+async def research_peers(session_id: str):
+    """Return peer comparison metrics."""
+    try:
+        session = await _load_session_for_report(session_id)
+        ticker = (session.get("ticker") or "").upper()
+        sector = (session.get("sector") or "").upper()
+        if not ticker:
+            return []
+        # Determine peer list
+        peer_key = None
+        for k in PEER_MAP:
+            if k != "DEFAULT" and k in sector:
+                peer_key = k
+                break
+        peer_tickers = PEER_MAP.get(peer_key) if peer_key else PEER_MAP["DEFAULT"]
+        peer_tickers = [p for p in peer_tickers if p.upper() != ticker.upper()][:4]
+        # Include subject ticker first
+        all_tickers = [ticker] + peer_tickers
+        import time as _time
+        now = _time.time()
+        cache_key = ",".join(all_tickers)
+        cached = _peers_cache.get(cache_key)
+        if cached and now - cached[0] < 3600:
+            return cached[1]
+        import asyncio
+        loop = asyncio.get_event_loop()
+        rows = await loop.run_in_executor(None, _fetch_peer_metrics, all_tickers)
+        _peers_cache[cache_key] = (now, rows)
+        return rows
+    except Exception as e:
+        logger.error(f"[peers] {session_id}: {e}")
+        return []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEATURE 16 — Factor Engine scores (momentum / value / quality / macro)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@api_router.get("/research/{session_id}/factors")
+async def research_factors(session_id: str):
+    """Return momentum, value, quality, macro factor scores (0-100)."""
+    try:
+        session = await _load_session_for_report(session_id)
+        scoring = session.get("scoring") or {}
+        # Map scoring dimensions → 4 factor buckets
+        fs  = float(scoring.get("financial_strength",      50) or 50)
+        gq  = float(scoring.get("growth_quality",          50) or 50)
+        va  = float(scoring.get("valuation_attractiveness",50) or 50)
+        risk= float(scoring.get("risk",                    50) or 50)
+        mp  = float(scoring.get("market_positioning",      50) or 50)
+        return {
+            "factors": {
+                "momentum": round(min(100, max(0, (gq * 0.6 + mp * 0.4))), 1),
+                "value":    round(min(100, max(0, va)), 1),
+                "quality":  round(min(100, max(0, (fs * 0.6 + mp * 0.4))), 1),
+                "macro":    round(min(100, max(0, 100 - risk)), 1),
+            }
+        }
+    except Exception as e:
+        logger.error(f"[factors] {session_id}: {e}")
+        return {"factors": {"momentum": 50, "value": 50, "quality": 50, "macro": 50}}
 
 
 # =====================================================================
