@@ -198,7 +198,25 @@ const CompanyHeader = ({
 };
 
 // ─── Panel 2 — Valuation (base scenario hero, bull/bear secondary) ─────────
-const ValuationPanel = ({ scenarios }) => {
+const CONF_STYLE = {
+  high:   { bg: '#D1FAE5', fg: '#065F46', label: 'H' },
+  medium: { bg: '#FEF3C7', fg: '#92400E', label: 'M' },
+  low:    { bg: '#FEE2E2', fg: '#991B1B', label: 'L' },
+};
+
+const ConfChip = ({ level }) => {
+  const s = CONF_STYLE[level?.toLowerCase()] || null;
+  if (!s) return null;
+  return (
+    <span style={{
+      display: 'inline-block', padding: '0px 5px', borderRadius: 999,
+      fontSize: 9, fontWeight: 700, lineHeight: '16px',
+      backgroundColor: s.bg, color: s.fg, marginLeft: 3, verticalAlign: 'middle',
+    }}>{s.label}</span>
+  );
+};
+
+const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
   const byKey = Object.fromEntries(scenarios.map((s) => [s.key, s]));
   const base = byKey.base;
   const bull = byKey.bull;
@@ -234,12 +252,24 @@ const ValuationPanel = ({ scenarios }) => {
             </div>
           )}
           {base.key_assumption && (
-            <div title={base.key_assumption} style={{
-              fontSize: 12, color: 'var(--bi-text-secondary, #4B5A75)',
-              marginTop: 8, lineHeight: 1.4,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              {base.key_assumption}
+            <div style={{ fontSize: 12, color: 'var(--bi-text-secondary, #4B5A75)', marginTop: 8, lineHeight: 1.6 }}>
+              {assumptionConfidence && Object.keys(assumptionConfidence).length > 0 ? (
+                <span>
+                  {base.revenue_growth != null && (
+                    <span>{fmtPctPlain(base.revenue_growth)} growth<ConfChip level={assumptionConfidence.revenue_growth} /></span>
+                  )}
+                  {base.ebitda_margin != null && (
+                    <span> · {fmtPctPlain(base.ebitda_margin)} margin<ConfChip level={assumptionConfidence.ebitda_margin} /></span>
+                  )}
+                  {base.wacc != null && (
+                    <span> · {fmtPctPlain(base.wacc)} WACC<ConfChip level={assumptionConfidence.wacc} /></span>
+                  )}
+                </span>
+              ) : (
+                <span title={base.key_assumption} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                  {base.key_assumption}
+                </span>
+              )}
             </div>
           )}
         </>
@@ -1145,7 +1175,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
           {/* Row 2 — Valuation / Reverse DCF / Score */}
           <div style={{ gridColumn: 'span 4' }}>
-            <ValuationPanel scenarios={scenarios} />
+            <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} />
           </div>
           <div style={{ gridColumn: 'span 4' }}>
             <ReverseDcfPanel researchData={researchData} />

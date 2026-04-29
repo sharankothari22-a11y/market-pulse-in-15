@@ -1104,6 +1104,7 @@ async def analyze(request: Request):
     rp_session_id = None
     rp_scenarios = None
     rp_scoring_data = None
+    rp_assumptions = None
     rp_sector = _detect_sector_simple(ticker)
 
     if RP_AVAILABLE:
@@ -1220,6 +1221,7 @@ async def analyze(request: Request):
         "sensitivity": (rp_scenarios.get("sensitivity") if rp_scenarios else None),
         "reverse_dcf": (rp_scenarios.get("reverse_dcf") if rp_scenarios else None),
         "scoring": rp_scoring_data,
+        "assumption_confidence": (rp_assumptions or {}).get("_confidence_tags") or {},
         "dcf": {
             "current_price": current_price,
             "fair_value": round(price_per_share, 2),
