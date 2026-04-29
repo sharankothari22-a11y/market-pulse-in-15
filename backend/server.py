@@ -3599,6 +3599,23 @@ async def audit_trail(session_id: str):
                     audit_log.append({"timestamp": ts, "event": evt, "fields_changed": list(entry.get("delta", {}).keys())})
     return {"sources": sources, "audit_log": audit_log}
 
+
+@api_router.get("/research/{session_id}/guardrails")
+async def guardrail_log(session_id: str):
+    rp_ses = _find_rp_session(session_id)
+    raw = _read_rp_session_file(rp_ses, "guardrail_log.json")
+    breaches = raw if isinstance(raw, list) else []
+    return {"guardrails": breaches, "all_passed": len(breaches) == 0}
+
+
+@api_router.get("/research/{session_id}/assumption_history")
+async def assumption_history(session_id: str):
+    rp_ses = _find_rp_session(session_id)
+    raw = _read_rp_session_file(rp_ses, "assumptions_history.json")
+    history = raw if isinstance(raw, list) else []
+    return {"history": history}
+
+
 @api_router.get("/macro")
 @safe_endpoint(lambda: {"indicators": []})
 async def macro():
