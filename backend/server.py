@@ -35,6 +35,7 @@ import asyncio
 import traceback
 import subprocess
 import functools
+import dataclasses
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
@@ -148,6 +149,22 @@ except Exception as e:
     RP_PORTER = False
     rp_generate_porter = None
     _rp_errors.append(f"porter: {e}")
+
+try:
+    from ai_engine.signal_detector import detect_signals as rp_detect_signals
+    RP_SIGNALS = True
+except Exception as e:
+    RP_SIGNALS = False
+    rp_detect_signals = None
+    _rp_errors.append(f"signal_detector: {e}")
+
+try:
+    from ai_engine.factor_engine import signals_to_factors as rp_signals_to_factors
+    RP_FACTORS = True
+except Exception as e:
+    RP_FACTORS = False
+    rp_signals_to_factors = None
+    _rp_errors.append(f"factor_engine: {e}")
 
 RP_AVAILABLE = RP_SESSION_MGR and RP_SCENARIOS and RP_SCORING
 if RP_AVAILABLE:
@@ -1106,6 +1123,11 @@ async def analyze(request: Request):
     rp_scoring_data = None
     rp_assumptions = None
     rp_sector = _detect_sector_simple(ticker)
+    rp_signals: list = []
+    rp_factor_deltas: list = []
+    rp_swot_data = None
+    rp_porter_data = None
+    rp_audit_entries: list = []
 
     if RP_AVAILABLE:
         try:
@@ -1150,6 +1172,7 @@ async def analyze(request: Request):
                     logger.warning(f"[analyze] RP scenarios failed: {e}")
 
             # Run scoring (5-dimension composite)
+            scoring = None
             if RP_SCORING and rp_score_session:
                 try:
                     scoring = rp_score_session(rp_ses, sector=rp_sector)
@@ -1168,6 +1191,68 @@ async def analyze(request: Request):
                     logger.info(f"[analyze] RP scoring: {scoring.recommendation} ({scoring.composite_score:.0f})")
                 except Exception as e:
                     logger.warning(f"[analyze] RP scoring failed: {e}")
+
+            # ── 1. Detect signals from sector context + news headlines ──
+            if RP_SIGNALS and rp_detect_signals:
+                try:
+                    _sector_text = f"{ticker} {rp_sector} sector stock analysis"
+                    rp_signals = rp_detect_signals(
+                        _sector_text, "sector_context",
+                        ticker=ticker, sector=rp_sector,
+                    ) or []
+                    try:
+                        _news = await fetch_news_safe()
+                        for _item in (_news or [])[:10]:
+                            _title = _item.get("title", "")
+                            if _title and ticker.lower() in _title.lower():
+                                _sigs = rp_detect_signals(
+                                    _title, _item.get("source", "news"),
+                                    ticker=ticker, sector=rp_sector,
+                                )
+                                rp_signals.extend(_sigs or [])
+                    except Exception as _ne:
+                        logger.debug(f"[analyze] news signals skipped: {_ne}")
+                    logger.info(f"[analyze] {ticker}: {len(rp_signals)} signals detected")
+                except Exception as _e:
+                    logger.warning(f"[analyze] detect_signals failed: {_e}")
+
+            # ── 2. Map signals → factor assumption deltas ──
+            if RP_FACTORS and rp_signals_to_factors:
+                try:
+                    _cur_asmp: dict = {}
+                    if rp_scenarios and isinstance(rp_scenarios.get("base"), dict):
+                        _cur_asmp = rp_scenarios["base"].get("assumptions", {}) or {}
+                    elif rp_assumptions:
+                        _cur_asmp = {k: v for k, v in rp_assumptions.items()
+                                     if isinstance(v, (int, float))}
+                    rp_factor_deltas = rp_signals_to_factors(rp_signals, _cur_asmp) or []
+                    logger.info(f"[analyze] {ticker}: {len(rp_factor_deltas)} factor deltas")
+                except Exception as _e:
+                    logger.warning(f"[analyze] signals_to_factors failed: {_e}")
+
+            # ── 3. SWOT (needs real scoring object) ──
+            if RP_SWOT and rp_generate_swot and scoring is not None:
+                try:
+                    rp_swot_data = rp_generate_swot(rp_ses, scoring, sector=rp_sector)
+                    logger.info(f"[analyze] {ticker}: SWOT generated")
+                except Exception as _e:
+                    logger.warning(f"[analyze] generate_swot failed: {_e}")
+
+            # ── 4. Porter Five Forces ──
+            if RP_PORTER and rp_generate_porter:
+                try:
+                    rp_porter_data = rp_generate_porter(rp_ses, sector=rp_sector)
+                    logger.info(f"[analyze] {ticker}: Porter generated")
+                except Exception as _e:
+                    logger.warning(f"[analyze] generate_porter failed: {_e}")
+
+            # ── 5. Audit trail (reads what session logged above) ──
+            try:
+                from ai_engine.audit_export import get_full_audit as _get_full_audit
+                rp_audit_entries = _get_full_audit(rp_ses) or []
+                logger.info(f"[analyze] {ticker}: audit {len(rp_audit_entries)} entries")
+            except Exception as _e:
+                logger.warning(f"[analyze] get_full_audit failed: {_e}")
 
         except Exception as e:
             logger.error(f"[analyze] RP integration failed, falling back: {e}")
@@ -1221,6 +1306,20 @@ async def analyze(request: Request):
         "sensitivity": (rp_scenarios.get("sensitivity") if rp_scenarios else None),
         "reverse_dcf": (rp_scenarios.get("reverse_dcf") if rp_scenarios else None),
         "scoring": rp_scoring_data,
+        "factor_scores": (
+            {
+                "momentum": round(min(100, max(0, rp_scoring_data["growth_quality"] * 0.6 + rp_scoring_data["market_positioning"] * 0.4)), 1),
+                "value":    round(min(100, max(0, rp_scoring_data["valuation_attractiveness"])), 1),
+                "quality":  round(min(100, max(0, rp_scoring_data["financial_strength"] * 0.6 + rp_scoring_data["market_positioning"] * 0.4)), 1),
+                "macro":    round(min(100, max(0, 100 - rp_scoring_data["risk_score"])), 1),
+            }
+            if rp_scoring_data else None
+        ),
+        "signals": [dataclasses.asdict(s) for s in rp_signals],
+        "factor_deltas": [dataclasses.asdict(d) for d in rp_factor_deltas],
+        "swot": rp_swot_data,
+        "porter": rp_porter_data,
+        "audit_trail": rp_audit_entries,
         "assumption_confidence": (rp_assumptions or {}).get("_confidence_tags") or {},
         "dcf": {
             "current_price": current_price,
@@ -1238,6 +1337,10 @@ async def analyze(request: Request):
             "research_platform": bool(rp_session_id),
             "has_scenarios": bool(rp_scenarios),
             "has_scoring": bool(rp_scoring_data),
+            "has_signals": len(rp_signals) > 0,
+            "has_factor_deltas": len(rp_factor_deltas) > 0,
+            "has_swot": bool(rp_swot_data),
+            "has_porter": bool(rp_porter_data),
         },
     }
 
@@ -2184,7 +2287,8 @@ async def _load_session_for_report(session_id: str) -> dict:
                 cached, _ = await cache_get(f"session:{session_id}")
                 if cached:
                     # Merge, prefer cached for numeric fields
-                    for k in ("price", "ltp", "prev_close", "change", "change_percent", "dcf"):
+                    for k in ("price", "ltp", "prev_close", "change", "change_percent", "dcf",
+                              "scoring", "factor_scores"):
                         if cached.get(k) is not None:
                             doc[k] = cached[k]
                 return doc
