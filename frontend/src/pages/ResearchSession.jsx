@@ -232,6 +232,7 @@ const ConfChip = ({ level }) => {
 };
 
 const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
+  const [driversOpen, setDriversOpen] = useState(false);
   const byKey = Object.fromEntries(scenarios.map((s) => [s.key, s]));
   const base = byKey.base;
   const bull = byKey.bull;
@@ -290,16 +291,53 @@ const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
         </>
       )}
       <div style={dividerStyle} />
-      <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)',
-                    display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums' }}>
-        <span>Bull: <strong style={{ color: 'var(--bi-text-secondary, #4B5A75)', fontWeight: 500 }}>
-          {bull?.price_per_share != null ? fmtInr(bull.price_per_share) : '—'}
-        </strong></span>
-        <span>·</span>
-        <span>Bear: <strong style={{ color: 'var(--bi-text-secondary, #4B5A75)', fontWeight: 500 }}>
-          {bear?.price_per_share != null ? fmtInr(bear.price_per_share) : '—'}
-        </strong></span>
-      </div>
+      <button onClick={() => setDriversOpen(o => !o)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                       width: '100%', textAlign: 'left' }}>
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)',
+                      display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums',
+                      alignItems: 'center' }}>
+          <span style={{ color: '#0F7A3E', fontWeight: 500 }}>▲ Bull: {bull?.price_per_share != null ? fmtInr(bull.price_per_share) : '—'}</span>
+          <span>·</span>
+          <span style={{ color: '#C7372F', fontWeight: 500 }}>▼ Bear: {bear?.price_per_share != null ? fmtInr(bear.price_per_share) : '—'}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10 }}>{driversOpen ? '▲' : '▼'}</span>
+        </div>
+      </button>
+      {driversOpen && base && (bull || bear) && (
+        <div style={{ marginTop: 8, fontSize: 11, lineHeight: 1.7 }}>
+          {[{ sc: bull, label: 'Bull', color: '#0F7A3E' }, { sc: bear, label: 'Bear', color: '#C7372F' }]
+            .filter(({ sc }) => sc)
+            .map(({ sc, label, color }) => (
+              <div key={label} style={{ marginBottom: 6 }}>
+                <div style={{ fontWeight: 600, color }}>{label} case assumptions:</div>
+                {sc.revenue_growth != null && base.revenue_growth != null && (
+                  <div style={{ color: 'var(--bi-text-secondary, #4B5A75)' }}>
+                    Growth: <strong>{fmtPctPlain(sc.revenue_growth)}</strong>
+                    <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> vs base {fmtPctPlain(base.revenue_growth)}</span>
+                  </div>
+                )}
+                {sc.ebitda_margin != null && base.ebitda_margin != null && (
+                  <div style={{ color: 'var(--bi-text-secondary, #4B5A75)' }}>
+                    Margin: <strong>{fmtPctPlain(sc.ebitda_margin)}</strong>
+                    <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> vs base {fmtPctPlain(base.ebitda_margin)}</span>
+                  </div>
+                )}
+                {sc.wacc != null && base.wacc != null && (
+                  <div style={{ color: 'var(--bi-text-secondary, #4B5A75)' }}>
+                    WACC: <strong>{fmtPctPlain(sc.wacc)}</strong>
+                    <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> vs base {fmtPctPlain(base.wacc)}</span>
+                  </div>
+                )}
+                {sc.terminal_growth != null && base.terminal_growth != null && (
+                  <div style={{ color: 'var(--bi-text-secondary, #4B5A75)' }}>
+                    TG: <strong>{fmtPctPlain(sc.terminal_growth)}</strong>
+                    <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> vs base {fmtPctPlain(base.terminal_growth)}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+        </div>
+      )}
     </Panel>
   );
 };
@@ -817,70 +855,248 @@ const AuditPanel = ({ sessionId }) => {
   );
 };
 
-// ─── F&O Pulse strip ───────────────────────────────────────────────────────
-const FnoPulseStrip = ({ ticker }) => {
-  const [data, setData] = useState(null);
+// ─── Sources Tracker panel ─────────────────────────────────────────────────
+const SOURCE_TYPE = (name = '') => {
+  const n = name.toLowerCase();
+  if (n.includes('calc') || n.includes('dcf') || n.includes('model')) return 'Calc';
+  if (n.includes('scrape') || n.includes('selenium') || n.includes('nse') || n.includes('bse')) return 'Scrape';
+  return 'API';
+};
+const TYPE_STYLE = {
+  API:    { bg: 'rgba(14,100,234,0.08)', fg: '#0E64EA' },
+  Scrape: { bg: 'rgba(245,158,11,0.10)', fg: '#B45309' },
+  Calc:   { bg: 'rgba(75,90,117,0.10)',  fg: '#4B5A75' },
+};
+
+const SourcesPanel = ({ sessionId }) => {
+  const [open, setOpen] = useState(false);
+  const [sources, setSources] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!ticker) return;
+    if (!open || !isValidSessionId(sessionId) || sources) return;
     setLoading(true);
-    apiGet(`/api/derivatives/${encodeURIComponent(ticker)}`)
-      .then(setData)
-      .catch(() => setData(null))
+    apiGet(`/api/research/${sessionId}/audit`)
+      .then(d => setSources(d.sources || []))
+      .catch(() => setSources([]))
       .finally(() => setLoading(false));
-  }, [ticker]);
-
-  const sentimentStyle = (s) => {
-    if (!s) return {};
-    const map = {
-      bullish: { bg: 'rgba(15,122,62,0.10)', fg: '#0F7A3E' },
-      bearish: { bg: 'rgba(199,55,47,0.10)', fg: '#C7372F' },
-      neutral: { bg: 'rgba(75,90,117,0.10)', fg: '#4B5A75' },
-    };
-    const m = map[s.toLowerCase()] || map.neutral;
-    return { display: 'inline-block', padding: '1px 8px', borderRadius: 999,
-             fontSize: 11, fontWeight: 600, backgroundColor: m.bg, color: m.fg };
-  };
-
-  const hasData = data && (data.pcr_oi != null || data.max_oi_strike != null);
+  }, [open, sessionId, sources]);
 
   return (
-    <Panel title="F&O Pulse" testId="panel-fno-pulse">
-      {loading ? (
+    <Panel title={
+      <button onClick={() => setOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', cursor: 'pointer', color: 'inherit' }}>
+        Data Sources
+        <span style={{ fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)' }}>{open ? '▲' : '▼'}</span>
+      </button>
+    } testId="panel-sources">
+      {!open ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
+      ) : loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
-      ) : !hasData ? (
-        <div style={emptyStyle}>F&O data not available</div>
+      ) : !sources || sources.length === 0 ? (
+        <div style={emptyStyle}>No source data recorded for this session</div>
       ) : (
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
-          {data.pcr_oi != null && (
-            <span style={{ color: 'var(--bi-text-primary, #0F2540)' }}>
-              <span style={{ fontWeight: 600 }}>PCR: </span>{data.pcr_oi}
-            </span>
-          )}
-          {data.max_oi_strike != null && (
-            <span style={{ color: 'var(--bi-text-primary, #0F2540)' }}>
-              <span style={{ fontWeight: 600 }}>Max OI: </span>₹{data.max_oi_strike?.toLocaleString('en-IN')}
-            </span>
-          )}
-          {data.oi_change_pct != null && (
-            <span style={{ color: 'var(--bi-text-primary, #0F2540)' }}>
-              <span style={{ fontWeight: 600 }}>OI Change: </span>
-              <span style={{ color: data.oi_change_pct >= 0 ? '#0F7A3E' : '#C7372F' }}>
-                {data.oi_change_pct >= 0 ? '+' : ''}{data.oi_change_pct}%
-              </span>
-            </span>
-          )}
-          {data.sentiment && (
-            <span><span style={{ fontWeight: 600 }}>Sentiment: </span>
-              <span style={sentimentStyle(data.sentiment)}>{data.sentiment.charAt(0).toUpperCase() + data.sentiment.slice(1)}</span>
-            </span>
-          )}
+        <div>
+          {sources.map((s, i) => {
+            const typ = SOURCE_TYPE(s.api_name);
+            const ts = TYPE_STYLE[typ];
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0',
+                                     borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)', flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-block', padding: '1px 7px', borderRadius: 999,
+                               fontSize: 10, fontWeight: 600, backgroundColor: ts.bg, color: ts.fg, minWidth: 40, textAlign: 'center' }}>
+                  {typ}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)' }}>
+                  {s.api_name}
+                </span>
+                {s.endpoint && s.endpoint !== s.api_name && (
+                  <span style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)', fontFamily: 'monospace' }}>
+                    {s.endpoint}
+                  </span>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>
+                  {s.fetched_at ? new Date(s.fetched_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }) : ''}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 600,
+                               color: s.status === 'ok' || s.status === 'success' ? '#0F7A3E' : '#C7372F' }}>
+                  ● {s.status || 'ok'}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </Panel>
   );
 };
+
+// ─── Guardrail Log panel ────────────────────────────────────────────────────
+const GUARDRAIL_CHIP = {
+  pass:  { bg: '#D1FAE5', fg: '#065F46', label: 'PASS' },
+  warn:  { bg: '#FEF3C7', fg: '#92400E', label: 'WARN' },
+  fail:  { bg: '#FEE2E2', fg: '#991B1B', label: 'FAIL' },
+  breach:{ bg: '#FEE2E2', fg: '#991B1B', label: 'BREACH' },
+};
+const guardrailChipStyle = (status) => {
+  const s = GUARDRAIL_CHIP[status?.toLowerCase()] || GUARDRAIL_CHIP.warn;
+  return { display: 'inline-block', padding: '1px 7px', borderRadius: 999,
+           fontSize: 10, fontWeight: 700, backgroundColor: s.bg, color: s.fg };
+};
+
+const GuardrailPanel = ({ sessionId }) => {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !isValidSessionId(sessionId) || data) return;
+    setLoading(true);
+    apiGet(`/api/research/${sessionId}/guardrails`)
+      .then(setData)
+      .catch(() => setData({ guardrails: [], all_passed: true }))
+      .finally(() => setLoading(false));
+  }, [open, sessionId, data]);
+
+  return (
+    <Panel title={
+      <button onClick={() => setOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', cursor: 'pointer', color: 'inherit' }}>
+        Guardrail Log
+        <span style={{ fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)' }}>{open ? '▲' : '▼'}</span>
+      </button>
+    } testId="panel-guardrail">
+      {!open ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
+      ) : loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : data?.all_passed ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+          <span style={guardrailChipStyle('pass')}>PASS</span>
+          <span style={{ color: 'var(--bi-text-secondary, #4B5A75)' }}>All assumption guardrails passed — no breaches recorded.</span>
+        </div>
+      ) : (
+        <div>
+          {(data?.guardrails || []).map((g, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 0',
+                                   borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)' }}>
+              <span style={guardrailChipStyle(g.status || 'breach')}>{(GUARDRAIL_CHIP[g.status?.toLowerCase()] || GUARDRAIL_CHIP.breach).label}</span>
+              <div style={{ fontSize: 11, color: 'var(--bi-text-primary, #0F2540)' }}>
+                <span style={{ fontWeight: 600 }}>{g.metric || g.field || '—'}</span>
+                {g.reason && <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> · {g.reason}</span>}
+                {g.proposed != null && g.capped != null && (
+                  <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}> (capped {g.proposed} → {g.capped})</span>
+                )}
+              </div>
+              {g.timestamp && (
+                <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--bi-text-tertiary, #8593AB)', whiteSpace: 'nowrap' }}>
+                  {new Date(g.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+};
+
+// ─── Assumption History timeline ────────────────────────────────────────────
+const KEY_LABELS = {
+  revenue_growth: 'Revenue growth', ebitda_margin: 'EBITDA margin', wacc: 'WACC',
+  terminal_growth_rate: 'Terminal growth', capex_pct_revenue: 'CapEx %',
+  current_price_inr: 'Current price', beta: 'Beta', tax_rate: 'Tax rate',
+};
+
+const AssumptionHistoryPanel = ({ sessionId }) => {
+  const [open, setOpen] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !isValidSessionId(sessionId) || history) return;
+    setLoading(true);
+    apiGet(`/api/research/${sessionId}/assumption_history`)
+      .then(d => setHistory(d.history || []))
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false));
+  }, [open, sessionId, history]);
+
+  return (
+    <Panel title={
+      <button onClick={() => setOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', cursor: 'pointer', color: 'inherit' }}>
+        Assumption History
+        <span style={{ fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)' }}>{open ? '▲' : '▼'}</span>
+      </button>
+    } testId="panel-assumption-history">
+      {!open ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
+      ) : loading ? (
+        <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !history || history.length === 0 ? (
+        <div style={emptyStyle}>No assumption changes recorded</div>
+      ) : (
+        <div style={{ position: 'relative', paddingLeft: 18 }}>
+          <div style={{ position: 'absolute', left: 6, top: 6, bottom: 6,
+                        width: 2, backgroundColor: 'var(--bi-border-subtle, #E3E8EF)', borderRadius: 1 }} />
+          {history.map((entry, i) => {
+            const ts = entry.timestamp || entry.assumptions?._initialized_at || '';
+            const evt = entry.event || 'update';
+            const delta = entry.delta || {};
+            const keys = Object.keys(delta).filter(k => !k.startsWith('_'));
+            return (
+              <div key={i} style={{ position: 'relative', marginBottom: 12 }}>
+                <div style={{ position: 'absolute', left: -15, top: 4, width: 8, height: 8,
+                              borderRadius: '50%', backgroundColor: evt === 'initialized' ? '#0E64EA' : '#0F7A3E',
+                              border: '2px solid white' }} />
+                <div style={{ fontSize: 10, color: 'var(--bi-text-tertiary, #8593AB)', marginBottom: 2 }}>
+                  {ts ? new Date(ts).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }) : '—'}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)',
+                              textTransform: 'capitalize' }}>
+                  {evt.replace(/_/g, ' ')}
+                </div>
+                {keys.length > 0 && (
+                  <div style={{ marginTop: 3 }}>
+                    {keys.map(k => {
+                      const d = delta[k];
+                      return (
+                        <div key={k} style={{ fontSize: 11, color: 'var(--bi-text-secondary, #4B5A75)' }}>
+                          {KEY_LABELS[k] || k}: <span style={{ color: '#C7372F' }}>{d?.old ?? '—'}</span>
+                          {' → '}<span style={{ color: '#0F7A3E', fontWeight: 500 }}>{d?.new ?? d}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
+  );
+};
+
+// ─── F&O Analytics — Coming Soon ───────────────────────────────────────────
+const FnoPulseStrip = () => (
+  <Panel title={
+    <span style={{ color: 'var(--bi-text-tertiary, #8593AB)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      F&O Analytics
+      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 999,
+                     backgroundColor: 'var(--bi-border-subtle, #E3E8EF)', color: 'var(--bi-text-tertiary, #8593AB)' }}>
+        Q3 2026
+      </span>
+    </span>
+  } testId="panel-fno-pulse">
+    <div style={{ color: 'var(--bi-text-tertiary, #8593AB)', fontSize: 12 }}>
+      <div style={{ fontWeight: 500, marginBottom: 4 }}>Live derivatives data from licensed feed integration in progress.</div>
+      <div style={{ fontSize: 11 }}>Will include: PCR · OI · Max Pain · IV Skew · Strike-wise OI</div>
+    </div>
+  </Panel>
+);
 
 // ─── Financial Charts panel (Feature 14) ───────────────────────────────────
 const FinancialChartsPanel = ({ sessionId }) => {
@@ -1665,6 +1881,21 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           {/* Row 8 — Audit Trail */}
           <div style={{ gridColumn: 'span 12' }}>
             <AuditPanel sessionId={sessionId} />
+          </div>
+
+          {/* Row 8a — Sources Tracker */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <SourcesPanel sessionId={sessionId} />
+          </div>
+
+          {/* Row 8b — Guardrail Log */}
+          <div style={{ gridColumn: 'span 6' }}>
+            <GuardrailPanel sessionId={sessionId} />
+          </div>
+
+          {/* Row 8c — Assumption History */}
+          <div style={{ gridColumn: 'span 6' }}>
+            <AssumptionHistoryPanel sessionId={sessionId} />
           </div>
 
           {/* Row 9 — F&O Pulse */}
