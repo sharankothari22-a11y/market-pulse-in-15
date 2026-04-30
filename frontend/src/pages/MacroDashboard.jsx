@@ -172,7 +172,16 @@ export const MacroDashboard = () => {
         <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Macro-Micro Transmission</h2>
         {macroMicro.length > 0
           ? <DataTable columns={macroMicroColumns} rows={macroMicro} maxHeight={200} />
-          : <div className="text-center py-8 text-[#64748b]">No data available</div>}
+          : (
+            <div className="text-center py-10">
+              <div className="inline-flex flex-col items-center gap-2">
+                <span style={{ fontSize: 28 }}>📡</span>
+                <p className="text-sm font-medium text-[#0f172a]">Coming Soon</p>
+                <p className="text-xs text-[#64748b]">Live correlation engine — launching Q3 2026</p>
+                <p className="text-xs text-[#94a3b8] mt-1">Will map macro factors (FX, rates, oil) to sector-level impact in real time</p>
+              </div>
+            </div>
+          )}
       </section>
     </div>
   );
