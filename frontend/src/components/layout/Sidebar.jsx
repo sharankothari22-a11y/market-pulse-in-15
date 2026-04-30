@@ -1,7 +1,5 @@
 import { LayoutDashboard, Search } from 'lucide-react';
 
-const TIPSONS_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/sble7mpu_logo.png';
-
 const navItems = [
   { id: 'market-overview',  label: 'Market overview',  icon: LayoutDashboard, path: '/' },
   { id: 'research-session', label: 'Research session', icon: Search,          path: '/research' },
@@ -65,20 +63,6 @@ export const Sidebar = ({ activePage, onNavigate }) => {
         })}
       </nav>
 
-      {/* Footer — Tip Sons partnership */}
-      <div
-        className="px-4 py-4 flex flex-col items-start gap-2"
-        style={{ borderTop: '1px solid var(--bi-border-subtle)' }}
-      >
-        <span style={{ color: 'var(--bi-text-tertiary)', fontSize: 11, fontWeight: 400 }}>
-          In partnership with Tip Sons
-        </span>
-        <img
-          src={TIPSONS_LOGO_URL}
-          alt="Tip Sons"
-          style={{ maxHeight: 24, width: 'auto', opacity: 0.85 }}
-        />
-      </div>
     </aside>
   );
 };

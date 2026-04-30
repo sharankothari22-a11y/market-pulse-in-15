@@ -4,7 +4,6 @@ const SPLASH_DURATION_MS = 10000;   // 10 seconds
 const FADE_MS = 600;
 
 const BEAVER_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/tqw73ol3_Screenshot%202026-04-16%20at%206.20.25%E2%80%AFPM.png';
-const TIPSONS_LOGO_URL = 'https://customer-assets.emergentagent.com/job_design-review-38/artifacts/sble7mpu_logo.png';
 
 export const SplashScreen = ({ onDone }) => {
   const [progress, setProgress] = useState(0);
@@ -40,54 +39,26 @@ export const SplashScreen = ({ onDone }) => {
       }}
       data-testid="splash-screen"
     >
-      {/* Beaver × Tipsons lockup */}
-      <div className="relative flex flex-row items-center justify-center">
-        <div
-          style={{
-            width: 240,
-            height: 240,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            backgroundColor: '#F3EEE0',
-            filter: 'drop-shadow(0 12px 28px rgba(15,37,64,0.18))',
-          }}
-        >
-          <img
-            src={BEAVER_LOGO_URL}
-            alt="Beaver Intelligence"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-            data-testid="splash-logo"
-          />
-        </div>
-        <span
-          style={{
-            margin: '0 56px',
-            fontFamily: 'Georgia, serif',
-            fontWeight: 200,
-            fontSize: 64,
-            color: '#475569',
-            lineHeight: 1,
-          }}
-          aria-hidden="true"
-        >
-          ×
-        </span>
+      {/* Beaver Intelligence logo */}
+      <div
+        style={{
+          width: 240,
+          height: 240,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          backgroundColor: '#F3EEE0',
+          filter: 'drop-shadow(0 12px 28px rgba(15,37,64,0.18))',
+        }}
+      >
         <img
-          src={TIPSONS_LOGO_URL}
-          alt="Tipsons"
+          src={BEAVER_LOGO_URL}
+          alt="Beaver Intelligence"
           style={{
-            maxHeight: 220,
-            width: 'auto',
-            objectFit: 'contain',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
           }}
-          onError={(e) => {
-            e.currentTarget.outerHTML =
-              '<span style="font-family:Georgia,serif;font-weight:700;font-size:56px;color:#0D3B2E;letter-spacing:0.08em;">TIPSONS</span>';
-          }}
+          data-testid="splash-logo"
         />
       </div>
 
