@@ -1503,40 +1503,22 @@ async def analyze(request: Request):
         logger.debug(f"dcf_summary attach failed: {_e}")
         response["dcf_summary"] = None
 
-    # Overwrite scenario engine base with real DCF fair_value_per_share
+    # Wire Valuation card directly to DCF notebook implied_share_price.
+    # No fallback, no sanity filter — the notebook is the source of truth.
     try:
         _val = ((response.get("dcf_summary") or {}).get("valuation") or {})
         _fv = _val.get("fair_value_per_share")
         _cur = _val.get("current_price") or current_price
 
-        _dcf_accepted = False
-        _reject_reason = None
-        if _fv is None:
-            _reject_reason = "fair_value_per_share is None"
-        elif float(_fv) <= 0:
-            _reject_reason = f"fair_value_per_share is non-positive ({_fv})"
-        elif _cur and float(_cur) > 0:
-            _dev = abs((float(_fv) - float(_cur)) / float(_cur))
-            if _dev > 0.80:
-                _reject_reason = (
-                    f"fair_value_per_share {float(_fv):.2f} deviates "
-                    f"{_dev*100:.0f}% from current price {float(_cur):.2f} "
-                    f"— likely bad DCF assumptions"
-                )
-            else:
-                _dcf_accepted = True
-        else:
-            _dcf_accepted = True
-
         _scen = response.get("scenarios") or {}
         _base = dict(_scen.get("base") or {})
         _old = _base.get("price_per_share") or _base.get("per_share")
 
-        if _dcf_accepted:
+        if _fv is not None:
             _fv = float(_fv)
-            _ups = ((_fv - _cur) / _cur) * 100.0 if _cur else None
+            _ups = ((_fv - float(_cur)) / float(_cur)) * 100.0 if _cur else None
             if _ups is None:
-                _rating = _base.get("rating") or "HOLD"
+                _rating = "HOLD"
             elif _ups > 15:
                 _rating = "BUY"
             elif _ups > -15:
@@ -1551,19 +1533,20 @@ async def analyze(request: Request):
             _base["_source"] = "dcf_notebook"
             _scen["base"] = _base
             response["scenarios"] = _scen
+            # Keep response["dcf"] in sync so the frontend Valuation card reads the same number
+            if response.get("dcf") is not None:
+                response["dcf"]["fair_value"] = round(_fv, 2)
+                if _ups is not None:
+                    response["dcf"]["upside_pct"] = round(_ups, 2)
             logger.info(
-                f"[analyze] {ticker}: {_old} → {_fv:.2f} "
-                f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, "
-                f"rating {_rating}) — DCF notebook value accepted"
+                f"[analyze] {ticker}: dcf_notebook {_fv:.2f} "
+                f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, rating {_rating})"
             )
         else:
-            _base["_source"] = "scenario_engine_fallback"
+            _base["_source"] = "scenario_engine"
             _scen["base"] = _base
             response["scenarios"] = _scen
-            logger.warning(
-                f"[analyze] {ticker}: DCF notebook value rejected — "
-                f"{_reject_reason}. Falling back to scenario engine value {_old}"
-            )
+            logger.debug(f"[analyze] {ticker}: no dcf_summary, using scenario engine value {_old}")
     except Exception as _e:
         logger.warning(f"[analyze] DCF base swap failed: {_e}")
 
