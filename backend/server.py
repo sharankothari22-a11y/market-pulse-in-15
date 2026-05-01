@@ -2202,10 +2202,20 @@ def _execute_notebook_blocking(
         # Execute via papermill
         # Working directory = notebooks folder so relative paths work
         # Note: papermill 2.7+ doesn't accept stderr_file as str - use logging instead
+        _rf_pct = round(_res["rf_rate"] * 100, 4)
+        _erp_pct = round(_res["equity_risk_premium"] * 100, 4)
+        _ccy = _res["currency"]
+        _ccy_sym = _res["currency_symbol"]
         pm.execute_notebook(
             input_path=str(patched_nb),
             output_path=str(executed_nb),
-            parameters={"TICKER_INPUT": ticker_ns},
+            parameters={
+                "TICKER_INPUT": ticker_ns,
+                "RISK_FREE": _rf_pct,
+                "EQUITY_RISK_PREMIUM": _erp_pct,
+                "LOCAL_CURRENCY": _ccy,
+                "CURRENCY_SYMBOL": _ccy_sym,
+            },
             kernel_name="python3",
             cwd=str(DCF_NOTEBOOK_SRC.parent),
             progress_bar=False,
