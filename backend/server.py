@@ -1920,9 +1920,9 @@ def _get_dcf_excel_p30(ticker: str) -> float | None:
         stub = (R7 - R8).days / 365.0
 
         # Cost of Capital sheet
-        ws_coc = wb.get("Cost of Capital")
-        if ws_coc is None:
+        if "Cost of Capital" not in wb.sheetnames:
             return None
+        ws_coc = wb["Cost of Capital"]
         C3  = _f(ws_coc["C3"].value)
         C4  = _f(ws_coc["C4"].value)
         C5  = _f(ws_coc["C5"].value)
@@ -1934,9 +1934,9 @@ def _get_dcf_excel_p30(ticker: str) -> float | None:
         P24 = C9  # P24 = CoC!C9 (debt)
 
         # Cash: P27 = Balance Sheet!F4 = Cash Flow!F29
-        ws_cf = wb.get("Cash Flow")
-        if ws_cf is None:
+        if "Cash Flow" not in wb.sheetnames:
             return None
+        ws_cf = wb["Cash Flow"]
         P27 = _f(ws_cf["F29"].value)
 
         # WACC
