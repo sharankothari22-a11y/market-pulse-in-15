@@ -2970,12 +2970,13 @@ def generate_report_commentary(session_id: str, ticker: str, sector: str,
         except Exception:
             return "n/a"
 
-    prompt = f"""You are writing an institutional equity research report for {ticker} ({sector or 'Indian equities'} sector). Here is the DCF output from our quantitative model:
+    _rpt_sym = _resolve_ticker_safe(ticker).get("currency_symbol", "₹")
+    prompt = f"""You are writing an institutional equity research report for {ticker} ({sector or 'equities'} sector). Here is the DCF output from our quantitative model:
 
-- Base case target price: ₹{_fmt(base_price)}
-- Bull case target: ₹{_fmt(ctx.get('bull_case_tp'))}
-- Bear case target: ₹{_fmt(ctx.get('bear_case_tp'))}
-- Current market price: ₹{_fmt(current_price)}
+- Base case target price: {_rpt_sym}{_fmt(base_price)}
+- Bull case target: {_rpt_sym}{_fmt(ctx.get('bull_case_tp'))}
+- Bear case target: {_rpt_sym}{_fmt(ctx.get('bear_case_tp'))}
+- Current market price: {_rpt_sym}{_fmt(current_price)}
 - Upside: {_fmt(upside, d=1) if upside is not None else 'n/a'}%
 - Rating: {rating or 'n/a'}
 - WACC used: {_fmt(wacc, pct=True)}
@@ -3059,6 +3060,8 @@ async def report_download_html(session_id: str):
             meta = session.get("meta") or {}
             long_name = meta.get("long_name") or session.get("long_name") or ticker
             sector = session.get("sector") or meta.get("sector") or "—"
+            _rpt_res = _resolve_ticker_safe(ticker)
+            rpt_ccy_sym = _rpt_res.get("currency_symbol", "₹")
 
             try:
                 ctx = await build_report_context(session_id, ticker, session)
@@ -3140,13 +3143,13 @@ async def report_download_html(session_id: str):
                 ('<span class="rating-value">[BUY]</span>',
                     f'<span class="rating-value">{str(rating).upper()}</span>'),
                 ('<span class="rating-tp">₹ [X,XXX]</span>',
-                    f'<span class="rating-tp">₹ {target_str}</span>'),
+                    f'<span class="rating-tp">{rpt_ccy_sym} {target_str}</span>'),
                 ('<span class="rating-upside">[+XX%]</span>',
                     f'<span class="rating-upside">{upside_str}</span>'),
                 ('<span class="rating-meta">CMP ₹ [X,XXX] as of [Date]</span>',
-                    f'<span class="rating-meta">CMP ₹ {cmp_str} as of {report_date}</span>'),
+                    f'<span class="rating-meta">CMP {rpt_ccy_sym} {cmp_str} as of {report_date}</span>'),
                 ('<td class="value">₹ [X,XX,XXX] cr</td>',
-                    f'<td class="value">₹ {mcap_str} cr</td>'),
+                    f'<td class="value">{rpt_ccy_sym} {mcap_str}</td>'),
                 ('<td class="value">[X.XX]</td>', f'<td class="value">{beta_str}</td>'),
                 ("[INH000000000]", "INH300009999"),
                 ("[Year]", year),
@@ -3158,7 +3161,7 @@ async def report_download_html(session_id: str):
             wk_lo = ctx.get("week52_low")
             if wk_hi is not None and wk_lo is not None:
                 try:
-                    range_str = f"₹ {_indian_format(wk_lo, 0)} — ₹ {_indian_format(wk_hi, 0)}"
+                    range_str = f"{rpt_ccy_sym} {_indian_format(wk_lo, 0)} — {rpt_ccy_sym} {_indian_format(wk_hi, 0)}"
                     replacements.append(('<td class="value">[X] — [Y]</td>',
                                          f'<td class="value">{range_str}</td>'))
                 except Exception:
@@ -3166,7 +3169,7 @@ async def report_download_html(session_id: str):
             if ctx.get("avg_volume_cr") is not None:
                 try:
                     replacements.append(('<td class="value">₹ [XX] cr</td>',
-                                         f'<td class="value">₹ {_indian_format(ctx["avg_volume_cr"], 0)} cr</td>'))
+                                         f'<td class="value">{rpt_ccy_sym} {_indian_format(ctx["avg_volume_cr"], 0)}</td>'))
                 except Exception:
                     pass
             if ctx.get("free_float_pct") is not None:
@@ -3185,13 +3188,13 @@ async def report_download_html(session_id: str):
             if ctx.get("bull_case_tp") is not None:
                 try:
                     replacements.append(('<strong style="color: #0D3B2E;">₹ [X,XXX]</strong>',
-                                         f'<strong style="color: #0D3B2E;">₹ {_indian_format(ctx["bull_case_tp"], 0)}</strong>'))
+                                         f'<strong style="color: #0D3B2E;">{rpt_ccy_sym} {_indian_format(ctx["bull_case_tp"], 0)}</strong>'))
                 except Exception:
                     pass
             if ctx.get("bear_case_tp") is not None:
                 try:
                     replacements.append(('<strong style="color: #7A2028;">₹ [X,XXX]</strong>',
-                                         f'<strong style="color: #7A2028;">₹ {_indian_format(ctx["bear_case_tp"], 0)}</strong>'))
+                                         f'<strong style="color: #7A2028;">{rpt_ccy_sym} {_indian_format(ctx["bear_case_tp"], 0)}</strong>'))
                 except Exception:
                     pass
             for old, new in replacements:

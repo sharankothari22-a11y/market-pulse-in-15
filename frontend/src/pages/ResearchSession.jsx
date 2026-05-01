@@ -21,14 +21,34 @@ const unwrapList = (raw, key) => {
 };
 
 // ─── formatting helpers ────────────────────────────────────────────────────
-const fmtInr = (n) => {
+const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', GBP: '£', EUR: '€', JPY: '¥', HKD: 'HK$', AUD: 'A$' };
+
+const getCurrencySymbol = (currency) =>
+  CURRENCY_SYMBOLS[currency] || currency || '₹';
+
+const fmtCurrency = (n, sym) => {
   if (n == null || Number.isNaN(Number(n))) return '—';
-  return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  return sym + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 };
-const fmtInr2 = (n) => {
+const fmtCurrency2 = (n, sym) => {
   if (n == null || Number.isNaN(Number(n))) return '—';
-  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return sym + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+const fmtLargeCurrency = (n, sym) => {
+  if (n == null || Number.isNaN(Number(n))) return '—';
+  const v = Number(n);
+  if (v >= 1e12) return `${sym}${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9)  return `${sym}${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6)  return `${sym}${(v / 1e6).toFixed(2)}M`;
+  if (v >= 1e3)  return `${sym}${(v / 1e3).toFixed(1)}K`;
+  return `${sym}${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+};
+
+// Legacy INR wrappers — used where currency is not yet threaded through
+const fmtInr = (n) => fmtCurrency(n, '₹');
+const fmtInr2 = (n) => fmtCurrency2(n, '₹');
+const fmtLargeInr = (n) => fmtLargeCurrency(n, '₹');
+
 const fmtPct = (n, digits = 1) => {
   if (n == null || Number.isNaN(Number(n))) return '—';
   const v = Number(n);
@@ -37,17 +57,6 @@ const fmtPct = (n, digits = 1) => {
 const fmtPctPlain = (n, digits = 1) => {
   if (n == null || Number.isNaN(Number(n))) return '—';
   return `${Number(n).toFixed(digits)}%`;
-};
-// Heuristic large-money formatter. If the value is clearly in INR rupees,
-// collapse to lakh crore. If it's already in millions/crores, still renders
-// a reasonable compact string.
-const fmtLargeInr = (n) => {
-  if (n == null || Number.isNaN(Number(n))) return '—';
-  const v = Number(n);
-  if (v >= 1e13) return `₹${(v / 1e13).toFixed(1)} lakh cr`;
-  if (v >= 1e11) return `₹${(v / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 0 })} cr`;
-  if (v >= 1e7)  return `₹${(v / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 2 })} cr`;
-  return `₹${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 };
 
 const normalizeRating = (r) => {
@@ -106,6 +115,7 @@ const CompanyHeader = ({
   const sector = researchData?.sector || '—';
   const sid = (researchData?.session_id || '').slice(-12);
   const status = researchData?.status || 'Active';
+  const sym = getCurrencySymbol(researchData?.currency);
   const priceMissing = livePrice == null || livePrice === 0;
   const changeMissing = liveChangePct == null || liveChangePct === 0;
   const changeColor = 'var(--bi-navy-700, #1B3A6B)';
@@ -148,7 +158,7 @@ const CompanyHeader = ({
         <div style={{ textAlign: 'right', minWidth: 160 }}>
           <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)',
                         fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-            {priceMissing ? '—' : fmtInr2(livePrice)}
+            {priceMissing ? '—' : fmtCurrency2(livePrice, sym)}
           </div>
           <div style={{ fontSize: 13, color: changeColor, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
             {changeMissing ? '—' :
@@ -231,7 +241,7 @@ const ConfChip = ({ level }) => {
   );
 };
 
-const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
+const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹' }) => {
   const [driversOpen, setDriversOpen] = useState(false);
   const byKey = Object.fromEntries(scenarios.map((s) => [s.key, s]));
   const base = byKey.base;
@@ -251,7 +261,7 @@ const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
         <>
           <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)',
                         fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-            {fmtInr(base.price_per_share)}
+            {fmtCurrency(base.price_per_share, sym)}
           </div>
           <div style={{ fontSize: 13, color: upsideColor, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
             {fmtPct(base.upside_pct)} <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}>vs current</span>
@@ -297,9 +307,9 @@ const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)',
                       display: 'flex', gap: 10, fontVariantNumeric: 'tabular-nums',
                       alignItems: 'center' }}>
-          <span style={{ color: '#0F7A3E', fontWeight: 500 }}>▲ Bull: {bull?.price_per_share != null ? fmtInr(bull.price_per_share) : '—'}</span>
+          <span style={{ color: '#0F7A3E', fontWeight: 500 }}>▲ Bull: {bull?.price_per_share != null ? fmtCurrency(bull.price_per_share, sym) : '—'}</span>
           <span>·</span>
-          <span style={{ color: '#C7372F', fontWeight: 500 }}>▼ Bear: {bear?.price_per_share != null ? fmtInr(bear.price_per_share) : '—'}</span>
+          <span style={{ color: '#C7372F', fontWeight: 500 }}>▼ Bear: {bear?.price_per_share != null ? fmtCurrency(bear.price_per_share, sym) : '—'}</span>
           <span style={{ marginLeft: 'auto', fontSize: 10 }}>{driversOpen ? '▲' : '▼'}</span>
         </div>
       </button>
@@ -343,14 +353,14 @@ const ValuationPanel = ({ scenarios, assumptionConfidence }) => {
 };
 
 // ─── Panel 3 — Market-implied (reverse DCF) ────────────────────────────────
-const ReverseDcfPanel = ({ researchData }) => {
+const ReverseDcfPanel = ({ researchData, sym = '₹' }) => {
   const rd = researchData?.reverse_dcf
     || researchData?.scenarios?.reverse_dcf
     || null;
   const rows = [
     { label: 'Implied growth', value: rd?.implied_growth_rate != null ? fmtPctPlain(rd.implied_growth_rate) : null },
     { label: 'Implied WACC',   value: rd?.implied_wacc != null ? fmtPctPlain(rd.implied_wacc) : null },
-    { label: 'Market cap',     value: rd?.market_cap != null ? fmtLargeInr(rd.market_cap) : null },
+    { label: 'Market cap',     value: rd?.market_cap != null ? fmtLargeCurrency(rd.market_cap, sym) : null },
   ];
   const hasAny = rows.some((r) => r.value != null) || rd?.interpretation;
 
@@ -614,7 +624,7 @@ const SensitivityPanel = ({ researchData, currentPrice }) => {
 };
 
 // ─── Panel 6 — Forecast table ──────────────────────────────────────────────
-const ForecastPanel = ({ researchData, dcfData }) => {
+const ForecastPanel = ({ researchData, dcfData, sym = '₹' }) => {
   const forecast = dcfData?.forecast
     || researchData?.dcf_summary?.forecast
     || researchData?.dcf_output?.forecast
@@ -666,7 +676,7 @@ const ForecastPanel = ({ researchData, dcfData }) => {
         </tbody>
       </table>
       <div style={{ fontSize: 10, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 6 }}>
-        All figures ₹ {(dcfData?.meta?.units || researchData?.dcf_summary?.meta?.units || '').toLowerCase() === 'millions' ? 'mn' : 'cr'}
+        All figures {sym} {(dcfData?.meta?.units || researchData?.dcf_summary?.meta?.units || '').toLowerCase() === 'millions' ? 'mn' : 'cr'}
       </div>
     </Panel>
   );
@@ -1327,7 +1337,7 @@ const FactorScoresPanel = ({ sessionId, scoring }) => {
 };
 
 // ─── Insider Trades panel ───────────────────────────────────────────────────
-const InsiderTradesPanel = ({ ticker }) => {
+const InsiderTradesPanel = ({ ticker, sym = '₹' }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -1346,12 +1356,7 @@ const InsiderTradesPanel = ({ ticker }) => {
     color: action === 'BUY' ? '#0F7A3E' : '#C7372F',
   });
 
-  const fmtVal = (v) => {
-    if (v == null) return '—';
-    if (v >= 1e7) return `₹${(v / 1e7).toFixed(1)}Cr`;
-    if (v >= 1e5) return `₹${(v / 1e5).toFixed(1)}L`;
-    return `₹${v.toLocaleString('en-IN')}`;
-  };
+  const fmtVal = (v) => fmtLargeCurrency(v, sym);
 
   return (
     <Panel title="Insider Activity · Last 90 days" testId="panel-insider-trades">
@@ -1647,6 +1652,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
   const scenarios = getScenarios();
   const hasSession = researchData && researchData.status !== 'not_found';
+  const sym = getCurrencySymbol(researchData?.currency);
 
   return (
     <div className="page-content overflow-y-auto" style={{ padding: 24, backgroundColor: '#F3EEE0' }}
@@ -1832,10 +1838,10 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
           {/* Row 2 — Valuation / Reverse DCF / Score / Factor Scores */}
           <div style={{ gridColumn: 'span 4' }}>
-            <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} />
+            <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} sym={sym} />
           </div>
           <div style={{ gridColumn: 'span 4' }}>
-            <ReverseDcfPanel researchData={researchData} />
+            <ReverseDcfPanel researchData={researchData} sym={sym} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
             <ScorePanel researchData={researchData} />
@@ -1849,7 +1855,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <SensitivityPanel researchData={researchData} currentPrice={livePrice} />
           </div>
           <div style={{ gridColumn: 'span 4' }}>
-            <ForecastPanel researchData={researchData} dcfData={dcfData} />
+            <ForecastPanel researchData={researchData} dcfData={dcfData} sym={sym} />
           </div>
           <div style={{ gridColumn: 'span 4' }}>
             <PeerComparisonPanel sessionId={sessionId} />
@@ -1905,7 +1911,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
           {/* Row 10 — Insider Trades */}
           <div style={{ gridColumn: 'span 12' }}>
-            <InsiderTradesPanel ticker={researchData?.ticker} />
+            <InsiderTradesPanel ticker={researchData?.ticker} sym={sym} />
           </div>
         </div>
       ) : (
