@@ -1503,52 +1503,41 @@ async def analyze(request: Request):
         logger.debug(f"dcf_summary attach failed: {_e}")
         response["dcf_summary"] = None
 
-    # Wire Valuation card directly to DCF notebook implied_share_price.
-    # No fallback, no sanity filter — the notebook is the source of truth.
-    try:
-        _val = ((response.get("dcf_summary") or {}).get("valuation") or {})
-        _fv = _val.get("fair_value_per_share")
-        _cur = _val.get("current_price") or current_price
-
-        _scen = response.get("scenarios") or {}
-        _base = dict(_scen.get("base") or {})
-        _old = _base.get("price_per_share") or _base.get("per_share")
-
-        if _fv is not None:
-            _fv = float(_fv)
-            _ups = ((_fv - float(_cur)) / float(_cur)) * 100.0 if _cur else None
-            if _ups is None:
-                _rating = "HOLD"
-            elif _ups > 15:
-                _rating = "BUY"
-            elif _ups > -15:
-                _rating = "HOLD"
-            else:
-                _rating = "SELL"
-            _base["price_per_share"] = round(_fv, 2)
-            _base["per_share"] = round(_fv, 2)
-            if _ups is not None:
-                _base["upside_pct"] = round(_ups, 2)
-            _base["rating"] = _rating
-            _base["_source"] = "dcf_notebook"
-            _scen["base"] = _base
-            response["scenarios"] = _scen
-            # Keep response["dcf"] in sync so the frontend Valuation card reads the same number
-            if response.get("dcf") is not None:
-                response["dcf"]["fair_value"] = round(_fv, 2)
-                if _ups is not None:
-                    response["dcf"]["upside_pct"] = round(_ups, 2)
-            logger.info(
-                f"[analyze] {ticker}: dcf_notebook {_fv:.2f} "
-                f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, rating {_rating})"
-            )
-        else:
-            _base["_source"] = "scenario_engine"
-            _scen["base"] = _base
-            response["scenarios"] = _scen
-            logger.debug(f"[analyze] {ticker}: no dcf_summary, using scenario engine value {_old}")
-    except Exception as _e:
-        logger.warning(f"[analyze] DCF base swap failed: {_e}")
+    # Wire Valuation card to Excel cell P30 (Implied Share Price, DCF sheet).
+    # No fallback — if the Excel is missing or unreadable, surface a 503.
+    _fv = _get_dcf_excel_p30(ticker)
+    if _fv is None:
+        raise HTTPException(status_code=503, detail="DCF Excel not available — try Analyze again")
+    _fv = float(_fv)
+    _cur = current_price
+    _ups = ((_fv - float(_cur)) / float(_cur)) * 100.0 if _cur else None
+    if _ups is None:
+        _rating = "HOLD"
+    elif _ups > 15:
+        _rating = "BUY"
+    elif _ups > -15:
+        _rating = "HOLD"
+    else:
+        _rating = "SELL"
+    _scen = response.get("scenarios") or {}
+    _base = dict(_scen.get("base") or {})
+    _base["price_per_share"] = round(_fv, 2)
+    _base["per_share"] = round(_fv, 2)
+    if _ups is not None:
+        _base["upside_pct"] = round(_ups, 2)
+    _base["rating"] = _rating
+    _base["_source"] = "dcf_excel_P30"
+    _scen["base"] = _base
+    response["scenarios"] = _scen
+    if response.get("dcf") is not None:
+        response["dcf"]["fair_value"] = round(_fv, 2)
+        response["dcf"]["_source"] = "dcf_excel_P30"
+        if _ups is not None:
+            response["dcf"]["upside_pct"] = round(_ups, 2)
+    logger.info(
+        f"[analyze] {ticker}: excel_P30={_fv:.2f} "
+        f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, rating {_rating})"
+    )
 
     # Cache for next time yfinance fails
     await cache_set(cache_key, response)
@@ -1874,6 +1863,124 @@ _DCF_LOCK = asyncio.Lock()
 
 # Paths
 DCF_NOTEBOOK_SRC = Path("/app/notebooks/DCF_Multi_Source_Pipeline_REFACTORED.ipynb")
+
+
+def _get_dcf_excel_p30(ticker: str) -> float | None:
+    """Read Implied Share Price from cell P30 (DCF sheet) of the DCF Excel workbook.
+
+    P30 is a formula =P29/R25.  openpyxl data_only mode may return None when
+    cached formula values are absent, so we evaluate the full formula chain
+    manually using the cached scalar constants that ARE present.
+    """
+    t = ticker.upper().strip()
+    ticker_ns = t if "." in t else f"{t}.NS"
+    excel_path = Path("/app/notebooks") / f"DCF_Output_{ticker_ns}_INR.xlsm"
+    if not excel_path.exists():
+        logger.warning(f"[dcf_excel_p30] {ticker}: Excel not found at {excel_path}")
+        return None
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(str(excel_path), data_only=True)
+        sheet_name = next((sn for sn in wb.sheetnames if sn.strip() == "DCF"), None)
+        if sheet_name is None:
+            logger.warning(f"[dcf_excel_p30] {ticker}: no DCF sheet in {wb.sheetnames}")
+            return None
+        ws = wb[sheet_name]
+
+        # Fast path: cached formula result
+        p30 = ws["P30"].value
+        if p30 is not None and isinstance(p30, (int, float)):
+            return float(p30)
+
+        # Slow path: evaluate formula chain from cached scalar inputs
+        def _f(cell_val) -> float:
+            return float(cell_val) if cell_val is not None else 0.0
+
+        G6  = _f(ws["G6"].value)
+        R10 = _f(ws["R10"].value)
+        R11 = _f(ws["R11"].value)
+        R12 = _f(ws["R12"].value)
+        R14 = _f(ws["R14"].value)
+        R15 = _f(ws["R15"].value)
+        R16 = _f(ws["R16"].value)
+        R18 = _f(ws["R18"].value)
+        R25 = _f(ws["R25"].value)
+        P25 = _f(ws["P25"].value)
+        P26 = _f(ws["P26"].value)
+
+        if R25 == 0:
+            return None
+
+        # Stub period: R6 = (R7 - R8) / 365
+        R7 = ws["R7"].value
+        R8 = ws["R8"].value
+        if not isinstance(R7, datetime) or not isinstance(R8, datetime):
+            logger.warning(f"[dcf_excel_p30] {ticker}: R7/R8 not datetime ({R7!r}, {R8!r})")
+            return None
+        stub = (R7 - R8).days / 365.0
+
+        # Cost of Capital sheet
+        ws_coc = wb.get("Cost of Capital")
+        if ws_coc is None:
+            return None
+        C3  = _f(ws_coc["C3"].value)
+        C4  = _f(ws_coc["C4"].value)
+        C5  = _f(ws_coc["C5"].value)
+        C6  = _f(ws_coc["C6"].value)
+        C9  = _f(ws_coc["C9"].value)
+        C10 = _f(ws_coc["C10"].value)
+        C11 = _f(ws_coc["C11"].value)
+        E27 = _f(ws_coc["E27"].value)
+        P24 = C9  # P24 = CoC!C9 (debt)
+
+        # Cash: P27 = Balance Sheet!F4 = Cash Flow!F29
+        ws_cf = wb.get("Cash Flow")
+        if ws_cf is None:
+            return None
+        P27 = _f(ws_cf["F29"].value)
+
+        # WACC
+        C12 = C9 + C10 + C11
+        if C12 == 0:
+            return None
+        C15 = C9 / C12
+        C16 = C10 / C12
+        D20 = (E27 * C15) * (1 - C3)
+        D21 = (C5 + C4 * C6) * C16
+        WACC = D20 + D21
+        if WACC <= R18:
+            logger.warning(f"[dcf_excel_p30] {ticker}: WACC ({WACC}) <= terminal growth ({R18})")
+            return None
+
+        # 5-year projected FCFFs
+        prev_rev = G6
+        fcffs = []
+        disc_periods = []
+        for i in range(5):
+            rev   = prev_rev * (1 + R10)
+            ebit  = rev * R11
+            nopat = ebit * (1 - R12)
+            da    = rev * R14
+            capex = -rev * R15
+            wc    = (prev_rev - rev) * R16
+            fcffs.append(nopat + da + capex + wc)
+            disc_periods.append(stub + i)
+            prev_rev = rev
+
+        P13 = sum(f / (1 + WACC) ** n for f, n in zip(fcffs, disc_periods))
+
+        # Terminal value (Gordon Growth)
+        P6 = (fcffs[-1] * (1 + R18)) / (WACC - R18)
+        P9 = P6 / (1 + WACC) ** disc_periods[-1]
+
+        P23 = P9 + P13                       # Implied TEV
+        P29 = P23 - P24 - P25 - P26 + P27   # Implied Equity Value
+        result = P29 / R25
+        logger.info(f"[dcf_excel_p30] {ticker}: P30={result:.4f} (TEV={P23:.0f}, WACC={WACC:.4f})")
+        return result
+    except Exception as _e:
+        logger.warning(f"[dcf_excel_p30] {ticker}: {_e}")
+        return None
 
 
 def _load_dcf_summary(ticker: str) -> dict | None:
