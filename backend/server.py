@@ -456,12 +456,12 @@ async def _fetch_twelve_data_movers() -> list[dict]:
 async def fetch_fx_safe() -> dict:
     """Fetch FX rates. Frankfurter API is cloud-friendly, rarely blocked."""
     default = {
-        "CNYINR": {"rate": 13.6, "change_percent": 0.0},
-        "EURINR": {"rate": 109.5, "change_percent": 0.0},
-        "GBPINR": {"rate": 125.6, "change_percent": 0.0},
-        "JPYINR": {"rate": 0.58, "change_percent": 0.0},
-        "SGDINR": {"rate": 72.9, "change_percent": 0.0},
-        "USDINR": {"rate": 92.9, "change_percent": 0.0},
+        "CNYINR": {"rate": 13.6, "change_percent": None},
+        "EURINR": {"rate": 109.5, "change_percent": None},
+        "GBPINR": {"rate": 125.6, "change_percent": None},
+        "JPYINR": {"rate": 0.58, "change_percent": None},
+        "SGDINR": {"rate": 72.9, "change_percent": None},
+        "USDINR": {"rate": 92.9, "change_percent": None},
     }
     if not HTTPX_AVAILABLE:
         cached, _ = await cache_get("fx")
@@ -476,7 +476,7 @@ async def fetch_fx_safe() -> dict:
                 for ccy in ["CNY", "EUR", "GBP", "JPY", "SGD", "USD"]:
                     rate = rates.get(ccy)
                     if rate:
-                        out[f"{ccy}INR"] = {"rate": round(1 / rate, 4), "change_percent": 0.0}
+                        out[f"{ccy}INR"] = {"rate": round(1 / rate, 4), "change_percent": None}
                 if out:
                     await cache_set("fx", out)
                     return out
@@ -2805,20 +2805,23 @@ async def build_report_context(session_id: str, ticker: str, session: dict) -> d
 _report_llm_cache: dict = {}
 
 _REPORT_EMPTY_CONTENT = {
-    "thesis": "", "exec_summary": "",
-    "rationale_consensus": "", "rationale_our_view": "",
-    "rationale_catalyst": "", "rationale_valuation": "",
-    "driver_1_name": "", "driver_1_desc": "",
-    "driver_2_name": "", "driver_2_desc": "",
-    "driver_3_name": "", "driver_3_desc": "",
-    "headwind_1_name": "", "headwind_1_desc": "",
-    "headwind_2_name": "", "headwind_2_desc": "",
-    "net_view": "",
-    "opp_1_name": "", "opp_1_desc": "",
-    "opp_2_name": "", "opp_2_desc": "",
-    "risk_1_name": "", "risk_1_desc": "",
-    "risk_2_name": "", "risk_2_desc": "",
-    "kill_switch": "",
+    "thesis": "[AI commentary unavailable for this run]",
+    "exec_summary": "[AI commentary unavailable for this run]",
+    "rationale_consensus": "[AI commentary unavailable for this run]",
+    "rationale_our_view": "[AI commentary unavailable for this run]",
+    "rationale_catalyst": "[AI commentary unavailable for this run]",
+    "rationale_valuation": "[AI commentary unavailable for this run]",
+    "driver_1_name": "", "driver_1_desc": "[AI commentary unavailable for this run]",
+    "driver_2_name": "", "driver_2_desc": "[AI commentary unavailable for this run]",
+    "driver_3_name": "", "driver_3_desc": "[AI commentary unavailable for this run]",
+    "headwind_1_name": "", "headwind_1_desc": "[AI commentary unavailable for this run]",
+    "headwind_2_name": "", "headwind_2_desc": "[AI commentary unavailable for this run]",
+    "net_view": "[AI commentary unavailable for this run]",
+    "opp_1_name": "", "opp_1_desc": "[AI commentary unavailable for this run]",
+    "opp_2_name": "", "opp_2_desc": "[AI commentary unavailable for this run]",
+    "risk_1_name": "", "risk_1_desc": "[AI commentary unavailable for this run]",
+    "risk_2_name": "", "risk_2_desc": "[AI commentary unavailable for this run]",
+    "kill_switch": "[AI commentary unavailable for this run]",
 }
 
 
@@ -3694,24 +3697,26 @@ async def audit_trail(session_id: str):
 async def guardrail_log(session_id: str):
     rp_ses = _find_rp_session(session_id)
     raw = _read_rp_session_file(rp_ses, "guardrail_log.json")
-    breaches = raw if isinstance(raw, list) else []
-    return {"guardrails": breaches, "all_passed": len(breaches) == 0}
+    engine_ran = isinstance(raw, list)
+    breaches = raw if engine_ran else []
+    return {"guardrails": breaches, "all_passed": len(breaches) == 0, "engine_ran": engine_ran}
 
 
 @api_router.get("/research/{session_id}/assumption_history")
 async def assumption_history(session_id: str):
     rp_ses = _find_rp_session(session_id)
     raw = _read_rp_session_file(rp_ses, "assumptions_history.json")
-    history = raw if isinstance(raw, list) else []
-    return {"history": history}
+    engine_ran = isinstance(raw, list)
+    history = raw if engine_ran else []
+    return {"history": history, "engine_ran": engine_ran}
 
 
 @api_router.get("/macro")
-@safe_endpoint(lambda: {"indicators": [], "globalEvents": [], "macroMicro": []})
+@safe_endpoint(lambda: {"indicators": [], "globalEvents": [], "macroMicro": [], "db_status": "unavailable"})
 async def macro():
-    indicators = []
-    global_events = []
     try:
+        indicators = []
+        global_events = []
         from sqlalchemy import select, desc
         from research_platform.database.connection import get_session as _rp_dbs
         from research_platform.database.models import MacroIndicator as _MI, FxRate as _FX, Event as _Ev
@@ -3753,15 +3758,16 @@ async def macro():
                     "region": "India",
                     "impact": "Neutral",
                 })
+        return {"indicators": indicators, "globalEvents": global_events, "macroMicro": []}
     except Exception as exc:
         logger.debug(f"[macro] DB read failed: {exc}")
-    return {"indicators": indicators, "globalEvents": global_events, "macroMicro": []}
+        return {"indicators": [], "globalEvents": [], "macroMicro": [], "db_status": "unavailable"}
 
 @api_router.get("/signals")
-@safe_endpoint(lambda: {"signals": []})
+@safe_endpoint(lambda: {"status": "unavailable", "reason": "database offline", "signals": []})
 async def signals():
-    signals_out = []
     try:
+        signals_out = []
         from sqlalchemy import select, desc
         from research_platform.database.connection import get_session as _rp_dbs
         from research_platform.database.models import Event as _Ev
@@ -3793,9 +3799,10 @@ async def signals():
                     "signalType": r.type.capitalize(),
                     "source_url": r.source_url or "",
                 })
+        return {"signals": signals_out}
     except Exception as exc:
         logger.debug(f"[signals] DB read failed: {exc}")
-    return {"signals": signals_out}
+        return {"status": "unavailable", "reason": "database offline", "signals": []}
 
 @api_router.get("/alerts")
 @safe_endpoint(lambda: {"alerts": []})
@@ -4047,6 +4054,7 @@ async def insider_trades(ticker: str = "", limit: int = 20):
                 break
     except Exception as e:
         logger.debug(f"[insider-trades] DB unavailable: {e}")
+        return {"status": "unavailable", "trades": []}
     return {"trades": results}
 
 
