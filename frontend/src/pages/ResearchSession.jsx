@@ -1403,6 +1403,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [reportLoading, setReportLoading] = useState(false);
   const [xlsmState, setXlsmState] = useState('idle');
   const [sessions, setSessions] = useState([]);
+  const [recentTickers, setRecentTickers] = useState([]); // [{ticker, session_id}] — only successful analyses
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
@@ -1506,6 +1507,12 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
     if (!ok) { flashTickerError(vErr); return; }
     setTickerError('');
     if (overrideTicker) setTicker(t);
+    // Clear stale session immediately so the old card never lingers during a new request
+    setResearchData(null);
+    setSessionId(null);
+    setDcfData(null);
+    setSwotData(null);
+    setPorterData(null);
     try {
       setAnalyzing(true);
       setError(null);
@@ -1516,6 +1523,11 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       }
       setResearchData(result);
       setSessionId(result.session_id);
+      // Only record to Recent after a confirmed successful 200 response
+      setRecentTickers(prev => {
+        const filtered = prev.filter(r => r.ticker !== t);
+        return [...filtered, { ticker: t, session_id: result.session_id }].slice(-6);
+      });
       if (result.dcf) {
         setDcfData({
           status: 'complete',
@@ -1549,11 +1561,17 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
 
   const handleCreateSession = async () => {
     if (!modalTicker.trim()) return;
+    const t = modalTicker.toUpperCase().trim();
+    setResearchData(null);
+    setSessionId(null);
+    setDcfData(null);
+    setSwotData(null);
+    setPorterData(null);
     try {
       setAnalyzing(true);
       setError(null);
       const result = await apiPost(API_ENDPOINTS.researchAnalyze, {
-        ticker: modalTicker.toUpperCase(),
+        ticker: t,
         hypothesis: modalHypothesis,
         variant_view: modalVariant,
         sector: modalSector,
@@ -1567,6 +1585,10 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       setResearchData(result);
       setSessionId(result.session_id);
       setTicker(result.ticker || '');
+      setRecentTickers(prev => {
+        const filtered = prev.filter(r => r.ticker !== (result.ticker || t));
+        return [...filtered, { ticker: result.ticker || t, session_id: result.session_id }].slice(-6);
+      });
       const list = await apiGet(API_ENDPOINTS.sessions);
       setSessions(unwrapList(list, 'sessions'));
     } catch (err) { setError(err.message); }
@@ -1778,31 +1800,23 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       </div>
       </section>
 
-      {sessions.length > 0 && (() => {
-        const seen = new Set();
-        const unique = sessions.filter((s) => {
-          const key = (s.ticker || '').toUpperCase();
-          if (!key || seen.has(key)) return false;
-          seen.add(key); return true;
-        });
-        return (
-          <section className="flex items-center gap-2 flex-wrap mb-4">
-            <span className="text-xs text-[#94a3b8]">Recent:</span>
-            {unique.slice(0, 6).map((s) => (
-              <button
-                key={s.session_id || s._id}
-                onClick={() => { setSessionId(s.session_id); setTicker(s.ticker || ''); }}
-                className={cn(
-                  'px-3 py-1 text-xs rounded-full border transition-colors',
-                  (s.session_id || s._id) === sessionId
-                    ? 'bg-[#0F3D2E] text-white border-[#0F3D2E]'
-                    : 'bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#0F3D2E] hover:text-[#0F3D2E]'
-                )}
-              >{s.ticker}</button>
-            ))}
-          </section>
-        );
-      })()}
+      {recentTickers.length > 0 && (
+        <section className="flex items-center gap-2 flex-wrap mb-4">
+          <span className="text-xs text-[#94a3b8]">Recent:</span>
+          {[...recentTickers].reverse().map((r) => (
+            <button
+              key={r.session_id}
+              onClick={() => { setSessionId(r.session_id); setTicker(r.ticker); }}
+              className={cn(
+                'px-3 py-1 text-xs rounded-full border transition-colors',
+                r.session_id === sessionId
+                  ? 'bg-[#0F3D2E] text-white border-[#0F3D2E]'
+                  : 'bg-[#f8fafc] text-[#64748b] border-[#e5e7eb] hover:border-[#0F3D2E] hover:text-[#0F3D2E]'
+              )}
+            >{r.ticker}</button>
+          ))}
+        </section>
+      )}
 
       {error && (
         <div className="p-3 bg-[#dc2626]/10 border border-[#dc2626]/30 rounded-lg text-[#dc2626] text-sm mb-4">

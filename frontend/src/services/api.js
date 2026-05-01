@@ -66,12 +66,18 @@ export const apiRequest = async (endpoint, options = {}) => {
     const response = await fetch(url, mergedOptions);
 
     if (!response.ok) {
-      let detail = `${response.status} ${response.statusText}`;
+      let detail = null;
       try {
         const errBody = await response.json();
-        if (errBody?.detail) detail = errBody.detail;
-        else if (errBody?.error) detail = errBody.error;
+        if (errBody?.detail) detail = String(errBody.detail);
+        else if (errBody?.error) detail = String(errBody.error);
+        else if (errBody?.message) detail = String(errBody.message);
       } catch (_) {}
+      if (!detail) {
+        detail = response.statusText
+          ? `${response.status} ${response.statusText}`
+          : `Request failed with status ${response.status}`;
+      }
       throw new Error(detail);
     }
 
