@@ -166,6 +166,34 @@ except Exception as e:
     rp_signals_to_factors = None
     _rp_errors.append(f"factor_engine: {e}")
 
+try:
+    from research_platform.ticker_resolver import resolve_ticker
+    RESOLVER_AVAILABLE = True
+except Exception as e:
+    RESOLVER_AVAILABLE = False
+    resolve_ticker = None
+    print(f"[startup] ticker_resolver not available: {e}")
+
+def _resolve_ticker_safe(ticker: str) -> dict:
+    """Call resolve_ticker(); fall back to India defaults if unavailable."""
+    if RESOLVER_AVAILABLE and resolve_ticker is not None:
+        try:
+            return resolve_ticker(ticker)
+        except Exception as e:
+            logger.warning(f"[resolver] failed for {ticker}: {e}")
+    t = ticker.upper().strip()
+    yf_sym = t if "." in t else f"{t}.NS"
+    return {
+        "symbol": t,
+        "yf_symbol": yf_sym,
+        "exchange": "NSE",
+        "region": "IN",
+        "currency": "INR",
+        "currency_symbol": "₹",
+        "rf_rate": 0.072,
+        "equity_risk_premium": 0.06,
+    }
+
 RP_AVAILABLE = RP_SESSION_MGR and RP_SCENARIOS and RP_SCORING
 if RP_AVAILABLE:
     print(f"[startup] ✓ research_platform loaded (scenarios, scoring, sessions)")
@@ -1057,7 +1085,12 @@ async def analyze(request: Request):
     if not ticker:
         raise HTTPException(status_code=400, detail="ticker required")
 
-    ticker_ns = ticker if "." in ticker else f"{ticker}.NS"
+    resolved = _resolve_ticker_safe(ticker)
+    ticker_ns = resolved["yf_symbol"]
+    ticker_currency = resolved["currency"]
+    ticker_currency_symbol = resolved["currency_symbol"]
+    ticker_region = resolved["region"]
+    ticker_exchange = resolved.get("exchange", "")
 
     # Try cache first for instant response
     cache_key = f"analyze:{ticker_ns}"
@@ -1110,8 +1143,8 @@ async def analyze(request: Request):
     beta = _safe_float(info.get("beta"), 1.0)
 
     # Safe WACC (all bounds guarded)
-    rf = 0.072  # India 10Y
-    erp = 0.06
+    rf = resolved["rf_rate"]
+    erp = resolved["equity_risk_premium"]
     wacc = min(max(rf + beta * erp, 0.08), 0.15)
 
     # Safe terminal value
@@ -1377,7 +1410,7 @@ async def analyze(request: Request):
                         if _sc_item:
                             _md_lines.append(
                                 f"- **{_label.title()}**: "
-                                f"Fair value ₹{_sc_item.get('fair_value', 'N/A')} "
+                                f"Fair value {ticker_currency_symbol}{_sc_item.get('fair_value', 'N/A')} "
                                 f"(upside {_sc_item.get('upside_pct', 'N/A')}%)"
                             )
                     _md_lines.append("")
@@ -1429,6 +1462,11 @@ async def analyze(request: Request):
         "status": "active",
         "created_at": now.isoformat(),
         "rp_session_id": rp_session_id,
+        # Region / currency fields — used by frontend for display
+        "currency": ticker_currency,
+        "currency_symbol": ticker_currency_symbol,
+        "region": ticker_region,
+        "exchange": ticker_exchange,
         # Flat price fields — frontend may look for any of these
         "price": current_price,
         "ltp": current_price,
@@ -1551,21 +1589,38 @@ async def analyze(request: Request):
 # ═══════════════════════════════════════════════════════════════════
 
 _SECTOR_TICKER_MAP = {
+    # Indian sectors
     "petroleum_energy": ["RELIANCE", "BPCL", "IOCL", "IOC", "HPCL", "ONGC", "GAIL", "OIL"],
     "banking_nbfc": ["HDFCBANK", "ICICIBANK", "SBIN", "AXISBANK", "KOTAKBANK",
                      "BAJFINANCE", "BAJAJFINSV", "INDUSINDBK", "IDFCFIRSTB", "FEDERALBNK",
                      "PNB", "BANKBARODA", "IRFC", "RECLTD", "PFC", "HDFCLIFE", "ICICIGI"],
-    "it_tech": ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM", "LTIM", "PERSISTENT", "COFORGE"],
-    "pharma": ["SUNPHARMA", "DRREDDY", "CIPLA", "LUPIN", "DIVISLAB", "AUROPHARMA", "TORNTPHARM"],
-    "fmcg_retail": ["HINDUNILVR", "ITC", "NESTLEIND", "DABUR", "MARICO", "BRITANNIA", "GODREJCP"],
-    "real_estate": ["DLF", "GODREJPROP", "OBEROIRLTY", "PRESTIGE", "BRIGADE", "SOBHA"],
-    "auto": ["TATAMOTORS", "MARUTI", "M&M", "BAJAJ-AUTO", "HEROMOTOCO", "EICHERMOT", "TVSMOTOR"],
+    "it_tech": ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM", "LTIM", "PERSISTENT", "COFORGE",
+                # US tech
+                "AAPL", "MSFT", "GOOGL", "GOOG", "META", "NVDA", "ORCL", "CRM", "ADBE", "INTC", "AMD"],
+    "pharma": ["SUNPHARMA", "DRREDDY", "CIPLA", "LUPIN", "DIVISLAB", "AUROPHARMA", "TORNTPHARM",
+               # US pharma
+               "JNJ", "PFE", "MRK", "ABBV", "LLY", "AMGN", "GILD", "BIIB"],
+    "fmcg_retail": ["HINDUNILVR", "ITC", "NESTLEIND", "DABUR", "MARICO", "BRITANNIA", "GODREJCP",
+                    # US consumer
+                    "PG", "KO", "PEP", "UL", "WMT", "COST"],
+    "real_estate": ["DLF", "GODREJPROP", "OBEROIRLTY", "PRESTIGE", "BRIGADE", "SOBHA",
+                    # US REITs
+                    "AMT", "PLD", "EQIX", "SPG"],
+    "auto": ["TATAMOTORS", "MARUTI", "M&M", "BAJAJ-AUTO", "HEROMOTOCO", "EICHERMOT", "TVSMOTOR",
+             # US/global auto
+             "TSLA", "F", "GM", "TM", "HMC", "RIVN"],
+    # US-primary sectors
+    "us_finance": ["JPM", "BAC", "GS", "MS", "WFC", "C", "BLK", "SCHW"],
+    "us_energy": ["XOM", "CVX", "COP", "SLB", "EOG", "PXD"],
+    "us_healthcare": ["UNH", "CVS", "CI", "HUM", "MCK", "ABC"],
+    "us_comm": ["META", "GOOGL", "NFLX", "DIS", "T", "VZ", "CMCSA"],
 }
 
 
 def _detect_sector_simple(ticker: str) -> str:
     """Map ticker to sector. Falls back to 'other' if not in map."""
-    t = ticker.upper().replace(".NS", "").replace(".BO", "")
+    import re as _re
+    t = _re.sub(r'\.[A-Z]+$', '', ticker.upper().strip())
     for sector, tickers in _SECTOR_TICKER_MAP.items():
         if t in tickers:
             return sector
@@ -1638,8 +1693,8 @@ def _build_rp_assumptions(
         "wacc": sector_wacc,
         "terminal_growth_rate": sector_tg,
         "cost_of_debt": 8.5,
-        "equity_risk_premium": 6.5,
-        "risk_free_rate": 7.2,
+        "equity_risk_premium": round(_resolve_ticker_safe(ticker)["equity_risk_premium"] * 100, 2),
+        "risk_free_rate": round(_resolve_ticker_safe(ticker)["rf_rate"] * 100, 2),
         "tax_rate": 25.0,
         "working_capital_days": 45.0,
         "debt_equity_ratio": 0.3,
@@ -1661,7 +1716,7 @@ async def _enrich_with_live_price(session: dict) -> dict:
     ticker = session.get("ticker", "").upper()
     if not ticker or ticker == "UNKNOWN":
         return session
-    ticker_ns = ticker if "." in ticker else f"{ticker}.NS"
+    ticker_ns = _resolve_ticker_safe(ticker)["yf_symbol"]
     price = None
     prev_close = None
     if YF_AVAILABLE:
@@ -1873,8 +1928,10 @@ def _get_dcf_excel_p30(ticker: str) -> float | None:
     manually using the cached scalar constants that ARE present.
     """
     t = ticker.upper().strip()
-    ticker_ns = t if "." in t else f"{t}.NS"
-    excel_path = Path("/app/notebooks") / f"DCF_Output_{ticker_ns}_INR.xlsm"
+    _res = _resolve_ticker_safe(t)
+    ticker_ns = _res["yf_symbol"]
+    ccy = _res["currency"]
+    excel_path = Path("/app/notebooks") / f"DCF_Output_{ticker_ns}_{ccy}.xlsm"
     if not excel_path.exists():
         logger.warning(f"[dcf_excel_p30] {ticker}: Excel not found at {excel_path}")
         return None
@@ -1992,11 +2049,13 @@ def _load_dcf_summary(ticker: str) -> dict | None:
     if not ticker:
         return None
     t = ticker.upper().strip()
-    ticker_ns = t if "." in t else f"{t}.NS"
+    _res = _resolve_ticker_safe(t)
+    ticker_ns = _res["yf_symbol"]
+    ccy = _res["currency"]
     candidates = [
-        Path("/app/notebooks") / f"DCF_Output_{ticker_ns}_INR.summary.json",
-        DCF_NOTEBOOK_SRC.parent / f"DCF_Output_{ticker_ns}_INR.summary.json",
-        Path(__file__).parent.parent / "notebooks" / f"DCF_Output_{ticker_ns}_INR.summary.json",
+        Path("/app/notebooks") / f"DCF_Output_{ticker_ns}_{ccy}.summary.json",
+        DCF_NOTEBOOK_SRC.parent / f"DCF_Output_{ticker_ns}_{ccy}.summary.json",
+        Path(__file__).parent.parent / "notebooks" / f"DCF_Output_{ticker_ns}_{ccy}.summary.json",
     ]
     for p in candidates:
         try:
@@ -2070,7 +2129,8 @@ def _execute_notebook_blocking(
 
     # Clean ticker (strip trailing spaces the notebook has in its default)
     ticker_clean = ticker.strip().upper()
-    ticker_ns = ticker_clean if "." in ticker_clean else f"{ticker_clean}.NS"
+    _res = _resolve_ticker_safe(ticker_clean)
+    ticker_ns = _res["yf_symbol"]
 
     # Output notebook (executed copy) — papermill writes the executed version here
     executed_nb = run_dir / f"{ticker_clean}_executed.ipynb"
@@ -2565,22 +2625,45 @@ def _indian_format(n, digits=0):
 _yf_cache = {}
 _YF_CACHE_TTL = 600
 
-PEER_MAP = {
-    "IT":              ["INFY", "WIPRO", "HCLTECH"],
-    "TECHNOLOGY":      ["INFY", "WIPRO", "HCLTECH"],
-    "SOFTWARE":        ["INFY", "WIPRO", "HCLTECH"],
-    "BANKING":         ["HDFCBANK", "ICICIBANK", "AXISBANK"],
-    "BANKS":           ["HDFCBANK", "ICICIBANK", "AXISBANK"],
-    "FINANCIAL":       ["HDFCBANK", "ICICIBANK", "AXISBANK"],
-    "PHARMA":          ["SUNPHARMA", "CIPLA", "DRREDDY"],
-    "PHARMACEUTICALS": ["SUNPHARMA", "CIPLA", "DRREDDY"],
-    "HEALTHCARE":      ["SUNPHARMA", "CIPLA", "DRREDDY"],
-    "ENERGY":          ["RELIANCE", "ONGC", "IOC"],
-    "OIL":             ["RELIANCE", "ONGC", "IOC"],
-    "FMCG":            ["HINDUNILVR", "NESTLEIND", "ITC"],
-    "CONSUMER":        ["HINDUNILVR", "NESTLEIND", "ITC"],
-    "DEFAULT":         ["RELIANCE", "TCS", "INFY"],
-}
+def _load_peer_map() -> dict:
+    """Load peer map from JSON; fall back to minimal hardcoded map on failure."""
+    _path = Path(__file__).parent / "data" / "peer_map.json"
+    try:
+        raw = json.loads(_path.read_text(encoding="utf-8"))
+        return {k: v for k, v in raw.items() if not k.startswith("_")}
+    except Exception as e:
+        logger.warning(f"[peer_map] could not load {_path}: {e}")
+        return {
+            "DEFAULT_IN": ["RELIANCE.NS", "TCS.NS", "INFY.NS"],
+            "DEFAULT_US": ["AAPL", "MSFT", "GOOGL"],
+            "DEFAULT": ["RELIANCE.NS", "TCS.NS", "INFY.NS"],
+        }
+
+PEER_MAP = _load_peer_map()
+
+
+def _get_peers_for_ticker(ticker: str, sector: str) -> list[str]:
+    """Return region-appropriate peer list for a ticker+sector combination."""
+    res = _resolve_ticker_safe(ticker)
+    region = res.get("region", "IN")
+    sector_up = (sector or "").upper()
+
+    # Try exact sector match first
+    peers = PEER_MAP.get(sector_up)
+    if peers:
+        return [p for p in peers if p.upper() != ticker.upper()]
+
+    # Try substring match
+    for key, val in PEER_MAP.items():
+        if key in ("DEFAULT", "DEFAULT_IN", "DEFAULT_US", "DEFAULT_GB"):
+            continue
+        if key in sector_up or sector_up in key:
+            return [p for p in val if p.upper() != ticker.upper()]
+
+    # Fall back to region default
+    region_key = f"DEFAULT_{region.upper()}"
+    fallback = PEER_MAP.get(region_key) or PEER_MAP.get("DEFAULT") or []
+    return [p for p in fallback if p.upper() != ticker.upper()]
 
 
 def _yf_info(ticker: str) -> dict:
@@ -2593,7 +2676,8 @@ def _yf_info(ticker: str) -> dict:
     info = {}
     try:
         import yfinance as yf
-        info = yf.Ticker(f"{ticker}.NS").info or {}
+        yf_sym = _resolve_ticker_safe(ticker)["yf_symbol"]
+        info = yf.Ticker(yf_sym).info or {}
     except Exception as e:
         logger.warning(f"yfinance fetch failed for {ticker}: {e}")
     _yf_cache[ticker] = (now, info)
@@ -3936,7 +4020,7 @@ async def derivatives(ticker: str):
             import asyncio as _asyncio
             loop = _asyncio.get_event_loop()
             def _yf_options():
-                ns_ticker = ticker_up if ticker_up.endswith(".NS") else f"{ticker_up}.NS"
+                ns_ticker = _resolve_ticker_safe(ticker_up)["yf_symbol"]
                 tk = yf.Ticker(ns_ticker)
                 expirations = tk.options
                 if not expirations:
@@ -4069,7 +4153,7 @@ async def news_feed(limit: int = 10):
 @api_router.get("/prices/{ticker}")
 @safe_endpoint(lambda: {"price": None, "error": "unavailable"})
 async def prices(ticker: str):
-    ticker_ns = ticker if "." in ticker else f"{ticker}.NS"
+    ticker_ns = _resolve_ticker_safe(ticker.upper().strip())["yf_symbol"]
     if not YF_AVAILABLE:
         return {"price": None, "ticker": ticker_ns, "source": "unavailable"}
     try:
@@ -4177,7 +4261,7 @@ def _generate_charts(ticker: str) -> list[dict]:
         plt.close(fig)
         return base64.b64encode(buf.read()).decode()
 
-    ticker_yf = ticker if (ticker.endswith(".NS") or ticker.endswith(".BO")) else ticker + ".NS"
+    ticker_yf = _resolve_ticker_safe(ticker)["yf_symbol"]
     t = yf.Ticker(ticker_yf)
 
     # ── Chart 1: Price History (1Y) ──────────────────────────────────────────
@@ -4351,7 +4435,7 @@ def _fetch_peer_metrics(tickers: list[str]) -> list[dict]:
     rows = []
     for tk in tickers:
         try:
-            ticker_yf = tk if (tk.endswith(".NS") or tk.endswith(".BO")) else tk + ".NS"
+            ticker_yf = _resolve_ticker_safe(tk)["yf_symbol"]
             info = yf.Ticker(ticker_yf).info or {}
             pe     = info.get("trailingPE") or info.get("forwardPE")
             ev_rev = info.get("enterpriseToEbitda")
@@ -4381,16 +4465,10 @@ async def research_peers(session_id: str):
         sector = (session.get("sector") or "").upper()
         if not ticker:
             return []
-        # Determine peer list
-        peer_key = None
-        for k in PEER_MAP:
-            if k != "DEFAULT" and k in sector:
-                peer_key = k
-                break
-        peer_tickers = PEER_MAP.get(peer_key) if peer_key else PEER_MAP["DEFAULT"]
-        peer_tickers = [p for p in peer_tickers if p.upper() != ticker.upper()][:4]
-        # Include subject ticker first
-        all_tickers = [ticker] + peer_tickers
+        peer_tickers = _get_peers_for_ticker(ticker, sector)[:4]
+        # Include subject ticker first (use yf_symbol for accurate fetch)
+        subject_yf = _resolve_ticker_safe(ticker)["yf_symbol"]
+        all_tickers = [subject_yf] + peer_tickers
         import time as _time
         now = _time.time()
         cache_key = ",".join(all_tickers)
