@@ -227,6 +227,9 @@ CACHE_TTL_SECONDS = 900  # 15 min — live market data stays fresh, falls back g
 # In-memory fallback cache (used when Mongo is unavailable)
 _MEMORY_CACHE: dict[str, tuple[datetime, Any]] = {}
 
+# Cache for ADR disambiguation results: ticker → bool (has real .NS listing)
+_adr_ns_cache: dict[str, bool] = {}
+
 # Git SHA for version endpoint
 def _get_version() -> str:
     try:
@@ -1090,23 +1093,30 @@ async def analyze(request: Request):
     if RESOLVER_AVAILABLE and resolve_ticker is not None:
         try:
             resolved = resolve_ticker(ticker)
-            # ADR disambiguation: bare ticker resolves to US ADR but .NS variant exists
-            if (resolved["region"] == "US" and "." not in ticker and
-                    not ticker.endswith((".NS", ".BO"))):
+            # ADR disambiguation: bare ticker resolves to US but a real NSE listing exists
+            if (resolved["region"] == "US" and "." not in ticker):
                 try:
-                    ns_resolved = resolve_ticker(f"{ticker}.NS")
-                    if ns_resolved.get("region") == "IN":
+                    has_real_ns = _adr_ns_cache.get(ticker)
+                    if has_real_ns is None:
+                        import yfinance as _yf_adr
+                        _ns_info = _yf_adr.Ticker(f"{ticker}.NS").info or {}
+                        has_real_ns = (
+                            _ns_info.get("regularMarketPrice") is not None
+                            and _ns_info.get("marketCap") is not None
+                        )
+                        _adr_ns_cache[ticker] = has_real_ns
+                    if has_real_ns:
                         raise HTTPException(
                             status_code=400,
                             detail=(
-                                f"{ticker} resolves to NYSE/NASDAQ ADR (USD). "
+                                f"{ticker} resolves to NYSE/NASDAQ listing (USD). "
                                 f"Did you mean {ticker}.NS for NSE listing (INR)?"
                             ),
                         )
                 except HTTPException:
                     raise
                 except Exception:
-                    pass  # no .NS variant — keep US resolution
+                    pass  # yfinance probe failed — keep US resolution
         except HTTPException:
             raise
         except (ValueError, Exception) as _e:
@@ -2682,25 +2692,46 @@ def _load_peer_map() -> dict:
 PEER_MAP = _load_peer_map()
 
 
+_INTERNAL_SECTOR_TO_PEER_KEY: dict[str, dict[str, str]] = {
+    # internal _detect_sector_simple key → {region: peer_map key}
+    "it_tech":         {"IN": "IT",          "US": "TECHNOLOGY",       "GB": "TECHNOLOGY"},
+    "banking_nbfc":    {"IN": "BANKING",      "US": "DIVERSIFIED BANKS","GB": "DIVERSIFIED BANKS"},
+    "pharma":          {"IN": "PHARMA",       "US": "HEALTHCARE",       "GB": "HEALTHCARE"},
+    "petroleum_energy":{"IN": "ENERGY",       "US": "OIL & GAS",        "GB": "OIL & GAS"},
+    "fmcg_retail":     {"IN": "FMCG",         "US": "CONSUMER STAPLES", "GB": "CONSUMER STAPLES"},
+    "real_estate":     {"IN": "REAL ESTATE",  "US": "REITS",            "GB": "REITS"},
+    "auto":            {"IN": "AUTOMOBILE",   "US": "ELECTRIC VEHICLES","GB": "AUTOMOBILE"},
+    "us_finance":      {"US": "DIVERSIFIED BANKS"},
+    "us_energy":       {"US": "OIL & GAS"},
+    "us_healthcare":   {"US": "HEALTHCARE"},
+    "us_comm":         {"US": "COMMUNICATION SERVICES"},
+}
+
 def _get_peers_for_ticker(ticker: str, sector: str) -> list[str]:
     """Return region-appropriate peer list for a ticker+sector combination."""
     res = _resolve_ticker_safe(ticker)
     region = res.get("region", "IN")
-    sector_up = (sector or "").upper()
+    sector_low = (sector or "").lower()
+    sector_up = sector_low.upper()
 
-    # Try exact sector match first
+    # 1. Translate internal sector key to region-appropriate peer_map key
+    peer_key_map = _INTERNAL_SECTOR_TO_PEER_KEY.get(sector_low)
+    if peer_key_map:
+        peer_key = peer_key_map.get(region) or peer_key_map.get("US")
+        if peer_key:
+            peers = PEER_MAP.get(peer_key, [])
+            result = [p for p in peers if p.upper() != ticker.upper()]
+            if result:
+                return result
+
+    # 2. Try exact match against peer_map keys (for cases where sector already matches)
     peers = PEER_MAP.get(sector_up)
     if peers:
-        return [p for p in peers if p.upper() != ticker.upper()]
+        result = [p for p in peers if p.upper() != ticker.upper()]
+        if result:
+            return result
 
-    # Try substring match
-    for key, val in PEER_MAP.items():
-        if key in ("DEFAULT", "DEFAULT_IN", "DEFAULT_US", "DEFAULT_GB"):
-            continue
-        if key in sector_up or sector_up in key:
-            return [p for p in val if p.upper() != ticker.upper()]
-
-    # Fall back to region default
+    # 3. Fall back to region default
     region_key = f"DEFAULT_{region.upper()}"
     fallback = PEER_MAP.get(region_key) or PEER_MAP.get("DEFAULT") or []
     return [p for p in fallback if p.upper() != ticker.upper()]
