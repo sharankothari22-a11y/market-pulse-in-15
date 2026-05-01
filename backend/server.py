@@ -1085,7 +1085,37 @@ async def analyze(request: Request):
     if not ticker:
         raise HTTPException(status_code=400, detail="ticker required")
 
-    resolved = _resolve_ticker_safe(ticker)
+    # Ticker validation — reject unknown tickers with a useful 400
+    resolved = None
+    if RESOLVER_AVAILABLE and resolve_ticker is not None:
+        try:
+            resolved = resolve_ticker(ticker)
+            # ADR disambiguation: bare ticker resolves to US ADR but .NS variant exists
+            if (resolved["region"] == "US" and "." not in ticker and
+                    not ticker.endswith((".NS", ".BO"))):
+                try:
+                    ns_resolved = resolve_ticker(f"{ticker}.NS")
+                    if ns_resolved.get("region") == "IN":
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"{ticker} resolves to NYSE/NASDAQ ADR (USD). "
+                                f"Did you mean {ticker}.NS for NSE listing (INR)?"
+                            ),
+                        )
+                except HTTPException:
+                    raise
+                except Exception:
+                    pass  # no .NS variant — keep US resolution
+        except HTTPException:
+            raise
+        except (ValueError, Exception) as _e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not resolve ticker '{ticker}': {_e}",
+            )
+    if resolved is None:
+        resolved = _resolve_ticker_safe(ticker)
     ticker_ns = resolved["yf_symbol"]
     ticker_currency = resolved["currency"]
     ticker_currency_symbol = resolved["currency_symbol"]

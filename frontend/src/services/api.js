@@ -66,7 +66,13 @@ export const apiRequest = async (endpoint, options = {}) => {
     const response = await fetch(url, mergedOptions);
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      let detail = `${response.status} ${response.statusText}`;
+      try {
+        const errBody = await response.json();
+        if (errBody?.detail) detail = errBody.detail;
+        else if (errBody?.error) detail = errBody.error;
+      } catch (_) {}
+      throw new Error(detail);
     }
 
     return await response.json();
