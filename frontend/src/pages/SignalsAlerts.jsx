@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CustomTabs } from '@/components/ui/CustomTabs';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
-import { Loader2, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { Bell, Loader2, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
