@@ -1291,8 +1291,11 @@ async def analyze(request: Request):
         terminal_value = (terminal_fcf / (wacc - terminal_growth)) / ((1 + wacc) ** 5)
     enterprise_value = pv_fcf + terminal_value
 
-    # Equity value = EV (we skip debt adj in backup for safety)
-    equity_value = enterprise_value
+    # Equity bridge: subtract net debt (total debt - cash) from enterprise value
+    _total_debt = _safe_float(info.get("totalDebt"), 0)
+    _total_cash = _safe_float(info.get("totalCash"), 0)
+    net_debt = _total_debt - _total_cash
+    equity_value = max(enterprise_value - net_debt, 0)
     price_per_share = (equity_value / shares_out) if shares_out else 0
     upside_pct = ((price_per_share - current_price) / current_price * 100) if current_price else 0
 
@@ -1679,7 +1682,7 @@ async def analyze(request: Request):
 
     # Wire Valuation card to Excel cell P30 (Implied Share Price, DCF sheet).
     # No fallback — if the Excel is missing or unreadable, surface a 503.
-    _fv = _get_dcf_excel_p30(ticker)
+    _fv = _get_dcf_excel_p30(ticker, total_cash_raw=_safe_float(info.get("totalCash"), 0))
     if _fv is None:
         raise HTTPException(status_code=503, detail="DCF Excel not available — try Analyze again")
     _fv = float(_fv)
@@ -2063,12 +2066,15 @@ _DCF_LOCK = asyncio.Lock()
 DCF_NOTEBOOK_SRC = Path("/app/notebooks/DCF_Multi_Source_Pipeline_REFACTORED.ipynb")
 
 
-def _get_dcf_excel_p30(ticker: str) -> float | None:
+def _get_dcf_excel_p30(ticker: str, total_cash_raw: float = 0.0) -> float | None:
     """Read Implied Share Price from cell P30 (DCF sheet) of the DCF Excel workbook.
 
     P30 is a formula =P29/R25.  openpyxl data_only mode may return None when
     cached formula values are absent, so we evaluate the full formula chain
     manually using the cached scalar constants that ARE present.
+
+    total_cash_raw: yfinance totalCash in absolute local-currency units (not millions).
+    Used as P27 fallback when the Excel Cash cell is zero (formula, not cached).
     """
     t = ticker.upper().strip()
     _res = _resolve_ticker_safe(t)
@@ -2134,10 +2140,14 @@ def _get_dcf_excel_p30(ticker: str) -> float | None:
         P24 = C9  # P24 = CoC!C9 (debt)
 
         # Cash: P27 = Balance Sheet!F4 = Cash Flow!F29
+        # openpyxl cannot resolve cross-sheet formulas, so F29 is usually None.
+        # Fall back to yfinance totalCash (converted to millions) when Excel gives 0.
         if "Cash Flow" not in wb.sheetnames:
             return None
         ws_cf = wb["Cash Flow"]
         P27 = _f(ws_cf["F29"].value)
+        if P27 == 0 and total_cash_raw > 0:
+            P27 = total_cash_raw / 1_000_000  # convert absolute → millions
 
         # WACC
         C12 = C9 + C10 + C11
