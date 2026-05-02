@@ -3,7 +3,7 @@ import { MetricCard } from '@/components/ui/MetricCard';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
-import { TrendingUp, TrendingDown, Minus, Loader2, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const macroMicroColumns = [
@@ -133,38 +133,48 @@ export const MacroDashboard = () => {
       {/* Global Events */}
       <section className="dashboard-card" data-testid="global-events-section">
         <h2 className="text-sm font-medium text-[#64748b] uppercase tracking-wider mb-3">Global Events</h2>
-        <div className="space-y-3 max-h-64 overflow-y-auto">
-          {globalEvents.map((event, idx) => (
-            <div
-              key={event.id || idx}
-              className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-lg hover:bg-[#f1f5f9] transition-colors border border-[#e5e7eb]"
-            >
-              <div className={cn("p-1.5 rounded flex-shrink-0",
-                event.impact === 'Positive' ? 'bg-[#16a34a]/10' :
-                event.impact === 'Negative' ? 'bg-[#dc2626]/10' : 'bg-[#d97706]/10')}>
-                {event.impact === 'Positive'
-                  ? <TrendingUp className="w-4 h-4 text-[#16a34a]" />
-                  : event.impact === 'Negative'
-                  ? <TrendingDown className="w-4 h-4 text-[#dc2626]" />
-                  : <Minus className="w-4 h-4 text-[#d97706]" />}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-[#0f172a]">{event.event}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-[#64748b]">{event.region}</span>
-                  <StatusBadge variant={
-                    event.impact === 'Positive' ? 'success' :
-                    event.impact === 'Negative' ? 'danger' : 'warning'}>
-                    {event.impact}
-                  </StatusBadge>
+        {macroData?.db_status === 'unavailable' ? (
+          <div className="flex items-start gap-3 p-4 bg-[#d97706]/10 border border-[#d97706]/30 rounded-lg" data-testid="global-events-unavailable-banner">
+            <AlertTriangle className="w-5 h-5 text-[#d97706] flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-[#92400e]">Database offline — global events unavailable</p>
+              <p className="text-xs text-[#b45309] mt-0.5">Live event feed will resume when the database reconnects.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-64 overflow-y-auto">
+            {globalEvents.map((event, idx) => (
+              <div
+                key={event.id || idx}
+                className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-lg hover:bg-[#f1f5f9] transition-colors border border-[#e5e7eb]"
+              >
+                <div className={cn("p-1.5 rounded flex-shrink-0",
+                  event.impact === 'Positive' ? 'bg-[#16a34a]/10' :
+                  event.impact === 'Negative' ? 'bg-[#dc2626]/10' : 'bg-[#d97706]/10')}>
+                  {event.impact === 'Positive'
+                    ? <TrendingUp className="w-4 h-4 text-[#16a34a]" />
+                    : event.impact === 'Negative'
+                    ? <TrendingDown className="w-4 h-4 text-[#dc2626]" />
+                    : <Minus className="w-4 h-4 text-[#d97706]" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-[#0f172a]">{event.event}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-[#64748b]">{event.region}</span>
+                    <StatusBadge variant={
+                      event.impact === 'Positive' ? 'success' :
+                      event.impact === 'Negative' ? 'danger' : 'warning'}>
+                      {event.impact}
+                    </StatusBadge>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-          {globalEvents.length === 0 && (
-            <div className="text-center py-8 text-[#64748b]">No global events</div>
-          )}
-        </div>
+            ))}
+            {globalEvents.length === 0 && (
+              <div className="text-center py-8 text-[#64748b]">No global events</div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Macro-Micro Transmission */}

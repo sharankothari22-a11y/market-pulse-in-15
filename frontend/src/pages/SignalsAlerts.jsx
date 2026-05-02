@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CustomTabs } from '@/components/ui/CustomTabs';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
-import { Bell, Loader2, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { Bell, Loader2, TrendingUp, TrendingDown, Activity, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -60,12 +60,19 @@ export const SignalsAlerts = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
+  const [serviceStatus, setServiceStatus] = useState(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const signalsData = await apiGet(API_ENDPOINTS.signals);
-      setSignals(signalsData?.signals || signalsData || []);
+      if (signalsData?.status === 'unavailable') {
+        setServiceStatus('unavailable');
+        setSignals([]);
+      } else {
+        setServiceStatus(null);
+        setSignals(signalsData?.signals || signalsData || []);
+      }
       setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
       setError(null);
     } catch (err) {
@@ -128,26 +135,36 @@ export const SignalsAlerts = () => {
         <div className="p-3 bg-[#dc2626]/10 border border-[#dc2626]/30 rounded-lg text-[#dc2626] text-sm">{error}</div>
       )}
 
-      {/* Signals Feed */}
-      <section className="dashboard-card" data-testid="signals-feed-section">
-        <CustomTabs tabs={tabs} defaultTab="all">
-          {(activeTab) => {
-            const filtered = filterSignals(signals, activeTab);
-            return (
-              <div className="space-y-1 max-h-[480px] overflow-y-auto">
-                {filtered.map((signal, idx) => (
-                  <SignalItem key={signal.id || idx} {...signal} />
-                ))}
-                {filtered.length === 0 && (
-                  <div className="text-center py-10 text-[#64748b]">
-                    {loading ? 'Scanning...' : 'No signals in this category right now'}
-                  </div>
-                )}
-              </div>
-            );
-          }}
-        </CustomTabs>
-      </section>
+      {serviceStatus === 'unavailable' ? (
+        <div className="flex items-start gap-3 p-4 bg-[#d97706]/10 border border-[#d97706]/30 rounded-lg" data-testid="signals-unavailable-banner">
+          <AlertTriangle className="w-5 h-5 text-[#d97706] flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-[#92400e]">Database offline — signals unavailable</p>
+            <p className="text-xs text-[#b45309] mt-0.5">Live signal feed will resume when the database reconnects.</p>
+          </div>
+        </div>
+      ) : (
+        /* Signals Feed */
+        <section className="dashboard-card" data-testid="signals-feed-section">
+          <CustomTabs tabs={tabs} defaultTab="all">
+            {(activeTab) => {
+              const filtered = filterSignals(signals, activeTab);
+              return (
+                <div className="space-y-1 max-h-[480px] overflow-y-auto">
+                  {filtered.map((signal, idx) => (
+                    <SignalItem key={signal.id || idx} {...signal} />
+                  ))}
+                  {filtered.length === 0 && (
+                    <div className="text-center py-10 text-[#64748b]">
+                      {loading ? 'Scanning...' : 'No signals in this category right now'}
+                    </div>
+                  )}
+                </div>
+              );
+            }}
+          </CustomTabs>
+        </section>
+      )}
 
     </div>
   );

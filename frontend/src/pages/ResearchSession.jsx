@@ -1352,12 +1352,21 @@ const FactorScoresPanel = ({ sessionId, scoring }) => {
 const InsiderTradesPanel = ({ ticker, sym = '₹' }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [serviceUnavailable, setServiceUnavailable] = useState(false);
 
   useEffect(() => {
     if (!ticker) return;
     setLoading(true);
+    setServiceUnavailable(false);
     apiGet(`/api/insider-trades?ticker=${encodeURIComponent(ticker)}&limit=20`)
-      .then(r => setData(r.trades || []))
+      .then(r => {
+        if (r?.status === 'unavailable') {
+          setServiceUnavailable(true);
+          setData([]);
+        } else {
+          setData(r.trades || []);
+        }
+      })
       .catch(() => setData([]))
       .finally(() => setLoading(false));
   }, [ticker]);
@@ -1374,6 +1383,16 @@ const InsiderTradesPanel = ({ ticker, sym = '₹' }) => {
     <Panel title="Insider Activity · Last 90 days" testId="panel-insider-trades">
       {loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : serviceUnavailable ? (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px',
+                      background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)',
+                      borderRadius: 6 }} data-testid="insider-trades-unavailable-banner">
+          <AlertTriangle style={{ width: 14, height: 14, color: '#d97706', flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#92400e', margin: 0 }}>Database offline — insider trades unavailable</p>
+            <p style={{ fontSize: 11, color: '#b45309', margin: '2px 0 0' }}>Data will resume when the database reconnects.</p>
+          </div>
+        </div>
       ) : !data || data.length === 0 ? (
         <div style={emptyStyle}>No insider trades in last 90 days</div>
       ) : (
