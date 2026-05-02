@@ -232,6 +232,10 @@ ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 # Cache TTL for "stale-but-useful" data (seconds)
 CACHE_TTL_SECONDS = 900  # 15 min — live market data stays fresh, falls back gracefully after
 
+# File-based daily analysis cache: /app/backend/cache/analysis_<ticker>_<YYYY-MM-DD>.json
+ANALYSIS_CACHE_DIR = Path("/app/backend/cache")
+ANALYSIS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 # In-memory fallback cache (used when Mongo is unavailable)
 _MEMORY_CACHE: dict[str, tuple[datetime, Any]] = {}
 
@@ -1198,6 +1202,22 @@ async def analyze(request: Request):
     ticker_region = resolved["region"]
     ticker_exchange = resolved.get("exchange", "")
 
+    # File-based daily cache — same ticker on the same calendar date returns identical DCF output
+    force_refresh = (
+        str(request.query_params.get("force_refresh", "")).lower() in ("1", "true")
+        or bool(body.get("force_refresh"))
+    )
+    _today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    _safe_ticker = re.sub(r"[^A-Za-z0-9._-]", "_", ticker_ns)
+    _daily_cache_path = ANALYSIS_CACHE_DIR / f"analysis_{_safe_ticker}_{_today_str}.json"
+    if not force_refresh and _daily_cache_path.exists():
+        try:
+            _cached_response = json.loads(_daily_cache_path.read_text())
+            logger.info(f"[analyze] {ticker_ns}: returning daily cache hit ({_daily_cache_path.name})")
+            return _cached_response
+        except Exception as _ce:
+            logger.warning(f"[analyze] daily cache read failed, re-running: {_ce}")
+
     # Try cache first for instant response
     cache_key = f"analyze:{ticker_ns}"
 
@@ -1692,6 +1712,13 @@ async def analyze(request: Request):
         f"[analyze] {ticker}: excel_P30={_fv:.2f} "
         f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, rating {_rating})"
     )
+
+    # Write daily file cache so repeated calls today return identical DCF output
+    try:
+        _daily_cache_path.write_text(json.dumps(response))
+        logger.info(f"[analyze] {ticker_ns}: wrote daily cache → {_daily_cache_path.name}")
+    except Exception as _we:
+        logger.warning(f"[analyze] daily cache write failed: {_we}")
 
     # Cache for next time yfinance fails
     await cache_set(cache_key, response)
