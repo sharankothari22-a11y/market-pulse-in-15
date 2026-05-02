@@ -298,6 +298,9 @@ const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹' }) => {
               )}
             </div>
           )}
+          <div style={{ fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 10, lineHeight: 1.5, fontStyle: 'italic' }}>
+            Single-stage Gordon Growth DCF. May underestimate fair value for premium-quality names with structural moats (e.g., AAPL, MSFT). Multi-stage model in next release.
+          </div>
         </>
       )}
       <div style={dividerStyle} />
