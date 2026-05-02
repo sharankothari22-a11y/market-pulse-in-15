@@ -485,7 +485,7 @@ async def _fetch_twelve_data_movers() -> list[dict]:
 # ---- FX ----
 
 async def fetch_fx_safe() -> dict:
-    """Fetch FX rates. Frankfurter API is cloud-friendly, rarely blocked."""
+    """Fetch FX rates with day-over-day change_percent from Frankfurter."""
     default = {
         "CNYINR": {"rate": 13.6, "change_percent": None},
         "EURINR": {"rate": 109.5, "change_percent": None},
@@ -498,19 +498,46 @@ async def fetch_fx_safe() -> dict:
         cached, _ = await cache_get("fx")
         return cached or default
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            r = await client.get("https://api.frankfurter.app/latest?from=INR")
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            # Fetch today and the prior business day in one range request
+            today = datetime.now(timezone.utc).date()
+            lookback = (today - timedelta(days=5)).isoformat()
+            r = await client.get(
+                f"https://api.frankfurter.app/{lookback}..?from=INR"
+            )
             if r.status_code == 200:
                 d = r.json()
-                rates = d.get("rates", {})
-                out = {}
-                for ccy in ["CNY", "EUR", "GBP", "JPY", "SGD", "USD"]:
-                    rate = rates.get(ccy)
-                    if rate:
-                        out[f"{ccy}INR"] = {"rate": round(1 / rate, 4), "change_percent": None}
-                if out:
-                    await cache_set("fx", out)
-                    return out
+                all_rates = d.get("rates", {})  # {date: {CCY: rate, ...}}
+                if len(all_rates) >= 2:
+                    sorted_dates = sorted(all_rates.keys())
+                    latest_rates = all_rates[sorted_dates[-1]]
+                    prev_rates = all_rates[sorted_dates[-2]]
+                    out = {}
+                    for ccy in ["CNY", "EUR", "GBP", "JPY", "SGD", "USD"]:
+                        t = latest_rates.get(ccy)
+                        p = prev_rates.get(ccy)
+                        if not t:
+                            continue
+                        inr_today = round(1 / t, 4)
+                        change_pct = None
+                        if p and p != 0:
+                            inr_prev = 1 / p
+                            change_pct = round((inr_today - inr_prev) / inr_prev * 100, 3)
+                        out[f"{ccy}INR"] = {"rate": inr_today, "change_percent": change_pct}
+                    if out:
+                        await cache_set("fx", out)
+                        return out
+                elif len(all_rates) == 1:
+                    # Only one date returned — still use it, change_percent stays None
+                    rates = list(all_rates.values())[0]
+                    out = {}
+                    for ccy in ["CNY", "EUR", "GBP", "JPY", "SGD", "USD"]:
+                        rate = rates.get(ccy)
+                        if rate:
+                            out[f"{ccy}INR"] = {"rate": round(1 / rate, 4), "change_percent": None}
+                    if out:
+                        await cache_set("fx", out)
+                        return out
     except Exception as e:
         logger.warning(f"fx fetch failed: {e}")
     cached, _ = await cache_get("fx")
