@@ -1437,7 +1437,12 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [reportLoading, setReportLoading] = useState(false);
   const [xlsmState, setXlsmState] = useState('idle');
   const [sessions, setSessions] = useState([]);
-  const [recentTickers, setRecentTickers] = useState([]); // [{ticker, session_id}] — only successful analyses
+  const [recentTickers, setRecentTickers] = useState([
+    { ticker: 'ITC', session_id: null },
+    { ticker: 'ONGC', session_id: null },
+    { ticker: 'COALINDIA', session_id: null },
+    { ticker: 'JPM', session_id: null },
+  ]); // [{ticker, session_id}] — only successful analyses
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
@@ -1839,7 +1844,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           <span className="text-xs text-[#94a3b8]">Recent:</span>
           {[...recentTickers].reverse().map((r) => (
             <button
-              key={r.session_id}
+              key={r.session_id || r.ticker}
               onClick={() => { setSessionId(r.session_id); setTicker(r.ticker); }}
               className={cn(
                 'px-3 py-1 text-xs rounded-full border transition-colors',
