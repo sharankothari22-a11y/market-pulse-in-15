@@ -707,6 +707,29 @@ async def fetch_fii_dii_safe() -> list[dict]:
         history = sorted(history, key=lambda r: r.get("date", ""), reverse=True)[:14]
         await cache_set("fii_dii_history", history)
 
+    # Backfill nifty_close for any entries that are missing or zero
+    if history and YF_AVAILABLE and any(not row.get("nifty_close") for row in history):
+        try:
+            loop = asyncio.get_event_loop()
+            def _nifty_history_sync():
+                tk = yf.Ticker("^NSEI")
+                hist = tk.history(period="20d")
+                if hist is None or hist.empty:
+                    return {}
+                return {idx.date().isoformat(): round(float(hist.loc[idx, "Close"]), 2)
+                        for idx in hist.index}
+            nifty_closes = await loop.run_in_executor(None, _nifty_history_sync)
+            if nifty_closes:
+                updated = False
+                for row in history:
+                    if not row.get("nifty_close") and row.get("date") in nifty_closes:
+                        row["nifty_close"] = nifty_closes[row["date"]]
+                        updated = True
+                if updated:
+                    await cache_set("fii_dii_history", history)
+        except Exception as _nifty_err:
+            logger.debug(f"[fii_dii] nifty_close backfill failed: {_nifty_err}")
+
     if history:
         return history
 
@@ -4293,13 +4316,58 @@ async def chat_message(request: Request):
             status_code=503,
             content={"error": "Chat service not configured"},
         )
+
+    # Build session-aware system prompt when session_id is present
+    system_prompt = BEAVER_CHAT_SYSTEM_PROMPT
+    session_id = (body.get("session_id") or "").strip()
+    if session_id and RP_SESSION_MGR:
+        try:
+            rp_ses = _find_rp_session(session_id)
+            if rp_ses:
+                meta: dict = {}
+                scenarios: dict = {}
+                try: meta = rp_ses.get_meta() or {}
+                except Exception: pass
+                try: scenarios = rp_ses.get_scenarios() or {}
+                except Exception: pass
+                ticker = rp_ses.ticker
+                sector = _detect_sector_simple(ticker)
+                base = (scenarios.get("scenarios") or scenarios).get("base") or {}
+                current_price = scenarios.get("current_price")
+                lines = [f"ACTIVE ANALYSIS: {ticker} ({sector} sector)"]
+                if current_price:
+                    lines.append(f"Current price: ₹{float(current_price):,.2f}")
+                if base.get("price_per_share") is not None:
+                    lines.append(
+                        f"DCF base case: fair value ₹{float(base['price_per_share']):,.2f} | "
+                        f"upside {float(base.get('upside_pct') or 0):+.1f}% | "
+                        f"rating {base.get('rating', '—')}"
+                    )
+                audit = _read_rp_session_file(rp_ses, "audit_log.json")
+                if isinstance(audit, list):
+                    for evt in audit:
+                        if evt.get("event_type") == "scoring_complete":
+                            lines.append(f"Research score: {evt['detail']}")
+                            break
+                if meta.get("thesis") and meta["thesis"] != f"Analysis session for {ticker}":
+                    lines.append(f"Hypothesis: {meta['thesis']}")
+                context_block = (
+                    "\n\nYou have access to the following live research session data:\n"
+                    + "\n".join(lines)
+                    + "\nUse this context when the user asks about the current stock, "
+                    "valuation, or analysis. Answer as their equity research AI assistant."
+                )
+                system_prompt = BEAVER_CHAT_SYSTEM_PROMPT + context_block
+        except Exception as _ctx_err:
+            logger.debug(f"[chat] session context build failed: {_ctx_err}")
+
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         resp = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=500,
-            system=BEAVER_CHAT_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": message}],
         )
         text = "".join(b.text for b in resp.content if hasattr(b, "text"))

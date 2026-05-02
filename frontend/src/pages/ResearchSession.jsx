@@ -409,14 +409,20 @@ const SCORE_DIMS = [
   { key: 'valuation_attractiveness', label: 'Valuation',              weight: 25 },
   { key: 'risk_score',               label: 'Risk',                   weight: 15 },
   { key: 'market_positioning',       label: 'Market Position',        weight: 10 },
+  { key: 'business_quality',         label: 'Business Quality',       weight:  0, isGrade: true },
 ];
 
 const pickDimensionScores = (scoring) => {
   if (!scoring) return [];
   const src = scoring.dimensions || scoring.scores || scoring.pillars || scoring;
+  const gradeMap = { A: 90, B: 70, C: 50, D: 30 };
   const out = [];
   for (const dim of SCORE_DIMS) {
     const v = src?.[dim.key] ?? scoring?.[dim.key];
+    if (dim.isGrade && typeof v === 'string' && gradeMap[v.toUpperCase()] != null) {
+      out.push({ ...dim, score: gradeMap[v.toUpperCase()], grade: v.toUpperCase() });
+      continue;
+    }
     const num = typeof v === 'number' ? v
       : typeof v === 'object' && v != null ? (v.score ?? v.value ?? v.pct) : null;
     if (typeof num === 'number' && !Number.isNaN(num)) {
@@ -481,11 +487,13 @@ const ScorePanel = ({ researchData }) => {
                              width: 96, flexShrink: 0 }}>
                 {d.label}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 999,
-                             backgroundColor: 'var(--bi-bg-subtle, #EEF1F6)',
-                             color: 'var(--bi-text-tertiary, #8593AB)', flexShrink: 0 }}>
-                {d.weight}%
-              </span>
+              {d.weight > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 999,
+                               backgroundColor: 'var(--bi-bg-subtle, #EEF1F6)',
+                               color: 'var(--bi-text-tertiary, #8593AB)', flexShrink: 0 }}>
+                  {d.weight}%
+                </span>
+              )}
               <div style={{ flex: 1, height: 5, borderRadius: 3,
                             backgroundColor: 'var(--bi-bg-subtle, #EEF1F6)', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${d.score}%`,
@@ -495,7 +503,7 @@ const ScorePanel = ({ researchData }) => {
               <span style={{ fontSize: 11, fontWeight: 600, color: dimBarColor(d.score),
                              width: 42, textAlign: 'right', flexShrink: 0,
                              fontVariantNumeric: 'tabular-nums' }}>
-                {Math.round(d.score)}/100
+                {d.grade ? `Grade ${d.grade}` : `${Math.round(d.score)}/100`}
               </span>
             </div>
           ))}

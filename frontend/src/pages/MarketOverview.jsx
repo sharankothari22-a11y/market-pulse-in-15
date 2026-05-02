@@ -4,8 +4,8 @@ import { Loader2, Search, BarChart2 } from 'lucide-react';
 import { validateTicker } from '@/lib/ticker';
 import { NewsFeed } from '@/components/ui/NewsFeed';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, ReferenceLine,
+  ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -21,6 +21,7 @@ const COMMODITY_LABELS = {
   'SI=F': { name: 'Silver',            venue: 'COMEX' },
   'CL=F': { name: 'Crude oil · WTI',   venue: 'NYMEX' },
   'BZ=F': { name: 'Crude oil · Brent', venue: 'ICE'   },
+  'NG=F': { name: 'Natural Gas',        venue: 'NYMEX' },
 };
 
 const transformCommodities = (commodities = []) =>
@@ -81,6 +82,7 @@ const transformFiiDiiChart = (fiiDii = []) => {
   return fiiDii.slice(0, 7).reverse().map((row) => {
     const fii = row.fii_net ?? row.fii ?? row.FII ?? 0;
     const dii = row.dii_net ?? row.dii ?? row.DII ?? 0;
+    const nifty = row.nifty_close ?? 0;
     const date = row.date || row.trade_date || '';
     let short = date;
     try {
@@ -91,6 +93,7 @@ const transformFiiDiiChart = (fiiDii = []) => {
       date: short,
       FII: typeof fii === 'number' ? +fii.toFixed(0) : 0,
       DII: typeof dii === 'number' ? +dii.toFixed(0) : 0,
+      NIFTY: typeof nifty === 'number' && nifty > 0 ? +nifty.toFixed(2) : null,
     };
   });
 };
@@ -419,22 +422,33 @@ const FiiDiiBarChart = ({ data }) => {
     );
   };
 
+  const hasNifty = data.some((d) => d.NIFTY != null && d.NIFTY > 0);
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 4 }}>
+      <ComposedChart data={data} margin={{ top: 8, right: hasNifty ? 36 : 6, left: 0, bottom: 4 }}>
         <CartesianGrid stroke="var(--bi-border-subtle)" vertical={false} />
         <XAxis dataKey="date"
                tick={{ fill: 'var(--bi-text-tertiary)', fontSize: 11 }}
                axisLine={{ stroke: 'var(--bi-border-subtle)' }} tickLine={false} />
-        <YAxis tick={{ fill: 'var(--bi-text-tertiary)', fontSize: 11 }}
+        <YAxis yAxisId="flows" tick={{ fill: 'var(--bi-text-tertiary)', fontSize: 11 }}
                axisLine={false} tickLine={false} width={40} />
-        <ReferenceLine y={0} stroke="var(--bi-border-strong)" />
+        {hasNifty && (
+          <YAxis yAxisId="nifty" orientation="right"
+                 tick={{ fill: 'var(--bi-text-tertiary)', fontSize: 10 }}
+                 axisLine={false} tickLine={false} width={36}
+                 tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+        )}
+        <ReferenceLine yAxisId="flows" y={0} stroke="var(--bi-border-strong)" />
         <Tooltip content={<TooltipBox />} cursor={{ fill: 'rgba(27,58,107,0.05)' }} />
         <Legend wrapperStyle={{ fontSize: 11, color: 'var(--bi-text-secondary)', paddingTop: 4 }}
                 iconType="square" iconSize={8} />
-        <Bar dataKey="FII" fill="var(--bi-navy-700)" maxBarSize={22} radius={[2, 2, 0, 0]} />
-        <Bar dataKey="DII" fill="var(--bi-tile-ochre-fg)" maxBarSize={22} radius={[2, 2, 0, 0]} />
-      </BarChart>
+        <Bar yAxisId="flows" dataKey="FII" fill="var(--bi-navy-700)" maxBarSize={22} radius={[2, 2, 0, 0]} />
+        <Bar yAxisId="flows" dataKey="DII" fill="var(--bi-tile-ochre-fg)" maxBarSize={22} radius={[2, 2, 0, 0]} />
+        {hasNifty && (
+          <Line yAxisId="nifty" dataKey="NIFTY" dot={false} strokeWidth={1.5}
+                stroke="#6B7280" strokeDasharray="3 3" connectNulls />
+        )}
+      </ComposedChart>
     </ResponsiveContainer>
   );
 };
