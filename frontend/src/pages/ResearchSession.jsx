@@ -989,6 +989,8 @@ const GuardrailPanel = ({ sessionId }) => {
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
       ) : loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
+      ) : !data?.engine_ran ? (
+        <div style={emptyStyle}>No signals reached the guardrail engine this session</div>
       ) : data?.all_passed ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
           <span style={guardrailChipStyle('pass')}>PASS</span>
@@ -1036,8 +1038,8 @@ const AssumptionHistoryPanel = ({ sessionId }) => {
     if (!open || !isValidSessionId(sessionId) || history) return;
     setLoading(true);
     apiGet(`/api/research/${sessionId}/assumption_history`)
-      .then(d => setHistory(d.history || []))
-      .catch(() => setHistory([]))
+      .then(d => setHistory({ items: d.history || [], engine_ran: d.engine_ran === true }))
+      .catch(() => setHistory({ items: [], engine_ran: false }))
       .finally(() => setLoading(false));
   }, [open, sessionId, history]);
 
@@ -1053,13 +1055,15 @@ const AssumptionHistoryPanel = ({ sessionId }) => {
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
       ) : loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
-      ) : !history || history.length === 0 ? (
-        <div style={emptyStyle}>No assumption changes recorded</div>
+      ) : !history?.engine_ran ? (
+        <div style={emptyStyle}>No signal-driven assumption changes this session</div>
+      ) : !history?.items || history.items.length === 0 ? (
+        <div style={emptyStyle}>Guardrails ran — all changes within bounds, none applied</div>
       ) : (
         <div style={{ position: 'relative', paddingLeft: 18 }}>
           <div style={{ position: 'absolute', left: 6, top: 6, bottom: 6,
                         width: 2, backgroundColor: 'var(--bi-border-subtle, #E3E8EF)', borderRadius: 1 }} />
-          {history.map((entry, i) => {
+          {(history?.items || []).map((entry, i) => {
             const ts = entry.timestamp || entry.assumptions?._initialized_at || '';
             const evt = entry.event || 'update';
             const delta = entry.delta || {};

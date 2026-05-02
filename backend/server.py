@@ -167,6 +167,14 @@ except Exception as e:
     _rp_errors.append(f"factor_engine: {e}")
 
 try:
+    from ai_engine.assumption_engine import AssumptionEngine as _RpAssumptionEngine
+    RP_ASSUMPTION_ENGINE = True
+except Exception as e:
+    RP_ASSUMPTION_ENGINE = False
+    _RpAssumptionEngine = None
+    _rp_errors.append(f"assumption_engine: {e}")
+
+try:
     from research_platform.ticker_resolver import resolve_ticker
     RESOLVER_AVAILABLE = True
 except Exception as e:
@@ -1374,6 +1382,16 @@ async def analyze(request: Request):
                     logger.info(f"[analyze] {ticker}: {len(rp_factor_deltas)} factor deltas")
                 except Exception as _e:
                     logger.warning(f"[analyze] signals_to_factors failed: {_e}")
+
+            # ── 2b. Run assumption engine (L08) — enforces guardrails, writes
+            #        guardrail_log.json and assumptions_history.json to session dir ──
+            if RP_ASSUMPTION_ENGINE and _RpAssumptionEngine and rp_factor_deltas:
+                try:
+                    _ae = _RpAssumptionEngine(rp_ses)
+                    _ae.process_deltas(rp_factor_deltas)
+                    logger.info(f"[analyze] {ticker}: assumption engine processed {len(rp_factor_deltas)} deltas")
+                except Exception as _e:
+                    logger.warning(f"[analyze] assumption_engine failed: {_e}")
 
             # ── 3. SWOT (needs real scoring object) ──
             if RP_SWOT and rp_generate_swot and scoring is not None:
