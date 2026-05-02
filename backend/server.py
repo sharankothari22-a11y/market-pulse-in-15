@@ -980,6 +980,14 @@ INDICES = [
     ("SENSEX", "^BSESN"),
 ]
 
+# Global indices fetched for the Macro page (same symbols as MacroDashboard INDEX_IDS)
+GLOBAL_INDICES = [
+    ("S&P 500",  "^GSPC"),
+    ("Dow Jones", "^DJI"),
+    ("NASDAQ",   "^IXIC"),
+    ("VIX",      "^VIX"),
+]
+
 async def fetch_indices_safe() -> dict:
     """Fetch NIFTY 50 and SENSEX levels. Never raises."""
     out = {}
@@ -3987,7 +3995,57 @@ async def macro():
         return {"indicators": indicators, "globalEvents": global_events, "macroMicro": []}
     except Exception as exc:
         logger.debug(f"[macro] DB read failed: {exc}")
-        return {"indicators": [], "globalEvents": [], "macroMicro": [], "db_status": "unavailable"}
+
+    # yfinance fallback for Live Market Indices section when DB is unavailable
+    return await _macro_indices_yf_fallback()
+
+
+async def _macro_indices_yf_fallback() -> dict:
+    """Build macro response with live indices from yfinance when DB is unavailable."""
+    indicators = []
+    if YF_AVAILABLE:
+        try:
+            loop = asyncio.get_event_loop()
+            all_index_pairs = INDICES + GLOBAL_INDICES
+
+            def _fetch_index(name: str, symbol: str):
+                try:
+                    tk = yf.Ticker(symbol)
+                    hist = tk.history(period="2d")
+                    if hist is not None and not hist.empty:
+                        price = _safe_float(hist["Close"].iloc[-1])
+                        prev = _safe_float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
+                        change_pct = ((price - prev) / prev * 100) if (price and prev and prev != 0) else None
+                        change_type = "neutral"
+                        if change_pct is not None:
+                            change_type = "positive" if change_pct >= 0 else "negative"
+                        fmt_price = f"{price:,.2f}" if price else "—"
+                        fmt_change = f"{change_pct:+.2f}%" if change_pct is not None else "—"
+                        return {
+                            "id": symbol,
+                            "title": name,
+                            "value": fmt_price,
+                            "raw_value": price,
+                            "change": fmt_change,
+                            "change_raw": change_pct,
+                            "changeType": change_type,
+                            "subtitle": "yfinance · live",
+                        }
+                except Exception as _e:
+                    logger.debug(f"[macro_yf] {symbol}: {_e}")
+                return None
+
+            results = await asyncio.gather(
+                *[loop.run_in_executor(None, _fetch_index, n, s) for n, s in all_index_pairs],
+                return_exceptions=True,
+            )
+            indicators = [r for r in results if isinstance(r, dict)]
+            logger.info(f"[macro] yfinance fallback: {len(indicators)} indices")
+        except Exception as _yfe:
+            logger.warning(f"[macro] yfinance fallback failed: {_yfe}")
+
+    return {"indicators": indicators, "globalEvents": [], "macroMicro": [], "db_status": "unavailable"}
+
 
 @api_router.get("/signals")
 @safe_endpoint(lambda: {"status": "unavailable", "reason": "database offline", "signals": []})
