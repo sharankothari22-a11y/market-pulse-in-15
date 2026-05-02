@@ -2322,6 +2322,9 @@ def _execute_notebook_blocking(
         _erp_pct = round(_res["equity_risk_premium"] * 100, 4)
         _ccy = _res["currency"]
         _ccy_sym = _res["currency_symbol"]
+        # Terminal growth: region-aware defaults (IN higher nominal GDP; US/GB lower)
+        _region_tg = {"IN": 5.0, "GB": 3.0, "EU": 2.5, "JP": 2.0}
+        _tg_pct = _region_tg.get(_res.get("region", "US"), 3.5)
         pm.execute_notebook(
             input_path=str(patched_nb),
             output_path=str(executed_nb),
@@ -2331,6 +2334,7 @@ def _execute_notebook_blocking(
                 "EQUITY_RISK_PREMIUM": _erp_pct,
                 "LOCAL_CURRENCY": _ccy,
                 "CURRENCY_SYMBOL": _ccy_sym,
+                "TERMINAL_GROWTH": _tg_pct,
             },
             kernel_name="python3",
             cwd=str(DCF_NOTEBOOK_SRC.parent),
