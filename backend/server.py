@@ -4085,7 +4085,19 @@ async def _macro_indices_yf_fallback() -> dict:
         except Exception as _yfe:
             logger.warning(f"[macro] yfinance fallback failed: {_yfe}")
 
-    return {"indicators": indicators, "globalEvents": [], "macroMicro": [], "db_status": "unavailable"}
+    mock_events_path = Path("/app/backend/data/mock_global_events.json")
+    mock_global_events: list = []
+    if mock_events_path.exists():
+        with open(mock_events_path) as _f:
+            mock_global_events = json.load(_f)
+
+    return {
+        "indicators": indicators,
+        "globalEvents": mock_global_events,
+        "macroMicro": [],
+        "db_status": "ok" if mock_global_events else "unavailable",
+        "events_source": "demo_mode" if mock_global_events else None,
+    }
 
 
 @api_router.get("/signals")

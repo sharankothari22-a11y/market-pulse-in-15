@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ge-001",
+    "event": "FOMC holds rates at 4.50–4.75%; Powell flags 'patient' stance amid sticky services inflation",
+    "region": "US",
+    "impact": "Neutral"
+  },
+  {
+    "id": "ge-002",
+    "event": "RBI MPC cuts repo rate 25bps to 6.25%; growth-inflation balance tilts toward easing",
+    "region": "India",
+    "impact": "Positive"
+  },
+  {
+    "id": "ge-003",
+    "event": "ECB holds at 4.00%; Lagarde signals June cut increasingly likely on disinflation progress",
+    "region": "Europe",
+    "impact": "Positive"
+  },
+  {
+    "id": "ge-004",
+    "event": "BoE holds at 5.25%; MPC split 6-3 as services CPI remains above 5.5%",
+    "region": "UK",
+    "impact": "Neutral"
+  },
+  {
+    "id": "ge-005",
+    "event": "Brent crude breaks $85/bbl on OPEC+ supply discipline and Middle East risk premium",
+    "region": "Global",
+    "impact": "Negative"
+  },
+  {
+    "id": "ge-006",
+    "event": "China April PMI 49.4 vs consensus 49.8; manufacturing weakness extends third consecutive month",
+    "region": "China",
+    "impact": "Negative"
+  },
+  {
+    "id": "ge-007",
+    "event": "US CPI April +3.2% YoY (consensus +3.1%); core services stickiness keeps disinflation pace slow",
+    "region": "US",
+    "impact": "Negative"
+  },
+  {
+    "id": "ge-008",
+    "event": "India CPI April +5.1% YoY (consensus +5.0%); food inflation remains key MPC swing factor",
+    "region": "India",
+    "impact": "Neutral"
+  },
+  {
+    "id": "ge-009",
+    "event": "Japan 10Y JGB yield breaks 1.05%; BoJ yield curve control exit speculation intensifies",
+    "region": "Japan",
+    "impact": "Neutral"
+  },
+  {
+    "id": "ge-010",
+    "event": "US non-farm payrolls April +189K (consensus +210K); unemployment edges up to 3.9%",
+    "region": "US",
+    "impact": "Neutral"
+  }
+]
