@@ -1,0 +1,128 @@
+[
+  {
+    "id": "mock-001",
+    "title": "HDFCBANK: Q4FY26 PAT ₹17,622 Cr, NPA ratio improves to 1.1% — asset quality at multi-year best",
+    "timestamp": "2026-05-03 09:15:00",
+    "severity": "positive",
+    "sector": "banking",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-002",
+    "title": "ICICIBANK: Q4FY26 loan growth 14.2% YoY, PAT up 18%; retail momentum remains broad-based",
+    "timestamp": "2026-05-03 10:02:00",
+    "severity": "positive",
+    "sector": "banking",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-003",
+    "title": "KOTAKBANK: Net interest margin compresses 12 bps QoQ to 4.87%; deposit repricing headwinds persist into Q1FY27",
+    "timestamp": "2026-05-03 11:44:00",
+    "severity": "negative",
+    "sector": "banking",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-004",
+    "title": "RBI draft circular on infrastructure provisioning norms — systemic capital impact for HDFCBANK, SBI, ICICIBANK being assessed",
+    "timestamp": "2026-05-02 16:30:00",
+    "severity": "danger",
+    "sector": "banking",
+    "signalType": "Regulatory",
+    "source_url": ""
+  },
+  {
+    "id": "mock-005",
+    "title": "TCS: BFSI vertical deceleration continues — Q4FY26 commentary signals cautious deal pipeline for H1FY27",
+    "timestamp": "2026-05-03 08:55:00",
+    "severity": "negative",
+    "sector": "it",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-006",
+    "title": "INFY: Large deal TCV of $1.2B in Q4FY26 retail & logistics vertical; total bookings up 22% QoQ",
+    "timestamp": "2026-05-03 07:30:00",
+    "severity": "positive",
+    "sector": "it",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-007",
+    "title": "WIPRO: Client-specific furloughs in energy vertical extend into Q1FY27; guidance band below street consensus",
+    "timestamp": "2026-05-02 14:20:00",
+    "severity": "warning",
+    "sector": "it",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-008",
+    "title": "RELIANCE: Q4FY26 refining margins hit $10.8/bbl (+18% QoQ); O2C segment earnings significantly outperform",
+    "timestamp": "2026-05-03 12:10:00",
+    "severity": "positive",
+    "sector": "petroleum",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-009",
+    "title": "ONGC: Brent crude breakout above $87 supports FY27 realization upside; upstream earnings leverage elevated",
+    "timestamp": "2026-05-02 18:05:00",
+    "severity": "positive",
+    "sector": "petroleum",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-010",
+    "title": "SUNPHARMA: USFDA issues Form 483 for Halol plant with 7 observations — remediation timeline and ANDA approvals at risk",
+    "timestamp": "2026-05-02 20:45:00",
+    "severity": "warning",
+    "sector": "pharma",
+    "signalType": "Regulatory",
+    "source_url": ""
+  },
+  {
+    "id": "mock-011",
+    "title": "DRREDDY: 4 ANDA approvals in April 2026; gRevlimid ramp continues with US generics pipeline strengthening",
+    "timestamp": "2026-05-03 06:50:00",
+    "severity": "positive",
+    "sector": "pharma",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-012",
+    "title": "CIPLA: Pricing pressure in US injectables — gAlbuterol faces 3 new market entrants in Q1CY26, margin headwind likely",
+    "timestamp": "2026-05-02 13:15:00",
+    "severity": "negative",
+    "sector": "pharma",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-013",
+    "title": "ITC: Cigarette volume growth tracking +6% YoY in Q4FY26; FMCG segment EBITDA margins expand to 9.4%",
+    "timestamp": "2026-05-03 10:30:00",
+    "severity": "positive",
+    "sector": "fmcg",
+    "signalType": "Signal",
+    "source_url": ""
+  },
+  {
+    "id": "mock-014",
+    "title": "HINDUNILVR: Rural demand recovery tracking below expectation in Q4FY26; premium segment volume growth softening",
+    "timestamp": "2026-05-02 15:40:00",
+    "severity": "warning",
+    "sector": "fmcg",
+    "signalType": "Signal",
+    "source_url": ""
+  }
+]

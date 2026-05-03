@@ -4127,6 +4127,11 @@ async def signals():
         return {"signals": signals_out}
     except Exception as exc:
         logger.debug(f"[signals] DB read failed: {exc}")
+        mock_path = Path("/app/backend/data/mock_signals.json")
+        if mock_path.exists():
+            with open(mock_path) as f:
+                mock_signals = json.load(f)
+            return {"status": "ok", "reason": "demo_mode", "signals": mock_signals}
         return {"status": "unavailable", "reason": "database offline", "signals": []}
 
 @api_router.get("/alerts")
