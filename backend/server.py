@@ -1716,6 +1716,49 @@ async def analyze(request: Request):
         f"(upside {_ups if _ups is None else f'{_ups:.1f}%'}, rating {_rating})"
     )
 
+    # ── Beaver: fetch key value drivers ──────────────────────────────
+    try:
+        _beaver_result = subprocess.run(
+            ["node", "personalized-agent/cli/model.js",
+             "--ticker", ticker, "--metric", "drivers", "--premium"],
+            cwd="/app/backend", capture_output=True, text=True, timeout=30
+        )
+        _beaver_json = {}
+        if _beaver_result.returncode == 0 and _beaver_result.stdout.strip():
+            _bm = re.search(r'\{[\s\S]*\}', _beaver_result.stdout)
+            if _bm:
+                _beaver_json = json.loads(_bm.group())
+        response["drivers"] = _beaver_json.get("drivers", [])
+        logger.info(f"[analyze] {ticker}: beaver drivers={len(response['drivers'])}")
+    except Exception as _be:
+        response["drivers"] = []
+        logger.warning(f"[analyze] beaver failed: {_be}")
+
+    # ── War Room: debate + final verdict ─────────────────────────────
+    try:
+        _wr_input = json.dumps({
+            "dcf": response.get("dcf", {}),
+            "drivers": response.get("drivers", []),
+        })
+        _wr_result = subprocess.run(
+            ["node", "war-room/orchestrator.js",
+             "--ticker", ticker, "--input", _wr_input],
+            cwd="/app/backend", capture_output=True, text=True, timeout=60
+        )
+        _wr_json = {}
+        if _wr_result.returncode == 0 and _wr_result.stdout.strip():
+            _wm = re.search(r'\{[\s\S]*\}', _wr_result.stdout)
+            if _wm:
+                _wr_json = json.loads(_wm.group())
+        response["war_room"] = _wr_json
+        logger.info(
+            f"[analyze] {ticker}: war_room vote={_wr_json.get('vote')} "
+            f"confidence={_wr_json.get('confidence')}"
+        )
+    except Exception as _wre:
+        response["war_room"] = {}
+        logger.warning(f"[analyze] war room failed: {_wre}")
+
     # Write daily file cache so repeated calls today return identical DCF output
     try:
         _daily_cache_path.write_text(json.dumps(response))
@@ -1728,6 +1771,63 @@ async def analyze(request: Request):
     # Also cache by session_id so GET /research/{session_id} works
     await cache_set(f"session:{session_id}", response)
     return response
+
+
+# ═══════════════════════════════════════════════════════════════════
+# BEAVER + WAR ROOM standalone endpoints
+# ═══════════════════════════════════════════════════════════════════
+
+@api_router.post("/agent/drivers")
+async def get_drivers(request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    ticker = (body.get("ticker") or "").upper().strip()
+    if not ticker:
+        return {"error": "ticker required", "drivers": []}
+    try:
+        result = subprocess.run(
+            ["node", "personalized-agent/cli/model.js",
+             "--ticker", ticker, "--metric", "drivers", "--premium"],
+            cwd="/app/backend", capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0:
+            return {"error": result.stderr, "drivers": []}
+        m = re.search(r'\{[\s\S]*\}', result.stdout)
+        return json.loads(m.group()) if m else {"drivers": []}
+    except Exception as e:
+        logger.warning(f"[agent/drivers] {e}")
+        return {"error": str(e), "drivers": []}
+
+
+@api_router.post("/warroom/run")
+async def run_warroom(request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    ticker = (body.get("ticker") or "").upper().strip()
+    dcf_report = body.get("dcf_report", {})
+    drivers = body.get("drivers", [])
+    if not ticker:
+        return {"error": "ticker required", "final_report": ""}
+    try:
+        wr_input = json.dumps({"dcf": dcf_report, "drivers": drivers})
+        result = subprocess.run(
+            ["node", "war-room/orchestrator.js",
+             "--ticker", ticker, "--input", wr_input],
+            cwd="/app/backend", capture_output=True, text=True, timeout=120
+        )
+        if result.returncode != 0:
+            return {"error": result.stderr, "final_report": "War room unavailable"}
+        m = re.search(r'\{[\s\S]*\}', result.stdout)
+        return json.loads(m.group()) if m else {"final_report": "Parse error"}
+    except Exception as e:
+        logger.warning(f"[warroom/run] {e}")
+        return {"error": str(e), "final_report": "War room unavailable"}
 
 
 # ═══════════════════════════════════════════════════════════════════

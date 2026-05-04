@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils';
 import SWOTPanel from '@/components/research/SWOTPanel';
 import PorterPanel from '@/components/research/PorterPanel';
 import SectorCallout from '@/components/research/SectorCallout';
-import CommandCenterLoader from '@/components/research/CommandCenterLoader';
+import CommandCenterLoader from '@/components/research/CommandCenterLoader'
+import WarRoomReport from '@/components/research/WarRoomReport';
 
 const SCENARIO_KEYS = ['bull', 'base', 'bear'];
 
@@ -1884,6 +1885,8 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           <span className="ml-2 text-[#64748b]">Loading research data...</span>
         </div>
       ) : hasSession ? (
+        <>
+        {researchData?.war_room && <WarRoomReport data={researchData.war_room} />}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 12 }}>
           {/* Row 1 — full-width header */}
           <div style={{ gridColumn: 'span 12' }}>
@@ -1982,6 +1985,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <InsiderTradesPanel ticker={researchData?.ticker} sym={sym} />
           </div>
         </div>
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Search className="w-12 h-12 text-[#e5e7eb] mb-4" />
