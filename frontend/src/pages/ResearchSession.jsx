@@ -87,6 +87,7 @@ const panelStyle = {
   borderRadius: 10,
   padding: 14,
   boxShadow: 'var(--bi-shadow-card, 0 1px 2px rgba(15,37,64,0.04))',
+  flex: 1,
 };
 const titleStyle = {
   fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
@@ -1941,30 +1942,37 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
             <SectorCallout sector={researchData?.sector} />
           </div>
 
-          {/* Row 2 — Valuation / Reverse DCF / Score / Factor Scores */}
-          <div style={{ gridColumn: 'span 4' }}>
-            <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence}
-                            sym={sym} showReconcileNote={showValuationReconcileNote} />
-          </div>
-          <div style={{ gridColumn: 'span 4' }}>
-            <ReverseDcfPanel researchData={researchData} sym={sym} />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <ScorePanel researchData={researchData} showReconcileNote={showScoreReconcileNote} />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <FactorScoresPanel sessionId={sessionId} scoring={researchData?.scoring} />
-          </div>
+          {/* Rows 2–3 — panel grid with consistent min-heights */}
+          <div style={{ gridColumn: 'span 12',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(12, 1fr)',
+                        gridAutoRows: 'minmax(280px, auto)',
+                        gap: 12 }}>
+            {/* Row 2 — Valuation / Reverse DCF / Score / Factor Scores */}
+            <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+              <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence}
+                              sym={sym} showReconcileNote={showValuationReconcileNote} />
+            </div>
+            <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+              <ReverseDcfPanel researchData={researchData} sym={sym} />
+            </div>
+            <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column' }}>
+              <ScorePanel researchData={researchData} showReconcileNote={showScoreReconcileNote} />
+            </div>
+            <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column' }}>
+              <FactorScoresPanel sessionId={sessionId} scoring={researchData?.scoring} />
+            </div>
 
-          {/* Row 3 — Sensitivity / Forecast / Peer Comparison */}
-          <div style={{ gridColumn: 'span 4' }}>
-            <SensitivityPanel researchData={researchData} currentPrice={livePrice} />
-          </div>
-          <div style={{ gridColumn: 'span 4' }}>
-            <ForecastPanel researchData={researchData} dcfData={dcfData} sym={sym} />
-          </div>
-          <div style={{ gridColumn: 'span 4' }}>
-            <PeerComparisonPanel sessionId={sessionId} />
+            {/* Row 3 — Sensitivity / Forecast / Peer Comparison */}
+            <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+              <SensitivityPanel researchData={researchData} currentPrice={livePrice} />
+            </div>
+            <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+              <ForecastPanel researchData={researchData} dcfData={dcfData} sym={sym} />
+            </div>
+            <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+              <PeerComparisonPanel sessionId={sessionId} />
+            </div>
           </div>
 
           {/* Row 4 — History / Risk flags */}
