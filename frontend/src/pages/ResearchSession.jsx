@@ -1877,7 +1877,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
       )}
 
       {showLoader ? (
-        <CommandCenterLoader />
+        <CommandCenterLoader ticker={ticker} />
       ) : loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-[#2563eb]" />

@@ -681,7 +681,7 @@ const stages = [
 const NODE_X_START = 56;
 const NODE_X_END   = 624;
 
-export default function CommandCenterLoader() {
+export default function CommandCenterLoader({ ticker }) {
   const containerRef = useRef(null);
   const timerRef     = useRef(null);
   const captionRef   = useRef(null);
@@ -691,6 +691,11 @@ export default function CommandCenterLoader() {
     if (!root) return;
     const t = requestAnimationFrame(() => { root.style.opacity = '1'; });
     return () => cancelAnimationFrame(t);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
   }, []);
 
   useEffect(() => {
@@ -790,42 +795,56 @@ export default function CommandCenterLoader() {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        maxWidth: 680,
-        margin: '0 auto',
-        background: '#050A07',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        borderRadius: 10,
-        opacity: 0,
-        transition: 'opacity 200ms ease-in',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 4px', fontSize: 12 }}>
-        <span style={{ fontWeight: 600, color: '#D4A24C', letterSpacing: '1.2px' }}>
-          BEAVER INTELLIGENCE · COMMAND CENTER
-        </span>
-        <span ref={timerRef} style={{ color: '#888', fontFamily: 'monospace' }}>00:00 / 00:15</span>
-      </div>
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 9999,
+      background: '#050A07',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          maxWidth: 1200,
+          padding: '0 32px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          opacity: 0,
+          transition: 'opacity 200ms ease-in',
+        }}
+      >
+        {ticker && (
+          <div style={{ textAlign: 'center', padding: '0 4px 10px', letterSpacing: '2.5px', fontSize: 11, color: '#997733', fontFamily: 'monospace' }}>
+            ANALYZING {ticker}
+          </div>
+        )}
 
-      {/* SVG rendered via dangerouslySetInnerHTML to avoid JSX conversion of complex SVG */}
-      <div dangerouslySetInnerHTML={{ __html: SVG_MARKUP }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 4px', fontSize: 12 }}>
+          <span style={{ fontWeight: 600, color: '#D4A24C', letterSpacing: '1.2px' }}>
+            BEAVER INTELLIGENCE · COMMAND CENTER
+          </span>
+          <span ref={timerRef} style={{ color: '#888', fontFamily: 'monospace' }}>00:00 / 00:15</span>
+        </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px 4px', fontSize: 12 }}>
-        <span ref={captionRef} style={{ color: '#D4A24C', fontWeight: 500 }}>
-          Data fetching · pulling live feeds
-        </span>
-        <span style={{ color: '#666', fontFamily: 'monospace', fontSize: 11 }}>
-          NYC · Boston · Ahmedabad
-        </span>
-      </div>
+        {/* SVG rendered via dangerouslySetInnerHTML to avoid JSX conversion of complex SVG */}
+        <div dangerouslySetInnerHTML={{ __html: SVG_MARKUP }} />
 
-      {/* Buttons hidden — kept for JS hook parity with source */}
-      <div style={{ display: 'none' }}>
-        <button id="bi8-replay">Replay</button>
-        <button id="bi8-pause">Pause</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px 4px', fontSize: 12 }}>
+          <span ref={captionRef} style={{ color: '#D4A24C', fontWeight: 500 }}>
+            Data fetching · pulling live feeds
+          </span>
+          <span style={{ color: '#666', fontFamily: 'monospace', fontSize: 11 }}>
+            NYC · Boston · Ahmedabad
+          </span>
+        </div>
+
+        {/* Buttons hidden — kept for JS hook parity with source */}
+        <div style={{ display: 'none' }}>
+          <button id="bi8-replay">Replay</button>
+          <button id="bi8-pause">Pause</button>
+        </div>
       </div>
     </div>
   );
