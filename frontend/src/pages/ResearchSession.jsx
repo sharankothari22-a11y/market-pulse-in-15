@@ -258,9 +258,19 @@ const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹', showReco
   const bear = byKey.bear;
   const baseRating = base ? normalizeRating(base.rating) : null;
   const rs = baseRating ? ratingStyle(baseRating) : null;
-  const upsideColor = base?.upside_pct == null
+
+  const UPSIDE_CAP = 50;
+  const isCapped = base?.upside_pct != null && base.upside_pct > UPSIDE_CAP;
+  const displayUpside = isCapped ? UPSIDE_CAP : base?.upside_pct;
+  const displayPrice = (() => {
+    if (!isCapped || base?.price_per_share == null || base?.upside_pct == null) return base?.price_per_share;
+    const currentImplied = base.price_per_share / (1 + base.upside_pct / 100);
+    return currentImplied * 1.50;
+  })();
+
+  const upsideColor = displayUpside == null
     ? 'var(--bi-text-tertiary, #8593AB)'
-    : base.upside_pct >= 0 ? 'var(--bi-success-fg, #0F7A3E)' : 'var(--bi-danger-fg, #C7372F)';
+    : displayUpside >= 0 ? 'var(--bi-success-fg, #0F7A3E)' : 'var(--bi-danger-fg, #C7372F)';
 
   return (
     <Panel title="Valuation" testId="panel-valuation">
@@ -277,11 +287,17 @@ const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹', showReco
         <>
           <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)',
                         fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-            {fmtCurrency(base.price_per_share, sym)}
+            {fmtCurrency(displayPrice, sym)}
           </div>
           <div style={{ fontSize: 13, color: upsideColor, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
-            {fmtPct(base.upside_pct)} <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}>vs current</span>
+            {fmtPct(displayUpside)} <span style={{ color: 'var(--bi-text-tertiary, #8593AB)' }}>vs current</span>
           </div>
+          {isCapped && (
+            <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)', marginTop: 4,
+                          fontStyle: 'italic', lineHeight: 1.4 }}>
+              Fair value capped at +50% — full model output in Excel download
+            </div>
+          )}
           {baseRating && (
             <div style={{ marginTop: 8 }}>
               <span style={{
