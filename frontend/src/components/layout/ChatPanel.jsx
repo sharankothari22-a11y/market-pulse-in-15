@@ -29,7 +29,7 @@ export const ChatPanel = ({ sessionId, open, onOpen, onClose }) => {
         onClick={onOpen}
         className="fixed flex items-center justify-center transition-transform"
         style={{
-          bottom: 24, right: 24,
+          bottom: 80, right: 24,
           width: 56, height: 56, borderRadius: '50%',
           backgroundColor: 'var(--bi-navy-700)',
           color: 'var(--bi-text-inverse)',
@@ -78,7 +78,7 @@ export const ChatPanel = ({ sessionId, open, onOpen, onClose }) => {
     <aside
       className="fixed flex flex-col animate-in fade-in"
       style={{
-        bottom: 24, right: 24,
+        bottom: 80, right: 24,
         width: 380,
         height: 'min(640px, calc(100vh - 48px))',
         backgroundColor: 'var(--bi-bg-card)',
