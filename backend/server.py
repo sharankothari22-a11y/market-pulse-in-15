@@ -952,6 +952,8 @@ async def market_overview():
     indices = await fetch_indices_safe()
     nifty = indices.get("NIFTY50") or indices.get("NIFTY 50") or {}
     sensex = indices.get("SENSEX") or {}
+    nasdaq = indices.get("nasdaq") or indices.get("NASDAQ") or {}
+    sp500 = indices.get("sp500") or indices.get("SP500") or {}
 
     return {
         "top_movers": top_movers,
@@ -971,6 +973,14 @@ async def market_overview():
         "nifty_change_percent": nifty.get("change_percent"),
         "sensex_value": sensex.get("value"),
         "sensex_change_percent": sensex.get("change_percent"),
+        "nasdaq": nasdaq,
+        "NASDAQ": nasdaq,
+        "nasdaq_value": nasdaq.get("value"),
+        "nasdaq_change_percent": nasdaq.get("change_percent"),
+        "sp500": sp500,
+        "SP500": sp500,
+        "sp500_value": sp500.get("value"),
+        "sp500_change_percent": sp500.get("change_percent"),
         "last_updated": datetime.now(timezone.utc).isoformat(),
         "_meta": {
             "movers_source": movers_source,
@@ -983,6 +993,8 @@ async def market_overview():
 INDICES = [
     ("NIFTY 50", "^NSEI"),
     ("SENSEX", "^BSESN"),
+    ("NASDAQ", "^IXIC"),
+    ("S&P 500", "^GSPC"),
 ]
 
 # Global indices fetched for the Macro page (same symbols as MacroDashboard INDEX_IDS)
@@ -1055,6 +1067,12 @@ async def fetch_indices_safe() -> dict:
                         out["nifty"] = data
                     if "SENSEX" in key_nospace:
                         out["sensex"] = data
+                    if "NASDAQ" in key_nospace.upper():
+                        out["nasdaq"] = data
+                        out["NASDAQ"] = data
+                    if "S&P" in name or "SP500" in key_nospace.upper() or "S&P500" in key_nospace.upper():
+                        out["sp500"] = data
+                        out["SP500"] = data
             if out:
                 await cache_set("indices", out)
                 return out
@@ -1066,6 +1084,10 @@ async def fetch_indices_safe() -> dict:
         "nifty": {"name": "NIFTY 50", "value": None, "change_percent": None},
         "SENSEX": {"name": "SENSEX", "value": None, "change_percent": None},
         "sensex": {"name": "SENSEX", "value": None, "change_percent": None},
+        "NASDAQ": {"name": "NASDAQ", "value": None, "change_percent": None},
+        "nasdaq": {"name": "NASDAQ", "value": None, "change_percent": None},
+        "SP500": {"name": "S&P 500", "value": None, "change_percent": None},
+        "sp500": {"name": "S&P 500", "value": None, "change_percent": None},
     }
 
 # ---------- Sessions ----------

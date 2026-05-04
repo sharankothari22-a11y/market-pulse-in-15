@@ -34,6 +34,8 @@ export const TopBar = ({ currentPage, onNavigate }) => {
   const [indices, setIndices] = useState({
     niftyValue: null, niftyChangePct: null,
     sensexValue: null, sensexChangePct: null,
+    nasdaqValue: null, nasdaqChangePct: null,
+    sp500Value: null, sp500ChangePct: null,
   });
 
   useEffect(() => {
@@ -49,6 +51,8 @@ export const TopBar = ({ currentPage, onNavigate }) => {
         if (cancelled) return;
         const nifty = data?.nifty || data?.nifty50 || data?.NIFTY50 || {};
         const sensex = data?.sensex || data?.SENSEX || {};
+        const nasdaq = data?.nasdaq || data?.NASDAQ || {};
+        const sp500 = data?.sp500 || data?.SP500 || {};
         const num = (v) => {
           if (typeof v === 'number' && !isNaN(v)) return v;
           if (typeof v === 'string') {
@@ -62,6 +66,10 @@ export const TopBar = ({ currentPage, onNavigate }) => {
           niftyChangePct: num(data?.nifty_change_percent) ?? num(nifty.change_percent) ?? num(nifty.change_pct),
           sensexValue: num(sensex.raw_value) ?? num(sensex.price) ?? num(data?.sensex_value) ?? num(sensex.value),
           sensexChangePct: num(data?.sensex_change_percent) ?? num(sensex.change_percent) ?? num(sensex.change_pct),
+          nasdaqValue: num(nasdaq.raw_value) ?? num(nasdaq.price) ?? num(data?.nasdaq_value) ?? num(nasdaq.value),
+          nasdaqChangePct: num(data?.nasdaq_change_percent) ?? num(nasdaq.change_percent) ?? num(nasdaq.change_pct),
+          sp500Value: num(sp500.raw_value) ?? num(sp500.price) ?? num(data?.sp500_value) ?? num(sp500.value),
+          sp500ChangePct: num(data?.sp500_change_percent) ?? num(sp500.change_percent) ?? num(sp500.change_pct),
         });
         setLastRefresh(new Date());
       } catch (e) { /* silent */ }
@@ -149,6 +157,14 @@ export const TopBar = ({ currentPage, onNavigate }) => {
       <div className="flex items-center gap-3">
         <IndexChip label="NIFTY 50" value={indices.niftyValue} changePct={indices.niftyChangePct} />
         <IndexChip label="SENSEX"   value={indices.sensexValue} changePct={indices.sensexChangePct} />
+        {indices.nasdaqValue != null && (
+          <div className="hidden xl:flex items-center gap-3">
+            <IndexChip label="NASDAQ"  value={indices.nasdaqValue} changePct={indices.nasdaqChangePct} />
+            {indices.sp500Value != null && (
+              <IndexChip label="S&P 500" value={indices.sp500Value} changePct={indices.sp500ChangePct} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right: clock + refresh + pulse */}

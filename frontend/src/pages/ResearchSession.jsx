@@ -1908,7 +1908,7 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
         <button
           onClick={() => handleAnalyze()}
           disabled={!ticker.trim() || analyzing}
-          className="px-6 py-2.5 bg-[#0F3D2E] text-white rounded-lg hover:bg-[#0a2a1f] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-6 py-2.5 bg-[#0F3D2E] text-white rounded-lg hover:bg-[#196045] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           data-testid="analyze-btn"
         >
           {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}

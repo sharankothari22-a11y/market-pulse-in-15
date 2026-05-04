@@ -221,7 +221,10 @@ const TickerHero = ({ onAnalyze }) => {
             opacity: value.trim() && !analyzing ? 1 : 0.5,
             cursor: analyzing ? 'not-allowed' : 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 8,
+            transition: 'background-color 0.15s',
           }}
+          onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = '#196045'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0F3D2E'; }}
           data-testid="home-analyze-btn"
         >
           {analyzing && <Loader2 size={16} className="animate-spin" />}
