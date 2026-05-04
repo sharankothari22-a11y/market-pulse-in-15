@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { validateTicker } from '@/lib/ticker';
 import {
-  Search, Loader2, Plus, X, AlertTriangle, CheckCircle2,
+  Search, Loader2, Plus, X, AlertTriangle, CheckCircle2, ChevronUp,
 } from 'lucide-react';
 import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from '@/lib/utils';
@@ -243,7 +243,7 @@ const ConfChip = ({ level }) => {
   );
 };
 
-const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹' }) => {
+const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹', showReconcileNote = false }) => {
   const [driversOpen, setDriversOpen] = useState(false);
   const byKey = Object.fromEntries(scenarios.map((s) => [s.key, s]));
   const base = byKey.base;
@@ -257,6 +257,13 @@ const ValuationPanel = ({ scenarios, assumptionConfidence, sym = '₹' }) => {
 
   return (
     <Panel title="Valuation" testId="panel-valuation">
+      {showReconcileNote && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12,
+                      color: '#5A8A87', fontStyle: 'italic', marginBottom: 8 }}>
+          <ChevronUp size={12} color="#5A8A87" />
+          Reconciled by War Room above — see verdict for final view
+        </div>
+      )}
       {!base ? (
         <div style={emptyStyle}>Not yet computed</div>
       ) : (
@@ -443,7 +450,7 @@ const dimBarColor = (score) => {
   return '#C7372F';
 };
 
-const ScorePanel = ({ researchData }) => {
+const ScorePanel = ({ researchData, showReconcileNote = false }) => {
   const scoring = researchData?.scoring || null;
   const composite = scoring?.composite_score ?? scoring?.composite ?? scoring?.score ?? null;
   const recommendation = normalizeRating(scoring?.recommendation ?? scoring?.rating);
@@ -461,6 +468,13 @@ const ScorePanel = ({ researchData }) => {
 
   return (
     <Panel title="Score" testId="panel-score">
+      {showReconcileNote && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12,
+                      color: '#5A8A87', fontStyle: 'italic', marginBottom: 8 }}>
+          <ChevronUp size={12} color="#5A8A87" />
+          Reconciled by War Room above — see verdict for final view
+        </div>
+      )}
       <div className="flex items-center gap-3" style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
           <span style={{ fontSize: 24, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)',
@@ -1726,6 +1740,20 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
     ?? researchData?.price_data?.change_pct;
 
   const scenarios = getScenarios();
+  const _valuationBase = scenarios.find(s => s.key === 'base');
+  const _valuationVerdict = _valuationBase?.upside_pct != null
+    ? (_valuationBase.upside_pct > 10 ? 'Buy' : _valuationBase.upside_pct < -10 ? 'Sell' : 'Hold')
+    : null;
+  const _warRoomVote = normalizeRating(researchData?.war_room?.vote);
+  const showValuationReconcileNote = !!(
+    _warRoomVote && _valuationVerdict && _warRoomVote !== _valuationVerdict
+  );
+  const _scoreVerdict = normalizeRating(
+    researchData?.scoring?.recommendation ?? researchData?.scoring?.rating
+  );
+  const showScoreReconcileNote = !!(
+    _warRoomVote && _scoreVerdict && _warRoomVote !== _scoreVerdict
+  );
   const hasSession = researchData && researchData.status !== 'not_found';
   const sym = getCurrencySymbol(researchData?.currency);
 
@@ -1914,19 +1942,16 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           </div>
 
           {/* Row 2 — Valuation / Reverse DCF / Score / Factor Scores */}
-          {!researchData?.war_room?.final_report && (
-            <div style={{ gridColumn: 'span 4' }}>
-              <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} sym={sym} />
-            </div>
-          )}
+          <div style={{ gridColumn: 'span 4' }}>
+            <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence}
+                            sym={sym} showReconcileNote={showValuationReconcileNote} />
+          </div>
           <div style={{ gridColumn: 'span 4' }}>
             <ReverseDcfPanel researchData={researchData} sym={sym} />
           </div>
-          {!researchData?.war_room?.final_report && (
-            <div style={{ gridColumn: 'span 2' }}>
-              <ScorePanel researchData={researchData} />
-            </div>
-          )}
+          <div style={{ gridColumn: 'span 2' }}>
+            <ScorePanel researchData={researchData} showReconcileNote={showScoreReconcileNote} />
+          </div>
           <div style={{ gridColumn: 'span 2' }}>
             <FactorScoresPanel sessionId={sessionId} scoring={researchData?.scoring} />
           </div>
