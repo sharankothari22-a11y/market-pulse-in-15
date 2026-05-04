@@ -1,0 +1,86 @@
+{
+  "_sector": "Banking / NBFC",
+  "_priority": 2,
+  "_valuation": "P/BV + ROE-DDM",
+  "key_drivers": [
+    "nim",
+    "credit_growth",
+    "npl_ratio",
+    "rbi_rate",
+    "casa_ratio"
+  ],
+  "signals": [
+    {
+      "id": "rbi_rate_change",
+      "name": "RBI Policy Rate Change",
+      "keywords": [
+        "repo rate",
+        "rbi",
+        "rate hike",
+        "rate cut",
+        "monetary policy",
+        "bps"
+      ],
+      "factors": [
+        "nim",
+        "cost_of_funds"
+      ],
+      "transmission": "Rate hike: CASA-heavy banks benefit. NIM impact 5-15bps per 25bps change. Lag 1-2 quarters.",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "npl_movement",
+      "name": "NPL / Gross NPA Change",
+      "keywords": [
+        "npa",
+        "npl",
+        "bad loan",
+        "slippage",
+        "stressed asset"
+      ],
+      "factors": [
+        "credit_cost",
+        "ebitda_margin"
+      ],
+      "transmission": "NPA +1% \u2192 credit cost +30-50bps",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "credit_growth",
+      "name": "Loan Book Growth",
+      "keywords": [
+        "loan growth",
+        "credit growth",
+        "advance growth"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "Loan growth directly drives NII",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "casa_ratio",
+      "name": "CASA Ratio",
+      "keywords": [
+        "casa",
+        "current account",
+        "savings account",
+        "low cost deposit"
+      ],
+      "factors": [
+        "nim",
+        "cost_of_funds"
+      ],
+      "transmission": "CASA +1% \u2192 NIM +3-5bps",
+      "indicator_type": "leading"
+    }
+  ],
+  "default_assumptions": {
+    "nim_pct": 3.5,
+    "credit_growth_pct": 14,
+    "gross_npa_pct": 2.5,
+    "credit_cost_pct": 0.8,
+    "terminal_growth_rate": 4.0
+  }
+}

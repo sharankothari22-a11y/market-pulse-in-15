@@ -1,0 +1,182 @@
+{
+  "_description": "Level 1 \u2014 applies to every sector",
+  "_version": "1.0",
+  "signals": [
+    {
+      "id": "guidance_change",
+      "name": "Guidance Change",
+      "keywords": [
+        "guidance",
+        "outlook",
+        "revised",
+        "upgraded",
+        "downgraded"
+      ],
+      "factors": [
+        "revenue_growth",
+        "ebitda_margin"
+      ],
+      "transmission": "Management signals change in expected performance",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "management_change",
+      "name": "Key Management Change",
+      "keywords": [
+        "ceo",
+        "cfo",
+        "resigned",
+        "appointed",
+        "stepping down"
+      ],
+      "factors": [
+        "terminal_growth_rate",
+        "equity_risk_premium"
+      ],
+      "transmission": "Leadership stability affects long-term trust",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "regulatory_action",
+      "name": "Regulatory Action",
+      "keywords": [
+        "sebi",
+        "rbi",
+        "penalty",
+        "notice",
+        "order",
+        "banned",
+        "investigation"
+      ],
+      "factors": [
+        "capex",
+        "revenue_growth",
+        "equity_risk_premium"
+      ],
+      "transmission": "Regulatory risk increases cost of capital",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "product_launch",
+      "name": "Product / Contract Win",
+      "keywords": [
+        "launched",
+        "contract",
+        "order win",
+        "deal",
+        "partnership",
+        "mou",
+        "awarded"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "Incremental revenue; size vs revenue determines impact",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "margin_pressure",
+      "name": "Input Cost / Margin Pressure",
+      "keywords": [
+        "input cost",
+        "raw material",
+        "inflation",
+        "freight",
+        "margin compression"
+      ],
+      "factors": [
+        "ebitda_margin",
+        "gross_margin"
+      ],
+      "transmission": "Higher costs flow through P&L with 1-2 quarter lag",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "capex_announcement",
+      "name": "Capex / Expansion",
+      "keywords": [
+        "capex",
+        "expansion",
+        "new plant",
+        "greenfield",
+        "brownfield",
+        "capacity"
+      ],
+      "factors": [
+        "capex",
+        "revenue_growth",
+        "terminal_growth_rate"
+      ],
+      "transmission": "Near-term drag, medium-term revenue growth",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "debt_rating_change",
+      "name": "Credit Rating Action",
+      "keywords": [
+        "rating",
+        "upgraded",
+        "downgraded",
+        "outlook negative",
+        "crisil",
+        "icra",
+        "care"
+      ],
+      "factors": [
+        "cost_of_debt",
+        "wacc"
+      ],
+      "transmission": "Rating change directly affects cost of debt",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "insider_activity",
+      "name": "Insider / Promoter Activity",
+      "keywords": [
+        "promoter",
+        "insider",
+        "bulk deal",
+        "block deal",
+        "pledged",
+        "stake"
+      ],
+      "factors": [
+        "equity_risk_premium"
+      ],
+      "transmission": "Promoter selling/pledging signals stress",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "dividend_buyback",
+      "name": "Capital Return",
+      "keywords": [
+        "dividend",
+        "buyback",
+        "share repurchase",
+        "bonus"
+      ],
+      "factors": [
+        "terminal_growth_rate"
+      ],
+      "transmission": "Large returns reduce reinvestment rate",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "earnings_surprise",
+      "name": "Earnings Beat / Miss",
+      "keywords": [
+        "beat",
+        "miss",
+        "above estimate",
+        "below estimate",
+        "quarterly results"
+      ],
+      "factors": [
+        "revenue_growth",
+        "ebitda_margin"
+      ],
+      "transmission": "Updates base period for growth projections",
+      "indicator_type": "lagging"
+    }
+  ]
+}

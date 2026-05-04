@@ -1,0 +1,85 @@
+{
+  "_sector": "IT / Tech",
+  "_priority": 5,
+  "_valuation": "DCF + P/E",
+  "key_drivers": [
+    "deal_wins",
+    "attrition",
+    "usd_revenue_mix",
+    "headcount_growth"
+  ],
+  "signals": [
+    {
+      "id": "large_deal_win",
+      "name": "Large Deal Win / Loss",
+      "keywords": [
+        "deal win",
+        "large deal",
+        "tcv",
+        "contract awarded"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "TCV at 5yr contract = ~20% annual revenue. Model as % of current revenue.",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "attrition_change",
+      "name": "Attrition Rate Movement",
+      "keywords": [
+        "attrition",
+        "employee turnover",
+        "retention",
+        "hiring"
+      ],
+      "factors": [
+        "ebitda_margin"
+      ],
+      "transmission": "Attrition +2% \u2192 wage cost +50-100bps",
+      "indicator_type": "lagging"
+    },
+    {
+      "id": "currency_move",
+      "name": "USD/INR Movement",
+      "keywords": [
+        "rupee",
+        "usd",
+        "currency",
+        "forex",
+        "hedging"
+      ],
+      "factors": [
+        "revenue_growth",
+        "ebitda_margin"
+      ],
+      "transmission": "INR depreciation \u2192 higher INR revenue. 50-60% typically hedged.",
+      "indicator_type": "leading"
+    },
+    {
+      "id": "discretionary_spending",
+      "name": "Client Discretionary Spend",
+      "keywords": [
+        "ramp down",
+        "discretionary",
+        "cost optimization",
+        "vendor consolidation"
+      ],
+      "factors": [
+        "revenue_growth"
+      ],
+      "transmission": "60-70% of enterprise tech spend is discretionary. Macro slowdown \u2192 deal delays.",
+      "indicator_type": "leading"
+    }
+  ],
+  "default_assumptions": {
+    "usd_revenue_share_pct": 65,
+    "annual_wage_hike_pct": 8,
+    "attrition_target_pct": 15,
+    "ebitda_margin_range": [
+      18,
+      25
+    ],
+    "terminal_growth_rate": 5.0
+  }
+}

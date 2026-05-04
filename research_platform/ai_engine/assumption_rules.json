@@ -1,0 +1,111 @@
+{
+  "_description": "Hard guardrails for every DCF assumption metric. Applied before any update is written.",
+  "_version": "1.0",
+  "rules": {
+    "revenue_growth": {
+      "min": -30.0,
+      "max": 50.0,
+      "max_single_change": 10.0,
+      "description": "Revenue growth % per year",
+      "unit": "percent"
+    },
+    "ebitda_margin": {
+      "min": -20.0,
+      "max": 60.0,
+      "max_single_change": 5.0,
+      "description": "EBITDA margin %",
+      "unit": "percent"
+    },
+    "gross_margin": {
+      "min": 0.0,
+      "max": 90.0,
+      "max_single_change": 8.0,
+      "description": "Gross margin %",
+      "unit": "percent"
+    },
+    "capex_pct_revenue": {
+      "min": 0.0,
+      "max": 40.0,
+      "max_single_change": 8.0,
+      "description": "Capex as % of revenue",
+      "unit": "percent"
+    },
+    "wacc": {
+      "min": 6.0,
+      "max": 20.0,
+      "max_single_change": 2.0,
+      "description": "Weighted average cost of capital %",
+      "unit": "percent"
+    },
+    "terminal_growth_rate": {
+      "min": 0.0,
+      "max": 7.0,
+      "max_single_change": 1.5,
+      "description": "Terminal / perpetuity growth rate %",
+      "unit": "percent"
+    },
+    "cost_of_debt": {
+      "min": 4.0,
+      "max": 18.0,
+      "max_single_change": 2.0,
+      "description": "Pre-tax cost of debt %",
+      "unit": "percent"
+    },
+    "equity_risk_premium": {
+      "min": 4.0,
+      "max": 12.0,
+      "max_single_change": 2.0,
+      "description": "Equity risk premium % (India typically 6-8%)",
+      "unit": "percent"
+    },
+    "tax_rate": {
+      "min": 0.0,
+      "max": 40.0,
+      "max_single_change": 5.0,
+      "description": "Effective tax rate %",
+      "unit": "percent"
+    },
+    "working_capital_days": {
+      "min": -30.0,
+      "max": 180.0,
+      "max_single_change": 20.0,
+      "description": "Net working capital days",
+      "unit": "days"
+    },
+    "debt_equity_ratio": {
+      "min": 0.0,
+      "max": 5.0,
+      "max_single_change": 1.0,
+      "description": "Debt / Equity ratio",
+      "unit": "ratio"
+    },
+    "nim_pct": {
+      "min": 1.0,
+      "max": 8.0,
+      "max_single_change": 0.5,
+      "description": "Net Interest Margin % (banking only)",
+      "unit": "percent"
+    },
+    "npl_ratio": {
+      "min": 0.0,
+      "max": 20.0,
+      "max_single_change": 2.0,
+      "description": "Non-performing loan ratio % (banking only)",
+      "unit": "percent"
+    },
+    "crude_price_usd_bbl": {
+      "min": 30.0,
+      "max": 150.0,
+      "max_single_change": 20.0,
+      "description": "Crude oil price USD/barrel (petroleum only)",
+      "unit": "usd_per_barrel"
+    },
+    "grm_usd_bbl": {
+      "min": -5.0,
+      "max": 25.0,
+      "max_single_change": 5.0,
+      "description": "Gross refining margin USD/barrel (petroleum only)",
+      "unit": "usd_per_barrel"
+    }
+  }
+}
