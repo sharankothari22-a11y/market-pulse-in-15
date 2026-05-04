@@ -1908,15 +1908,19 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
           </div>
 
           {/* Row 2 — Valuation / Reverse DCF / Score / Factor Scores */}
-          <div style={{ gridColumn: 'span 4' }}>
-            <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} sym={sym} />
-          </div>
+          {!researchData?.war_room?.final_report && (
+            <div style={{ gridColumn: 'span 4' }}>
+              <ValuationPanel scenarios={scenarios} assumptionConfidence={researchData?.assumption_confidence} sym={sym} />
+            </div>
+          )}
           <div style={{ gridColumn: 'span 4' }}>
             <ReverseDcfPanel researchData={researchData} sym={sym} />
           </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <ScorePanel researchData={researchData} />
-          </div>
+          {!researchData?.war_room?.final_report && (
+            <div style={{ gridColumn: 'span 2' }}>
+              <ScorePanel researchData={researchData} />
+            </div>
+          )}
           <div style={{ gridColumn: 'span 2' }}>
             <FactorScoresPanel sessionId={sessionId} scoring={researchData?.scoring} />
           </div>
