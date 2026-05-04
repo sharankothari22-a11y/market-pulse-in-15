@@ -1886,7 +1886,6 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
         </div>
       ) : hasSession ? (
         <>
-        {researchData?.war_room && <WarRoomReport data={researchData.war_room} />}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 12 }}>
           {/* Row 1 — full-width header */}
           <div style={{ gridColumn: 'span 12' }}>
@@ -1901,6 +1900,13 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
               sessionId={sessionId}
             />
           </div>
+
+          {/* War Room verdict — sits directly below header when present */}
+          {researchData?.war_room && (
+            <div style={{ gridColumn: 'span 12' }}>
+              <WarRoomReport data={researchData.war_room} />
+            </div>
+          )}
 
           {/* Sector framework strip */}
           <div style={{ gridColumn: 'span 12' }}>
