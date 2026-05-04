@@ -151,6 +151,108 @@ Final vote: 2 HOLD, 2 HOLD/AVOID, 1 BUY. Majority HOLD. Confidence 62%.`,
     ],
   },
 
+  'TCS': {
+    ticker: 'TCS',
+    vote: 'YES',
+    confidence: 70,
+    final_report: `Tata Consultancy Services — Investment Verdict: BUY (12-month target ₹4,200)
+
+War room voted 4–1 BUY at ₹3,590 CMP, implying ~17% upside.
+
+CORE THESIS: TCS is executing the clearest AI services pivot among Indian IT majors. The WisdomNext AI platform is now embedded in 60+ active GenAI engagements, positioning TCS as the default transformation partner for Global 500 enterprises. AI-augmented delivery is structurally compressing headcount-per-dollar of revenue — we model EBIT margins expanding from 24.5% (FY25) to 26%+ by FY27 with flat headcount.
+
+BULL CASE (₹4,600): BFSI vertical (25% of revenue) rebounds fully in H1FY26 as US bank IT budgets reopen. Large deal TCV (LTM $10.4B) accelerates to $12B+ on GenAI implementation wins. EBIT margin prints 25.5%+ in FY26. P/E re-rates from 23x to 28x FY26E.
+
+BEAR CASE (₹3,100): US recession delays discretionary IT spend recovery by 4–6 quarters. GenAI cost pass-through to clients proves harder to realise than modelled. EBIT margins stay anchored at 24% with no upside catalyst.
+
+AI UPSIDE NOT IN CONSENSUS: Sell-side consensus models 12% FY26 revenue growth. We see 50–100 bps upside from GenAI deals currently in "advisory" phase transitioning to multi-year implementation. TCS disclosed 12% code-generation productivity gain across 3 large accounts — not yet fully visible in reported margins but traceable in utilisation trends.
+
+DISSENTING VIEW (1 analyst): BFSI headwinds may be structural, not cyclical. Cautious that the street is extrapolating an AI pipeline that has not yet closed into TCV.
+
+RISK FACTORS: US BFSI capex freeze; INR appreciation compressing USD-reported margins; visa/immigration disruption to onsite delivery; Accenture AI competition intensifying.`,
+    debate_summary: `Round 1 — Revenue growth scenarios: Bull/base/bear modelled at 15%/12%/9% for FY26. Current 23x P/E already prices 12% — any surprise to 14–15% drives re-rating.
+
+Round 2 — AI margin thesis: Evidence cited: flat headcount vs 12%+ revenue growth implies structural productivity gain. AI code-review and QA automation reducing effort by 8–15% in pilot accounts. Not yet in reported numbers, but trajectory is unambiguous.
+
+Round 3 — BFSI recovery timing: Consensus says H2FY26; two analysts argued H1FY26 based on JPMorgan and Goldman IT hiring signals. Not enough conviction to call earlier — maintained base case of gradual recovery.
+
+Final vote: 4 BUY, 1 HOLD. Confidence 70%. Key watch: Q1FY26 large deal TCV and BFSI vertical revenue growth rate.`,
+    citations: [
+      'TCS Q3FY25 Earnings Presentation',
+      'TCS WisdomNext AI Platform Briefing Nov 2024',
+      'Kotak Institutional Equities IT Services Note Mar 2025',
+      'IDC Global IT Services Competitive Tracker 2024',
+    ],
+  },
+
+  'INFY': {
+    ticker: 'INFY',
+    vote: 'NO',
+    confidence: 55,
+    final_report: `Infosys — Investment Verdict: HOLD (12-month target ₹1,720)
+
+War room split 2–2–1 (2 BUY, 2 HOLD, 1 REDUCE) — consensus HOLD at ₹1,580 CMP, implying ~9% upside. Below conviction threshold for a BUY.
+
+CORE THESIS (BULL): Infosys is the discounted play on the IT sector recovery cycle. At 20x FY26E EPS, it trades at a 12–15% discount to TCS — historically this gap closes when quarterly delivery stabilises. Multiple guidance cuts in FY24–25 have compressed expectations, creating a low-bar recovery setup that favours the long side.
+
+MARGIN HEADWIND IS REAL: EBIT margin at 20.3% (Q3FY25) is at the bottom of the management-guided 20–22% band. Unlike TCS, Infosys has not converted AI positioning into measurable delivery leverage. Cobalt + Topaz platforms are architecturally sound but deal conversion from advisory to large-TCV implementation is lagging by 1–2 quarters.
+
+DISCRETIONARY RECOVERY IS UNEVEN: BFSI (32% of revenue) is recovering faster; manufacturing and energy are lagging. Infosys' UK/Europe exposure (31% of revenue) faces delayed recovery as European capex cycles trail North America by ~6 months — a structural timing drag on the recovery thesis.
+
+BULL CASE (₹1,950): Management upgrades FY26 guidance to 8–10%; EBIT margin exits FY26 at 22%+; valuation gap to TCS compresses to 8%. P/E re-rates to 23x.
+
+BEAR CASE (₹1,380): Third consecutive guidance cut; margin stays below 20%; large deal TCV disappoints at Q1FY26. P/E compresses to 17x on eroded credibility.
+
+RISK: Europe macro slowdown; client concentration in Vanguard, BT Group, ABN Amro; GenAI commoditising time-and-material projects, pressuring blended billing rates.`,
+    debate_summary: `Round 1 — Valuation gap analysis: At 12–15% discount to TCS on forward P/E, INFY looks mechanically cheap. Bear analyst argued the discount is deserved given three guidance cuts in 18 months — premium only returns when delivery track record is restored.
+
+Round 2 — Margin recovery path: Modelled headcount optimisation (net ~10,000 exits in FY25) contributing 80 bps margin improvement in FY26. Bull case requires utilisation rising from 82% to 84%+ — achievable but contingent on demand materialising.
+
+Round 3 — Discretionary timing debate: Key question: is H2FY25 weakness cyclical (budget freeze) or structural (GenAI substitution)? 2 analysts called cyclical and saw H1FY26 unlock; 2 said structural shift is underway. Split persisted — hence HOLD.
+
+Final vote: 2 BUY, 2 HOLD, 1 REDUCE. Consensus HOLD. Confidence 55%. Key watch: FY26 guidance range at Q4FY25 results and Q1FY26 large deal TCV.`,
+    citations: [
+      'Infosys Q3FY25 Earnings Call Transcript',
+      'Infosys Guidance History FY22–FY25',
+      'Morgan Stanley INFY Estimate Revision Note Jan 2025',
+      'Gartner IT Spending Forecast 2025',
+    ],
+  },
+
+  'COALINDIA': {
+    ticker: 'COALINDIA',
+    vote: 'YES',
+    confidence: 65,
+    final_report: `Coal India — Investment Verdict: BUY (12-month target ₹500)
+
+War room voted 4–1 BUY at ₹395 CMP, implying ~27% upside.
+
+CORE THESIS: Coal India is the textbook high-yield value compounding story. At 4.5x EV/EBITDA and 6.5% dividend yield, the market is pricing in demand destruction that our analysis shows is at minimum 8–10 years away. India's power demand is compounding at 7% CAGR; thermal capacity accounts for 70% of installed generation; and there is no credible non-coal baseload alternative at grid scale before FY32.
+
+DIVIDEND FLOOR IS STRUCTURAL: CIL distributed ₹31/share in FY25 (including special interim dividend) with cash on balance sheet exceeding ₹35,000 cr. Annual free cash flow of ~₹28,000 cr at stable capex allows payout ratio of 60% to be maintained through FY28 in even a stress scenario. This 6.5% yield is a structural attractor for insurance and pension capital.
+
+VOLUME RAMP = OPERATING LEVERAGE: FY25 production 772 MT vs. 1 billion tonne target by FY27. Each 50 MT incremental production at marginal cost (~₹900/MT) adds ₹2,500–3,000 cr EBITDA at current e-auction realisations. OB removal productivity improved 8% YoY, limiting cost inflation.
+
+E-AUCTION PREMIUM UPSIDE: Non-regulated e-auction volumes (~15% of sales) command 20–25% premium over notified prices. Government import substitution push targeting 100 MT reduction in coal imports. If e-auction share rises to 20% of volumes, EPS upside of ₹8–10/share — not in consensus.
+
+BEAR CASE (₹310): Government mandates price rationalisation, cutting e-auction realisations by 8%. Renewable target acceleration forces early retirement of 4GW+ thermal capacity. Cash redirected to non-core diversification, cutting dividend payout ratio below 50%.
+
+RISK: Regulatory price caps on e-auction; state DISCOM payment delays increasing working capital; ESG-mandate-driven institutional selling compressing P/E multiple.`,
+    debate_summary: `Round 1 — Demand destruction timeline: Bull modelled coal power at 55% of installed capacity by FY32 (down from 70% today). Even at 55%, absolute coal volume required still grows 4% CAGR on expanding power demand. Bear analyst argued policy acceleration risk is underpriced — held HOLD.
+
+Round 2 — Dividend sustainability stress test: CIL cash ₹35,000 cr + annual FCF ~₹28,000 cr = comfortable coverage of ₹20,000 cr annual dividend outflow at 60% payout. Even in bear-case earnings (25% EBITDA decline), dividend yield holds above 5%.
+
+Round 3 — Valuation floor discussion: At 4x EV/EBITDA vs PSU peer average 5.5x, CIL offers asymmetric protection. NMDC comparable trades at 4.8x with lower FCF. Multiple re-rating to 5x adds ₹60–70/share.
+
+Final vote: 4 BUY, 1 HOLD. Confidence 65%. Key watch: Q1FY26 e-auction realisation trend and FY26 production guidance update.`,
+    citations: [
+      'Coal India FY25 Production Bulletin and Dividend Announcement',
+      'Central Electricity Authority Demand Forecast FY26',
+      'Ministry of Coal Import Substitution Policy Note Feb 2025',
+      'Kotak Institutional Equities Coal India SOTP Note Mar 2025',
+    ],
+  },
+
   'JPM': {
     ticker: 'JPM',
     vote: 'YES',
