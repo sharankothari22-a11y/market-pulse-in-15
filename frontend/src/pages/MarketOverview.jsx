@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiGet, API_ENDPOINTS } from '@/services/api';
-import { Loader2, Search, BarChart2 } from 'lucide-react';
+import { Loader2, Search, BarChart2, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { validateTicker } from '@/lib/ticker';
 import { NewsFeed } from '@/components/ui/NewsFeed';
 import {
@@ -225,6 +226,26 @@ const TickerHero = ({ onAnalyze }) => {
         >
           {analyzing && <Loader2 size={16} className="animate-spin" />}
           {analyzing ? 'Analyzing…' : 'Analyze'}
+        </button>
+        <button
+          onClick={() => toast.info('File upload for unlisted companies. Coming Q3 2026.')}
+          title="Upload financials for unlisted companies"
+          style={{
+            height: 56, padding: '0 20px',
+            borderRadius: 8,
+            backgroundColor: 'transparent',
+            border: '2px solid #0F3D2E',
+            color: '#0F3D2E',
+            fontSize: 15, fontWeight: 600,
+            cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(15,61,46,0.06)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          data-testid="home-upload-btn"
+        >
+          <Upload size={16} />
+          Upload
         </button>
       </div>
 

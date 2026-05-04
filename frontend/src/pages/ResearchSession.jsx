@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { validateTicker } from '@/lib/ticker';
 import {
   Search, Loader2, Plus, X, AlertTriangle, CheckCircle2, ChevronUp,
-  TrendingUp, Users, FileText, ShieldCheck, GitCommit,
+  TrendingUp, Users, FileText, ShieldCheck, GitCommit, Upload,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from '@/lib/utils';
 import SWOTPanel from '@/components/research/SWOTPanel';
@@ -1907,11 +1908,20 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
         <button
           onClick={() => handleAnalyze()}
           disabled={!ticker.trim() || analyzing}
-          className="px-6 py-2.5 bg-[#2563eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-6 py-2.5 bg-[#0F3D2E] text-white rounded-lg hover:bg-[#0a2a1f] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           data-testid="analyze-btn"
         >
           {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}
           {analyzing ? 'Analyzing...' : 'Analyze'}
+        </button>
+        <button
+          onClick={() => toast.info('File upload for unlisted companies. Coming Q3 2026.')}
+          title="Upload financials for unlisted companies"
+          className="px-5 py-2.5 bg-transparent border-2 border-[#0F3D2E] text-[#0F3D2E] rounded-lg hover:bg-[#0F3D2E]/5 transition-colors font-medium flex items-center gap-2"
+          data-testid="upload-btn"
+        >
+          <Upload className="w-4 h-4" />
+          Upload
         </button>
         <button
           onClick={() => { setModalTicker(ticker); setShowNewModal(true); }}

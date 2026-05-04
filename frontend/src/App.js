@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import '@/App.css';
+import { Toaster } from 'sonner';
 
 import { TopBar } from '@/components/layout/TopBar';
 import { ChatPanel } from '@/components/layout/ChatPanel';
@@ -43,6 +44,7 @@ function App() {
     <>
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
+      <Toaster position="bottom-right" richColors />
       <div
         className="app-container flex flex-col h-screen overflow-hidden"
         style={{ backgroundColor: 'var(--bi-bg-page)' }}
