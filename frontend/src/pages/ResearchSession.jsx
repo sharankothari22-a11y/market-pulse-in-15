@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import SWOTPanel from '@/components/research/SWOTPanel';
 import PorterPanel from '@/components/research/PorterPanel';
 import SectorCallout from '@/components/research/SectorCallout';
+import CommandCenterLoader from '@/components/research/CommandCenterLoader';
 
 const SCENARIO_KEYS = ['bull', 'base', 'bear'];
 
@@ -1445,6 +1446,8 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   ]); // [{ticker, session_id}] — only successful analyses
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
+  const loaderTimerRef = useRef(null);
   const [error, setError] = useState(null);
   const [tickerError, setTickerError] = useState('');
   const tickerErrorTimerRef = useRef(null);
@@ -1461,6 +1464,16 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
   const [modalHypothesis, setModalHypothesis] = useState('');
   const [modalVariant, setModalVariant] = useState('');
   const [modalSector, setModalSector] = useState('auto');
+
+  useEffect(() => {
+    if (analyzing) {
+      loaderTimerRef.current = setTimeout(() => setShowLoader(true), 300);
+    } else {
+      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+      setShowLoader(false);
+    }
+    return () => { if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current); };
+  }, [analyzing]);
 
   useEffect(() => {
     if (onSessionChange) onSessionChange(sessionId);
@@ -1863,7 +1876,9 @@ export const ResearchSession = ({ onSessionChange, pendingTicker }) => {
         </div>
       )}
 
-      {loading ? (
+      {showLoader ? (
+        <CommandCenterLoader />
+      ) : loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-[#2563eb]" />
           <span className="ml-2 text-[#64748b]">Loading research data...</span>
