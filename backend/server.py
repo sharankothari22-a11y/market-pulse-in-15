@@ -228,6 +228,7 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
 TWELVE_DATA_KEY = os.environ.get("TWELVE_DATA_KEY", "").strip()
 FINNHUB_KEY = os.environ.get("FINNHUB_API_KEY", "").strip()
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+BEAVER_BACKEND_URL = os.environ.get("BEAVER_BACKEND_URL", "").strip().rstrip("/")
 
 # Cache TTL for "stale-but-useful" data (seconds)
 CACHE_TTL_SECONDS = 900  # 15 min — live market data stays fresh, falls back gracefully after
@@ -1718,16 +1719,38 @@ async def analyze(request: Request):
 
     # ── Beaver: fetch key value drivers ──────────────────────────────
     try:
-        _beaver_result = subprocess.run(
-            ["node", "personalized-agent/cli/model.js",
-             "--ticker", ticker, "--metric", "drivers", "--premium"],
-            cwd="/app/backend", capture_output=True, text=True, timeout=30
-        )
         _beaver_json = {}
-        if _beaver_result.returncode == 0 and _beaver_result.stdout.strip():
-            _bm = re.search(r'\{[\s\S]*\}', _beaver_result.stdout)
-            if _bm:
-                _beaver_json = json.loads(_bm.group())
+        if BEAVER_BACKEND_URL and HTTPX_AVAILABLE:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as _hc:
+                    _br = await _hc.post(
+                        f"{BEAVER_BACKEND_URL}/drivers",
+                        json={"ticker": ticker, "metric": "drivers", "premium": True},
+                    )
+                    _br.raise_for_status()
+                    _beaver_json = _br.json()
+                logger.info(f"[analyze] {ticker}: beaver via tunnel drivers={len(_beaver_json.get('drivers', []))}")
+            except Exception as _tunnel_err:
+                print(f"[analyze] beaver tunnel failed ({_tunnel_err}), falling back to stub", file=sys.stderr)
+                _beaver_result = subprocess.run(
+                    ["node", "personalized-agent/cli/model.js",
+                     "--ticker", ticker, "--metric", "drivers", "--premium"],
+                    cwd="/app/backend", capture_output=True, text=True, timeout=30
+                )
+                if _beaver_result.returncode == 0 and _beaver_result.stdout.strip():
+                    _bm = re.search(r'\{[\s\S]*\}', _beaver_result.stdout)
+                    if _bm:
+                        _beaver_json = json.loads(_bm.group())
+        else:
+            _beaver_result = subprocess.run(
+                ["node", "personalized-agent/cli/model.js",
+                 "--ticker", ticker, "--metric", "drivers", "--premium"],
+                cwd="/app/backend", capture_output=True, text=True, timeout=30
+            )
+            if _beaver_result.returncode == 0 and _beaver_result.stdout.strip():
+                _bm = re.search(r'\{[\s\S]*\}', _beaver_result.stdout)
+                if _bm:
+                    _beaver_json = json.loads(_bm.group())
         response["drivers"] = _beaver_json.get("drivers", [])
         logger.info(f"[analyze] {ticker}: beaver drivers={len(response['drivers'])}")
     except Exception as _be:
@@ -1736,20 +1759,48 @@ async def analyze(request: Request):
 
     # ── War Room: debate + final verdict ─────────────────────────────
     try:
-        _wr_input = json.dumps({
+        _wr_json = {}
+        _wr_body = {
+            "ticker": ticker,
             "dcf": response.get("dcf", {}),
             "drivers": response.get("drivers", []),
-        })
-        _wr_result = subprocess.run(
-            ["node", "war-room/orchestrator.js",
-             "--ticker", ticker, "--input", _wr_input],
-            cwd="/app/backend", capture_output=True, text=True, timeout=60
-        )
-        _wr_json = {}
-        if _wr_result.returncode == 0 and _wr_result.stdout.strip():
-            _wm = re.search(r'\{[\s\S]*\}', _wr_result.stdout)
-            if _wm:
-                _wr_json = json.loads(_wm.group())
+        }
+        if BEAVER_BACKEND_URL and HTTPX_AVAILABLE:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as _hc:
+                    _wrr = await _hc.post(
+                        f"{BEAVER_BACKEND_URL}/warroom",
+                        json=_wr_body,
+                    )
+                    _wrr.raise_for_status()
+                    _wr_json = _wrr.json()
+                logger.info(
+                    f"[analyze] {ticker}: war_room via tunnel vote={_wr_json.get('vote')} "
+                    f"confidence={_wr_json.get('confidence')}"
+                )
+            except Exception as _tunnel_wre:
+                print(f"[analyze] war room tunnel failed ({_tunnel_wre}), falling back to stub", file=sys.stderr)
+                _wr_input = json.dumps({"dcf": response.get("dcf", {}), "drivers": response.get("drivers", [])})
+                _wr_result = subprocess.run(
+                    ["node", "war-room/orchestrator.js",
+                     "--ticker", ticker, "--input", _wr_input],
+                    cwd="/app/backend", capture_output=True, text=True, timeout=60
+                )
+                if _wr_result.returncode == 0 and _wr_result.stdout.strip():
+                    _wm = re.search(r'\{[\s\S]*\}', _wr_result.stdout)
+                    if _wm:
+                        _wr_json = json.loads(_wm.group())
+        else:
+            _wr_input = json.dumps({"dcf": response.get("dcf", {}), "drivers": response.get("drivers", [])})
+            _wr_result = subprocess.run(
+                ["node", "war-room/orchestrator.js",
+                 "--ticker", ticker, "--input", _wr_input],
+                cwd="/app/backend", capture_output=True, text=True, timeout=60
+            )
+            if _wr_result.returncode == 0 and _wr_result.stdout.strip():
+                _wm = re.search(r'\{[\s\S]*\}', _wr_result.stdout)
+                if _wm:
+                    _wr_json = json.loads(_wm.group())
         response["war_room"] = _wr_json
         logger.info(
             f"[analyze] {ticker}: war_room vote={_wr_json.get('vote')} "
@@ -1787,6 +1838,18 @@ async def get_drivers(request: Request):
     ticker = (body.get("ticker") or "").upper().strip()
     if not ticker:
         return {"error": "ticker required", "drivers": []}
+    # Try tunnel first, fall back to local stub
+    if BEAVER_BACKEND_URL and HTTPX_AVAILABLE:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as _hc:
+                _r = await _hc.post(
+                    f"{BEAVER_BACKEND_URL}/drivers",
+                    json={"ticker": ticker, "metric": "drivers", "premium": True},
+                )
+                _r.raise_for_status()
+                return _r.json()
+        except Exception as _te:
+            print(f"[agent/drivers] tunnel failed ({_te}), falling back to stub", file=sys.stderr)
     try:
         result = subprocess.run(
             ["node", "personalized-agent/cli/model.js",
@@ -1814,6 +1877,18 @@ async def run_warroom(request: Request):
     drivers = body.get("drivers", [])
     if not ticker:
         return {"error": "ticker required", "final_report": ""}
+    # Try tunnel first, fall back to local stub
+    if BEAVER_BACKEND_URL and HTTPX_AVAILABLE:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as _hc:
+                _r = await _hc.post(
+                    f"{BEAVER_BACKEND_URL}/warroom",
+                    json={"ticker": ticker, "dcf": dcf_report, "drivers": drivers},
+                )
+                _r.raise_for_status()
+                return _r.json()
+        except Exception as _te:
+            print(f"[warroom/run] tunnel failed ({_te}), falling back to stub", file=sys.stderr)
     try:
         wr_input = json.dumps({"dcf": dcf_report, "drivers": drivers})
         result = subprocess.run(
