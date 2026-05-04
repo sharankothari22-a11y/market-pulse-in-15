@@ -31,14 +31,14 @@ export const ChatPanel = ({ sessionId, open, onOpen, onClose }) => {
         style={{
           bottom: 80, right: 24,
           width: 56, height: 56, borderRadius: '50%',
-          backgroundColor: 'var(--bi-navy-700)',
+          backgroundColor: '#0F3D2E',
           color: 'var(--bi-text-inverse)',
           boxShadow: '0 10px 24px rgba(15,37,64,0.25)',
           cursor: 'pointer',
           zIndex: 40,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-navy-900)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bi-navy-700)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#0A2A1F'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0F3D2E'; }}
         data-testid="chat-fab"
         aria-label="Open Beaver AI chat"
       >
