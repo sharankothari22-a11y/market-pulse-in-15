@@ -30,13 +30,14 @@ try {
   getDrivers = null;
 }
 
-try {
-  const warRoomMod = require('../war-room-module/warRoom.js');
-  runWarRoom = typeof warRoomMod === 'function' ? warRoomMod : warRoomMod.runWarRoom || warRoomMod.default;
-} catch (err) {
-  console.error('[beaver-server] Could not load war-room-module/warRoom.js:', err.message);
-  runWarRoom = null;
-}
+// try {
+//   const warRoomMod = require('../war-room-module/warRoom.js');
+//   runWarRoom = typeof warRoomMod === 'function' ? warRoomMod : warRoomMod.runWarRoom || warRoomMod.default;
+// } catch (err) {
+//   console.error('[beaver-server] Could not load war-room-module/warRoom.js:', err.message);
+//   runWarRoom = null;
+// }
+runWarRoom = null;
 // ──────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3001;
@@ -80,32 +81,8 @@ app.post('/drivers', async (req, res) => {
  * Body: { ticker: string, dcf?: object, drivers?: array }
  * Returns: { ticker, vote, confidence, final_report, debate_summary, citations }
  */
-app.post('/warroom', async (req, res) => {
-  const ticker = (req.body.ticker || '').toUpperCase().replace('.NS', '');
-  if (!ticker) return res.status(400).json({ error: 'ticker required', final_report: '' });
-
-  if (!runWarRoom) {
-    return res.status(503).json({ error: 'warRoom.js not loaded', final_report: 'War room module unavailable' });
-  }
-
-  try {
-    const result = await Promise.race([
-      runWarRoom({ ticker, dcf: req.body.dcf || {}, drivers: req.body.drivers || [] }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000)),
-    ]);
-    return res.json(result);
-  } catch (err) {
-    console.error(`[/warroom] ${ticker}:`, err.message);
-    return res.status(500).json({
-      error: err.message,
-      ticker,
-      vote: 'NO',
-      confidence: 0,
-      final_report: `War room unavailable: ${err.message}`,
-      debate_summary: '',
-      citations: [],
-    });
-  }
+app.post('/warroom', async (_req, res) => {
+  return res.status(503).json({ error: 'War room not enabled in tunnel mode — using Emergent stubs' });
 });
 
 app.listen(PORT, () => {
