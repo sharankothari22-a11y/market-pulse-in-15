@@ -829,7 +829,15 @@ export default function CommandCenterLoader({ ticker }) {
         </div>
 
         {/* SVG rendered via dangerouslySetInnerHTML to avoid JSX conversion of complex SVG */}
-        <div dangerouslySetInnerHTML={{ __html: SVG_MARKUP }} />
+        <div style={{ perspective: '1500px', perspectiveOrigin: 'center center' }}>
+          <div
+            dangerouslySetInnerHTML={{ __html: SVG_MARKUP }}
+            style={{
+              transform: 'rotateX(8deg) translateZ(-30px)',
+              transition: 'transform 600ms ease-out',
+            }}
+          />
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px 4px', fontSize: 12 }}>
           <span ref={captionRef} style={{ color: '#D4A24C', fontWeight: 500 }}>
