@@ -33,8 +33,6 @@ export const TopBar = ({ currentPage, onNavigate }) => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [indices, setIndices] = useState({
     niftyValue: null, niftyChangePct: null,
-    sensexValue: null, sensexChangePct: null,
-    nasdaqValue: null, nasdaqChangePct: null,
     sp500Value: null, sp500ChangePct: null,
   });
 
@@ -50,8 +48,6 @@ export const TopBar = ({ currentPage, onNavigate }) => {
         const data = await apiGet(API_ENDPOINTS.marketOverview);
         if (cancelled) return;
         const nifty = data?.nifty || data?.nifty50 || data?.NIFTY50 || {};
-        const sensex = data?.sensex || data?.SENSEX || {};
-        const nasdaq = data?.nasdaq || data?.NASDAQ || {};
         const sp500 = data?.sp500 || data?.SP500 || {};
         const num = (v) => {
           if (typeof v === 'number' && !isNaN(v)) return v;
@@ -64,10 +60,6 @@ export const TopBar = ({ currentPage, onNavigate }) => {
         setIndices({
           niftyValue: num(nifty.raw_value) ?? num(nifty.price) ?? num(data?.nifty_value) ?? num(nifty.value),
           niftyChangePct: num(data?.nifty_change_percent) ?? num(nifty.change_percent) ?? num(nifty.change_pct),
-          sensexValue: num(sensex.raw_value) ?? num(sensex.price) ?? num(data?.sensex_value) ?? num(sensex.value),
-          sensexChangePct: num(data?.sensex_change_percent) ?? num(sensex.change_percent) ?? num(sensex.change_pct),
-          nasdaqValue: num(nasdaq.raw_value) ?? num(nasdaq.price) ?? num(data?.nasdaq_value) ?? num(nasdaq.value),
-          nasdaqChangePct: num(data?.nasdaq_change_percent) ?? num(nasdaq.change_percent) ?? num(nasdaq.change_pct),
           sp500Value: num(sp500.raw_value) ?? num(sp500.price) ?? num(data?.sp500_value) ?? num(sp500.value),
           sp500ChangePct: num(data?.sp500_change_percent) ?? num(sp500.change_percent) ?? num(sp500.change_pct),
         });
@@ -156,14 +148,8 @@ export const TopBar = ({ currentPage, onNavigate }) => {
       {/* Center: index chips */}
       <div className="flex items-center gap-3">
         <IndexChip label="NIFTY 50" value={indices.niftyValue} changePct={indices.niftyChangePct} />
-        <IndexChip label="SENSEX"   value={indices.sensexValue} changePct={indices.sensexChangePct} />
-        {indices.nasdaqValue != null && (
-          <div className="hidden xl:flex items-center gap-3">
-            <IndexChip label="NASDAQ"  value={indices.nasdaqValue} changePct={indices.nasdaqChangePct} />
-            {indices.sp500Value != null && (
-              <IndexChip label="S&P 500" value={indices.sp500Value} changePct={indices.sp500ChangePct} />
-            )}
-          </div>
+        {indices.sp500Value != null && (
+          <IndexChip label="S&P 500" value={indices.sp500Value} changePct={indices.sp500ChangePct} />
         )}
       </div>
 
@@ -173,7 +159,7 @@ export const TopBar = ({ currentPage, onNavigate }) => {
               style={{ color: 'var(--bi-text-inverse)', fontSize: 12.5, fontWeight: 500 }}>
           IST {formatIST(time)}
         </span>
-        <span className="tabular-nums"
+        <span className="hidden lg:inline tabular-nums"
               style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5 }}
               data-testid="last-refresh">
           Last refresh {formatISTHM(lastRefresh)}
