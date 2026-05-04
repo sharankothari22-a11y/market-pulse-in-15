@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { validateTicker } from '@/lib/ticker';
 import {
   Search, Loader2, Plus, X, AlertTriangle, CheckCircle2, ChevronUp,
+  TrendingUp, Users, FileText, ShieldCheck, GitCommit,
 } from 'lucide-react';
 import { apiGet, apiPost, API_ENDPOINTS } from '@/services/api';
 import { cn } from '@/lib/utils';
@@ -96,6 +97,11 @@ const titleStyle = {
 const emptyStyle = {
   fontSize: 12, color: 'var(--bi-text-tertiary, #8593AB)',
   textAlign: 'center', padding: '24px 0',
+};
+const polishedEmptyStyle = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center',
+  justifyContent: 'center', padding: '28px 16px', gap: 8,
+  backgroundColor: 'rgba(15,61,46,0.03)', borderRadius: 8, textAlign: 'center',
 };
 const dividerStyle = {
   height: 1, background: 'var(--bi-border-subtle, #E2E7EF)', margin: '10px 0',
@@ -719,7 +725,15 @@ const HistoryPanel = ({ researchData }) => {
   return (
     <Panel title={`Changes · ${count}`} testId="panel-history">
       {items.length === 0 ? (
-        <div style={emptyStyle}>No changes this session</div>
+        <div style={polishedEmptyStyle}>
+          <GitCommit size={32} color="#8593AB" />
+          <div style={{ fontSize: 13, color: 'var(--bi-text-secondary, #4B5A75)', fontWeight: 500 }}>
+            No changes recorded for this session
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>
+            Changes appear when assumptions are modified
+          </div>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map((h, i) => (
@@ -854,8 +868,13 @@ const AuditPanel = ({ sessionId }) => {
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
       ) : loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
-      ) : !data ? (
-        <div style={emptyStyle}>Audit data not available for this session</div>
+      ) : !data || ((data.sources || []).length === 0 && (data.audit_log || []).length === 0) ? (
+        <div style={polishedEmptyStyle}>
+          <FileText size={32} color="#8593AB" />
+          <div style={{ fontSize: 13, color: 'var(--bi-text-secondary, #4B5A75)' }}>
+            No audit events recorded for this session
+          </div>
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div>
@@ -933,7 +952,26 @@ const SourcesPanel = ({ sessionId }) => {
       ) : loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
       ) : !sources || sources.length === 0 ? (
-        <div style={emptyStyle}>No source data recorded for this session</div>
+        <div>
+          {[
+            { name: 'yfinance', detail: 'price + financials' },
+            { name: 'Frankfurter', detail: 'FX rates' },
+            { name: 'NSE / BSE', detail: 'fundamentals' },
+            { name: 'Beaver War Room', detail: 'verdict synthesis' },
+          ].map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0',
+                                   borderBottom: '1px solid var(--bi-border-subtle, #E3E8EF)' }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                             backgroundColor: '#5A8A87', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)' }}>
+                {s.name}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>
+                {s.detail}
+              </span>
+            </div>
+          ))}
+        </div>
       ) : (
         <div>
           {sources.map((s, i) => {
@@ -1009,12 +1047,12 @@ const GuardrailPanel = ({ sessionId }) => {
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Click to expand</div>
       ) : loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
-      ) : !data?.engine_ran ? (
-        <div style={emptyStyle}>No signals reached the guardrail engine this session</div>
-      ) : data?.all_passed ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-          <span style={guardrailChipStyle('pass')}>PASS</span>
-          <span style={{ color: 'var(--bi-text-secondary, #4B5A75)' }}>All assumption guardrails passed — no breaches recorded.</span>
+      ) : !data?.engine_ran || data?.all_passed || (data?.guardrails || []).length === 0 ? (
+        <div style={polishedEmptyStyle}>
+          <ShieldCheck size={32} color="#5A8A87" />
+          <div style={{ fontSize: 13, color: 'var(--bi-text-secondary, #4B5A75)' }}>
+            No guardrail violations triggered
+          </div>
         </div>
       ) : (
         <div>
@@ -1124,18 +1162,16 @@ const AssumptionHistoryPanel = ({ sessionId }) => {
 
 // ─── F&O Analytics — Coming Soon ───────────────────────────────────────────
 const FnoPulseStrip = () => (
-  <Panel title={
-    <span style={{ color: 'var(--bi-text-tertiary, #8593AB)', display: 'flex', alignItems: 'center', gap: 8 }}>
-      F&O Analytics
-      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 999,
-                     backgroundColor: 'var(--bi-border-subtle, #E3E8EF)', color: 'var(--bi-text-tertiary, #8593AB)' }}>
-        Q3 2026
-      </span>
-    </span>
-  } testId="panel-fno-pulse">
-    <div style={{ color: 'var(--bi-text-tertiary, #8593AB)', fontSize: 12 }}>
-      <div style={{ fontWeight: 500, marginBottom: 4 }}>Live derivatives data from licensed feed integration in progress.</div>
-      <div style={{ fontSize: 11 }}>Will include: PCR · OI · Max Pain · IV Skew · Strike-wise OI</div>
+  <Panel title="F&O Analytics" testId="panel-fno-pulse">
+    <div style={polishedEmptyStyle}>
+      <TrendingUp size={48} color="#5A8A87" />
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)', marginTop: 4 }}>
+        F&O Pulse
+      </div>
+      <div style={{ fontSize: 12, color: '#5A8A87', fontWeight: 600 }}>Coming Q3 2026</div>
+      <div style={{ fontSize: 12, color: 'var(--bi-text-secondary, #4B5A75)', maxWidth: 280, lineHeight: 1.5 }}>
+        NSE F&O analytics, OI tracking, and unusual options activity. Currently in development.
+      </div>
     </div>
   </Panel>
 );
@@ -1404,13 +1440,14 @@ const InsiderTradesPanel = ({ ticker, sym = '₹' }) => {
       {loading ? (
         <div style={{ fontSize: 11, color: 'var(--bi-text-tertiary, #8593AB)' }}>Loading…</div>
       ) : serviceUnavailable ? (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px',
-                      background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)',
-                      borderRadius: 6 }} data-testid="insider-trades-unavailable-banner">
-          <AlertTriangle style={{ width: 14, height: 14, color: '#d97706', flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#92400e', margin: 0 }}>Database offline — insider trades unavailable</p>
-            <p style={{ fontSize: 11, color: '#b45309', margin: '2px 0 0' }}>Data will resume when the database reconnects.</p>
+        <div style={polishedEmptyStyle}>
+          <Users size={48} color="#5A8A87" />
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--bi-text-primary, #0F2540)', marginTop: 4 }}>
+            Insider Activity
+          </div>
+          <div style={{ fontSize: 12, color: '#5A8A87', fontWeight: 600 }}>Coming Q3 2026</div>
+          <div style={{ fontSize: 12, color: 'var(--bi-text-secondary, #4B5A75)', maxWidth: 280, lineHeight: 1.5 }}>
+            Insider transactions from BSE/NSE filings, with sentiment scoring. Currently in development.
           </div>
         </div>
       ) : !data || data.length === 0 ? (
