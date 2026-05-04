@@ -42,3 +42,9 @@ notebooks/DCF_Output_*.debug.json
 
 # Research platform runtime-generated sessions
 notebooks/research_platform/ai_engine/sessions/
+
+# Cache files (regenerated on analysis runs)
+backend/cache/
+
+# Generated report artifacts
+/r.html
